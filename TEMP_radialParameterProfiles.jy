@@ -1,0 +1,348 @@
+# ############################################################################################
+
+def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    """Integral part of Hanningfft subroutine, makes the slide function possible by trimming off the beginning of the data set and reapplying the Hanning windowing function, then resorting the result back into the dataset. 
+    
+    Parameters:
+        ds = The rank1 dataset upon which to perform trimming and windowing.
+        ds_time = The DEPEND_0 component of ds (often stripped off when performing the Hanningfft routine).
+        processed_ds = The already windowed rank2 version of ds from previous iterations.
+        window = Size of window to be taken measured in number of data points.
+        leading_points = The number of points to be trimmed from beginning of ds (typically iterated over window*(i+1)/slide)
+        
+    Outputs:
+        result = merged processed rank2 version of ds."""
+    
+    ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    
+    trimmed_ds = trim(ds,int(leading_points),int(len(ds)))
+    trimmed_ds.putProperty( QDataSet.DEPEND_0 , trim(ds_time,int(leading_points),int(len(ds))) )
+    
+    processed_ds_too = hanning( trimmed_ds , window )
+    processed_ds_too.putProperty( QDataSet.DEPEND_1 , ds.property(QDataSet.DEPEND_1) )
+    
+    processed_ds_time = processed_ds.property( QDataSet.DEPEND_0 )
+    processed_ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
+    
+    result = merge( processed_ds , processed_ds_too )
+    return( result )
+
+# ############################################################################################
+
+def Hanningfft( ds , freq_min , freq_max , window , slide ):
+    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        freq_max = Upper end of frequency range.
+        window = Length of window to be taken measured in number of data points.
+        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+        
+    Returns:
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    
+    ds_time = ds.property(QDataSet.DEPEND_0)
+    
+    ds_cadence = convertUnitsTo((ds_time[1]-ds_time[0]),Units.seconds)
+    #per_sec = int(1./ds_cadence)
+    per_sec = (1./ds_cadence)
+    
+    processed_ds = hanning(ds,window)
+
+    for i in xrange( slide ):
+        try:
+            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        except( java.lang.ArrayIndexOutOfBoundsException ):
+            pass
+
+    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+
+    for i in xrange( len(processed_ds[:,0]) ):
+        processed_ds_fft = 2 * fft( processed_ds[i,:] )
+        TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/per_sec) / 1.725
+
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , processed_ds.property(QDataSet.DEPEND_0) )
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , processed_ds_fft[:,0].property(QDataSet.DEPEND_0)*per_sec )
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+
+    frequency_range = where( TEMP_waveform_fft.property(QDataSet.DEPEND_1).ge(freq_min).and(TEMP_waveform_fft.property(QDataSet.DEPEND_1).le(freq_max)) )
+    waveform_fft = TEMP_waveform_fft[:,frequency_range,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_1 , TEMP_waveform_fft.property(QDataSet.DEPEND_1)[frequency_range] )
+    del ( TEMP_waveform_fft )
+    
+    uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+    waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+    waveform_fft = waveform_fft[uniqueness,:,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+    
+    return ( waveform_fft )
+        
+
+# ############################################################################################ 
+
+def fft_power( ds_fft , fft_time , frequency_axis ):
+    ds_fft_power = ds_fft[:,:,0]**2 + ds_fft[:,:,1]**2
+    ds_fft_power.putProperty(QDataSet.DEPEND_0,fft_time)
+    ds_fft_power.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    
+    return(ds_fft_power)
+    
+# ############################################################################################       
+
+import java
+import org
+from org.virbo.dsutil import LinFit
+#from org.qautoplot.fi import LinFit
+monitor.started()
+monitor.setLabel('SPC Radial Comparison')
+monitor.setProgressMessage('Loading PSP Data')
+
+tr = '2018-10-28 through 2018-11-13'
+
+radial_crossover           = 3.7056E7  # Distance where inbound and outbound orbital paths cross
+min_longitude              = -44
+max_longitude              = -22
+number_of_segments         = 1000      # Integer number of slices of longitude space
+radial_separation_min      = 2E3       # Minimum radial separation between groups of observations
+
+sweap_L3 = 'http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?timerange=%s'%tr
+sweap_L2 = 'http://sweap.cfa.harvard.edu/data/spc/L2/2018/11/spp_swp_spc_l2_20181104_v10.cdf?timerange=%s'%tr
+
+# Load data variables
+v_rtn         = getDataSet(sweap_L3+'&vp_moment_RTN')
+np_fit        = getDataSet(sweap_L3+'&np_fit')
+wp_fit        = getDataSet(sweap_L3+'&wp_fit')
+lon           = getDataSet(sweap_L3+'&carr_longitude')
+sc_pos_HCI    = getDataSet(sweap_L3+'&sc_pos_HCI')
+time          = getDataSet(sweap_L3+'&Epoch')
+
+# Take a subset of the data within the interesting longitude range
+subset        = where(ge(lon,min_longitude).and(le(lon,max_longitude)))
+v_rtn         = v_rtn[subset]
+np_fit        = np_fit[subset]
+wp_fit        = wp_fit[subset]
+lon           = lon[subset]
+sc_pos_HCI    = sc_pos_HCI[subset]
+time          = time[subset]
+
+
+radial_solar_dist = magnitude(sc_pos_HCI)
+
+plot(0,radial_solar_dist,lon,v_rtn[:,0])
+
+
+segments = linspace(min_longitude,max_longitude,number_of_segments)
+
+        
+def jumpRatiosTimeDiff(ds,j,last_j,last_last_j,jumpCounter) :
+    if jumpCounter == 0:
+        ds_ratio = None
+        timeDiff = None
+    elif jumpCounter >  0:
+        ds_out = mean(ds[last_j:j])
+        ds_in  = mean(ds[last_last_j:last_j])
+        ds_ratio = ds_out/ds_in
+        timeDiff = max(ds[last_last_j:j].property(QDataSet.DEPEND_0)) - min(ds[last_last_j:j].property(QDataSet.DEPEND_0))
+        
+def jumpRatios(ds,j,last_j,last_last_j,jumpCounter) :
+    if jumpCounter == 0:
+        ds_ratio = None
+    elif jumpCounter >  0:
+        ds_out = mean(ds[last_j:j])
+        ds_in  = mean(ds[last_last_j:last_j])
+        ds_ratio = ds_out/ds_in
+    return(ds_ratio)
+    
+def jumpDifference(ds,j,last_j,last_last_j,jumpCounter) :
+    if jumpCounter == 0:
+        ds_diff = None
+    elif jumpCounter >  0:
+        ds_out = mean(ds[last_j:j])
+        ds_in  = mean(ds[last_last_j:last_j])
+        ds_diff = ds_out - ds_in
+    return(ds_diff)
+    
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+
+# Define final dataset variables
+vr_ratio         = None
+np_ratio         = None
+wp_ratio         = None
+radial_ratio     = None
+time_difference  = None
+
+slopes           = None
+slopes_r         = None
+
+# Iterate over number of segments to compare values at outer and inner 
+monitor.setTaskSize(number_of_segments)
+for i in xrange(len(segments)-1):
+    monitor.setTaskProgress(i)
+    monitor.setProgressMessage('Comparing Data in Lon. Segments')
+    
+    lon_seg = where(ge(lon,segments[i]).and(le(lon,segments[i+1])))
+    
+    s = sort(radial_solar_dist[lon_seg])
+    jumps = where(ge(diff(radial_solar_dist[lon_seg][s]),2E3))
+    
+    
+    last_last_j = 0
+    last_j = 0
+    jumpCounter = 0
+    for j in jumps:
+#        TEMP_np_ratio,TEMP_timeDiff = jumpRatiosTimeDiff(np_fit[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+#        TEMP_wp_ratio,TEMP_timeDiff = jumpRatiosTimeDiff(wp_fit[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+#        TEMP_vr_ratio,TEMP_timeDiff = jumpRatiosTimeDiff(v_rtn[:,0][lon_seg][s],j,last_j,last_last_j,jumpCounter)
+#        TEMP_radial_ratio,TEMP_timeDiff = jumpRatiosTimeDiff(radial_solar_dist[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+#        TEMP_radial_ratio,TEMP_timeDiff = jumpRatiosTimeDiff(radial_solar_dist[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+        TEMP_np_ratio = jumpRatios(np_fit[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+        TEMP_wp_ratio = jumpRatios(wp_fit[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+        TEMP_vr_ratio = jumpRatios(v_rtn[:,0][lon_seg][s],j,last_j,last_last_j,jumpCounter)
+        TEMP_radial_ratio = jumpRatios(radial_solar_dist[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+        TEMP_radial_ratio = jumpRatios(radial_solar_dist[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+        
+        TEMP_timeDiff = jumpDifference(time[lon_seg][s],j,last_j,last_last_j,jumpCounter)
+        
+        last_last_j = last_j
+        last_j = j
+        jumpCounter = jumpCounter + 1
+        
+        try:
+            np_ratio = append(np_ratio,TEMP_np_ratio)
+            wp_ratio = append(wp_ratio,TEMP_wp_ratio)
+            vr_ratio = append(vr_ratio,TEMP_vr_ratio)
+            radial_ratio = append(radial_ratio,TEMP_radial_ratio)
+            time_difference = append(time_difference,TEMP_timeDiff)
+        except:
+            continue
+            
+dss = [np_ratio,wp_ratio,vr_ratio,radial_ratio]            
+putProps( dss, name='VALID_MIN', value=0 )
+putProps( dss, name='VALID_MAX', value=1E5 )
+
+time_difference = convertUnitsTo(time_difference,Units.hours)         
+putProps( time_difference, name='VALID_MIN', value=-1E3 )
+putProps( time_difference, name='VALID_MAX', value=1E3 )
+                        
+plot(1,radial_ratio,np_ratio,time_difference,renderType='colorScatter',symsize=4,ytitle='np_out/np_in',ztitle='Time Difference!C(%{UNITS})')
+plot(2,radial_ratio,wp_ratio,time_difference,renderType='colorScatter',symsize=4,ytitle='wp_out/wp_in',ztitle='Time Difference!C(%{UNITS})')
+plot(3,radial_ratio,vr_ratio,time_difference,renderType='colorScatter',symsize=4,ytitle='vr_out/vr_in',ztitle='Time Difference!C(%{UNITS})',xtitle='r_out/r_in')
+stop
+    
+    
+#    lf= LinFit( radial_solar_dist[lon_seg] , np_fit[lon_seg] )
+#
+#    a= lf.getA()
+#    b= lf.getB()
+#
+#    #TEMP_something = bundle(TEMP_something,radial_solar_dist[lon_seg]*b)
+#    TEMP_something = append(TEMP_something,radial_solar_dist[lon_seg]*b+a)
+#    TEMP_radial = append(TEMP_radial,radial_solar_dist[lon_seg])
+#    slopes = append(slopes,dataset(b))
+#    slopes_r = append(slopes_r,max(radial_solar_dist[lon_seg]))
+#
+#    #plotx( 1, xx, xx*b + a, color='red' )
+#
+#    outer = where(ge(radial_solar_dist[lon_seg],radial_crossover))
+#    inner = where(lt(radial_solar_dist[lon_seg],radial_crossover))
+#    try:
+#        temp_vr_ratio = mean(v_rtn[:,0][lon_seg][outer]) / mean(v_rtn[:,0][lon_seg][inner])
+#        temp_np_ratio = mean(np_fit[lon_seg][outer]) / mean(np_fit[lon_seg][inner])
+#        temp_radial_separation = mean(radial_solar_dist[lon_seg][outer]) - mean(radial_solar_dist[lon_seg][inner])
+#        vr_ratio = append(vr_ratio,temp_vr_ratio)
+#        np_ratio = append(np_ratio,temp_np_ratio)
+#        radial_separation = append(radial_separation , temp_radial_separation )
+#    except:
+#        continue
+#
+#radial_separation.putProperty(QDataSet.VALID_MIN,0)
+#radial_separation.putProperty(QDataSet.VALID_MAX,1E9)
+#
+#vr_ratio.putProperty(QDataSet.VALID_MIN,0)
+#vr_ratio.putProperty(QDataSet.VALID_MAX,1E10)
+#
+#
+#
+#plot(1,radial_separation,np_ratio,renderType='scatter')
+#plot(2,TEMP_radial,TEMP_something)
+#plot(2,slopes_r,slopes)
+#stop
+#
+#lon_seg = where(ge(lon,-32).and(le(lon,-31)))
+#
+#plot(1,radial_solar_dist[lon_seg],lon[lon_seg],v_rtn[:,0][lon_seg])
+#
+#
+#plot(2,radial_solar_dist[lon_seg],v_rtn[:,0][lon_seg],renderType='scatter')
+#
+#
+#
+#
+#STOP
+
+
+
+
+
+
+
+
+
+
+
+#tp = TimeParser.create('$Y-$m-$d')
+#tr_time = tp.parse(tr).getTimeRange()
+
+
+sweap_L3 = 'http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v05.cdf?'
+
+
+
+tr_time = getTimeRangesFor( sweap_L3, tr, '$Y$m$d' )
+for dd in tr_time:
+    print dd
+    #sweap_L3 = 'http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?timerange=%s'%dd
+    load = []
+    cc = getCompletions(sweap_L3)
+    
+    for c in cc:
+        print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+        print c
+#        try:
+#            met = getMetadata(c+'&timerange=%s'%dd,None)
+#            print met
+#        except:
+#            print 'No such variable'
+        if ( c.endswith('=') ):
+            continue
+        load.append( c )
+
+stop
+
+v_r_downsample = smooth(v_rtn[:,0],10)[::10]
+
+#plot(0,lon[::10],v_r_downsample)
+
+time_downsample = v_r_downsample.property(QDataSet.DEPEND_0)
+
+plot(0,lon[::10],v_r_downsample,time_downsample)
+s = sort(time_downsample)
+
+
+plot(1,v_r_downsample[s],renderType='series')
+stop
+
+#vr_fft = fft(v_r_downsample,128,8,'Hanning')
+freq_min = 0.1
+freq_max = 30
+window = 128
+slide = 8
+vr_fft = Hanningfft( v_rtn[:,0] , freq_min , freq_max , window , slide )
+
+vr_fft_power = fft_power( vr_fft , vr_fft[:,:,0].property(QDataSet.DEPEND_0) , vr_fft[:,:,0].property(QDataSet.DEPEND_1) )
+
+plot(1,vr_fft_power)

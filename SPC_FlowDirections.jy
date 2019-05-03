@@ -1,0 +1,42 @@
+#dqf = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?DQF&timerange=2018-307+9:00+to+18:00')
+#
+#for j in xrange(len(dqf[0,:])):
+#    print dqf[:,j]
+    
+tr = '2018-11-02 12:45 to 13:00'
+    
+spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
+spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
+spc_c = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?c_current',tr)
+spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?d_current',tr)
+
+print spc_a
+
+spc_list = [spc_a,spc_b,spc_c,spc_d]
+
+for l in spc_list:
+    trim(l,tr)
+    
+print spc_a
+
+spc_a = trim(spc_a,tr)
+spc_b = trim(spc_b,tr)
+spc_c = trim(spc_c,tr)
+spc_d = trim(spc_d,tr)
+print spc_a
+
+spc_list = [spc_a,spc_b,spc_c,spc_d]
+i=0
+#for l in spc_list:
+#    plot(i,l)
+#    i = i+1
+#STOP
+totalFlux = sum(spc_list)
+
+fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
+fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
+
+plot(0,totalFlux)
+plot(1,fluxDifference_scx)
+plot(2,fluxDifference_scy)
+

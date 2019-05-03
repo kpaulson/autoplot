@@ -1,0 +1,63 @@
+
+from org.apache.commons import *
+
+from org.apache.commons.math.optimization.fitting import CurveFitter
+from org.apache.commons.math.optimization.fitting import *
+from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+
+#from org.apache.commons.math.optimization.fitting import GaussianFunction
+#from org.apache.commons.math.optimization.fitting import GaussianParametersGuesser
+#from org.apache.commons.math.optimization.fitting import GaussianFitter
+
+
+
+x = linspace(-5,5,1000)
+
+a = rand(1).value(0)
+b = rand(1).value(0)
+c = rand(1).value(0)
+d = rand(1).value(0)
+
+gauss = a + b*exp(-((x - c)**2 / (2*d**2)))
+
+
+plot(0,x,gauss)
+
+stop
+
+
+class function(ParametricRealFunction):
+    def value(self, x, params):
+        a = params[0]
+        b = params[1]
+        c = params[2]
+        d = params[3]
+        return (a + b*exp(-((x - c)**2 / (2*d**2))))
+    def gradient(self, x, params):
+        a = params[0]
+        b = params[1]
+        c = params[2]
+        d = params[3]
+        return [sin(b*x+c),(a*x*cos(b*x+c)),a*cos(b*x+c),1]  
+
+
+        
+f = function()
+ftr = CurveFitter(LevenbergMarquardtOptimizer())
+
+for i in xrange(len(time)):
+    ftr.addObservedPoint(float(time[i]),float(val[i]))
+
+initial_guess_params = [0.5,0.5,0.5,0.5]
+
+result = ftr.fit(f,initial_guess_params)
+
+print 'result: ', result
+
+yy= zeros( x.length() )
+for i in xrange(x.length()):
+    yy[i]= f.value(x[i],result)
+#yy= map( f.value, time, result )  I can't figure out this one.
+
+plot( 1, x, yy, color=Color.RED, lineWidth=3 )

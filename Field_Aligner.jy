@@ -1,3 +1,4 @@
+# ############################################################################################
 
 def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
     """Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
@@ -114,3 +115,6 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
     
     
     return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+    
+    
+    # ############################################################################################

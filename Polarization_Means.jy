@@ -1,3 +1,4 @@
+# ############################################################################################
         
 def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     """Polarization analysis performed on spectral components based on [Means 1972].
@@ -301,3 +302,5 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     
     return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization ) 
 
+
+# ############################################################################################

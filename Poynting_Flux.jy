@@ -1,0 +1,130 @@
+#############################################################################################   
+        
+def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_min ):
+    """3D Poynting analysis performed on spectral components.
+    
+    Parameters:
+        Bn_fft = rank3 fft of field-aligned magnetic component.
+        Bp_fft = rank3 fft of first perpendicular magnetic component.
+        Bq_fft = rank3 fft of second perpendicular magnetic component.
+        En_fft = rank3 fft of field-aligned electric component.
+        Ep_fft = rank3 fft of first perpendicular electric component.
+        Eq_fft = rank3 fft of second perpendicular electric component.
+        poynting_min = minimum value of Poynting flux to be kept in mW/m/Hz (all lower values discarded).
+    
+    Returns:
+        Smag , Poynting_theta, Poynting_phi, Sn, Sp, Sq, TEMP_Sn, TEMP_Sp, TEMP_Sq"""
+    
+    ###
+    ### RUN POYNTING FLUX ANALYSIS
+    ###
+    
+    monitor.setProgressMessage('Calculating Poynting Flux')
+    # try:
+          # TEMP_MLat = getDataSet( ephem_file+'&column=EDMAG_MLAT' )
+    # except:
+        # try:
+            # TEMP_MLat = getDataSet(ephem_file_T89D+'&column=EDMAG_MLAT') 
+        # except:
+            # try:
+                # TEMP_MLat = getDataSet(ephem_file_T89Q+'&column=EDMAG_MLAT') 
+            # except:
+                # TEMP_MLat = getDataSet(ephem_file_OP77Q+'&column=EDMAG_MLAT')
+                    
+    # ephem_time = TEMP_MLat.property(QDataSet.DEPEND_0)
+    
+    # if ( len(ephem_time) != len(uniq(ephem_time)) ):
+        # uniqueness = uniq(ephem_time)
+        # ephem_time = ephem_time[uniqueness] 
+        # TEMP_MLat = TEMP_MLat[uniqueness] 
+    
+    # fft_time = Bn_fft.property( QDataSet.DEPEND_0 )       
+    # frequency_axis = Bn_fft.property( QDataSet.DEPEND_1 )  
+        
+    # ephem_to_fft_time_ratio = findex( ephem_time , fft_time )
+    # MLat_fftcadence = interpolate ( TEMP_MLat , ephem_to_fft_time_ratio )
+    # del ( TEMP_MLat )
+
+    TEMP_Sn = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
+    TEMP_Sp = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
+    TEMP_Sq = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
+
+    TEMP_Sp = ( ( (En_fft[:,:,0]*Bq_fft[:,:,0]) + (En_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bn_fft[:,:,0]) + (Eq_fft[:,:,1]*Bn_fft[:,:,1]) ) ) / 2
+    TEMP_Sq = ( ( (Ep_fft[:,:,0]*Bn_fft[:,:,0]) + (Ep_fft[:,:,1]*Bn_fft[:,:,1]) ) - ( (En_fft[:,:,0]*Bp_fft[:,:,0]) + (En_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2
+    TEMP_Sn = ( ( (Ep_fft[:,:,0]*Bq_fft[:,:,0]) + (Ep_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bp_fft[:,:,0]) + (Eq_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2
+	
+    # if( poynting_flux_relative_to_equator == 'T' ):
+        # for i in xrange( len(Bn_fft[:,1,0]) ):
+            # if ( MLat_fftcadence[i] < 0 ):
+                # TEMP_Sn[i,:] = -( ( (Ep_fft[i,:,0]*Bq_fft[i,:,0]) + (Ep_fft[i,:,1]*Bq_fft[i,:,1]) ) - ( (Eq_fft[i,:,0]*Bp_fft[i,:,0]) + (Eq_fft[i,:,1]*Bp_fft[i,:,1]) ) ) / 2
+            # else:
+                # TEMP_Sn[i,:] = ( ( (Ep_fft[i,:,0]*Bq_fft[i,:,0]) + (Ep_fft[i,:,1]*Bq_fft[i,:,1]) ) - ( (Eq_fft[i,:,0]*Bp_fft[i,:,0]) + (Eq_fft[i,:,1]*Bp_fft[i,:,1]) ) ) / 2
+    # else:
+        # TEMP_Sn = ( ( (Ep_fft[:,:,0]*Bq_fft[:,:,0]) + (Ep_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bp_fft[:,:,0]) + (Eq_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2
+    
+    
+    #etrace = ( (Ep_fft[:,:,0]*Ep_fft[:,:,0]) + (Ep_fft[:,:,1]*Ep_fft[:,:,1]) ) + ( (Eq_fft[:,:,0]*Eq_fft[:,:,0]) + (Eq_fft[:,:,1]*Eq_fft[:,:,1]) ) + ( (En_fft[:,:,0]*En_fft[:,:,0]) + (En_fft[:,:,1]*En_fft[:,:,1]) )
+
+    del ( [ En_fft , Ep_fft , Eq_fft ] )
+
+    Smag = sqrt(TEMP_Sn**2 + TEMP_Sp**2 + TEMP_Sq**2)
+
+    putProps( [ Smag ], QDataSet.DEPEND_0, fft_time )
+    putProps( [ Smag ], QDataSet.DEPEND_1, frequency_axis )
+    
+    putProps( [ TEMP_Sn ], QDataSet.DEPEND_0, fft_time )
+    putProps( [ TEMP_Sn ], QDataSet.DEPEND_1, frequency_axis )
+    putProps( [ TEMP_Sp ], QDataSet.DEPEND_0, fft_time )
+    putProps( [ TEMP_Sp ], QDataSet.DEPEND_1, frequency_axis )
+    putProps( [ TEMP_Sq ], QDataSet.DEPEND_0, fft_time )
+    putProps( [ TEMP_Sq ], QDataSet.DEPEND_1, frequency_axis )
+    
+    Smag.putProperty( QDataSet.UNITS , wpm2 )
+
+    Sn = TEMP_Sn / Smag
+    Sp = TEMP_Sp / Smag
+    Sq = TEMP_Sq / Smag
+
+    Poynting_theta = acos( Sn ) * ( 180 / PI )
+    Poynting_phi = atan2( Sp , Sq ) * ( 180 / PI )
+
+    if (poynting_min > 0 ): # this executes a step function zero-ing out poynting flux where there are no waves, since I am plotting it as a factor of total flux
+        r = where(lt(Smag,poynting_min))
+        Poynting_theta[r] = -1
+        Poynting_phi[r]   = -181
+        Sn[r]             = -1E38
+        Sp[r]             = -1E38
+        Sq[r]             = -1E38
+        TEMP_Sn[r]        = -1E38
+        TEMP_Sp[r]        = -1E38
+        TEMP_Sq[r]        = -1E38
+		# for j in xrange( len(Sn[1,:]) ):
+                # for i in xrange( len(Sn[:,1]) ):
+                      # if ( Smag[i,j] < poynting_min ):
+                            # Poynting_theta[i,j] = -1
+                            # Poynting_phi[i,j] = -181
+                            # Sn[i,j] = -1E38
+                            # Sp[i,j] = -1E38
+                            # Sq[i,j] = -1E38
+                            # TEMP_Sn[i,j] = -1E38
+                            # TEMP_Sp[i,j] = -1E38
+                            # TEMP_Sq[i,j] = -1E38
+
+    #del ( [ Sn , Sp , Sq , TEMP_Sn , TEMP_Sp , TEMP_Sq ] )
+    
+    Poynting_theta.putProperty ( QDataSet.DEPEND_0 , fft_time )
+    Poynting_theta.putProperty ( QDataSet.DEPEND_1 , frequency_axis )
+    Poynting_theta.putProperty ( QDataSet.VALID_MIN , 0 )
+   
+    Poynting_phi.putProperty ( QDataSet.DEPEND_0 , fft_time )
+    Poynting_phi.putProperty ( QDataSet.DEPEND_1 , frequency_axis )
+    Poynting_phi.putProperty ( QDataSet.VALID_MIN , -180 ) 
+    
+    ###
+    ### SPIT OUT RESULTS
+    ###
+    
+    return ( Smag , Poynting_theta, Poynting_phi, Sn, Sp, Sq, TEMP_Sn, TEMP_Sp, TEMP_Sq ) 
+      
+      
+#############################################################################################  

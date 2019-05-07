@@ -1,0 +1,8 @@
+numberOfPlots = len(dom.getPlots())
+
+for i in xrange(numberOfPlots-1):
+    dom.plots[i].xaxis.setDrawTickLabels(False)
+    dom.plots[i+1].setDisplayTitle(False)
+    
+waitUntilIdle()
+fixLayout()

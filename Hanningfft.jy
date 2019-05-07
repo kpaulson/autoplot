@@ -1,0 +1,52 @@
+# ############################################################################################
+
+def Hanningfft( ds , freq_min , freq_max , window , slide ):
+    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        freq_max = Upper end of frequency range.
+        window = Length of window to be taken measured in number of data points.
+        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+        
+    Returns:
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    
+    ds_time = ds.property(QDataSet.DEPEND_0)
+    
+    ds_cadence = convertUnitsTo((ds_time[1]-ds_time[0]),Units.seconds)
+    per_sec = int(1./ds_cadence)
+    
+    processed_ds = hanning(ds,window)
+
+    for i in xrange( slide ):
+        try:
+            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        except( java.lang.ArrayIndexOutOfBoundsException ):
+            pass
+
+    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+
+    for i in xrange( len(processed_ds[:,0]) ):
+        processed_ds_fft = 2 * fft( processed_ds[i,:] )
+        TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/per_sec) / 1.725
+
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , processed_ds.property(QDataSet.DEPEND_0) )
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , processed_ds_fft[:,0].property(QDataSet.DEPEND_0)*per_sec )
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+
+    frequency_range = where( TEMP_waveform_fft.property(QDataSet.DEPEND_1).ge(freq_min).and(TEMP_waveform_fft.property(QDataSet.DEPEND_1).le(freq_max)) )
+    waveform_fft = TEMP_waveform_fft[:,frequency_range,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_1 , TEMP_waveform_fft.property(QDataSet.DEPEND_1)[frequency_range] )
+    del ( TEMP_waveform_fft )
+    
+    uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+    waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+    waveform_fft = waveform_fft[uniqueness,:,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+    
+    return ( waveform_fft )
+        
+
+# ############################################################################################ 

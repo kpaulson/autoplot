@@ -10,50 +10,118 @@ from org.apache.commons.math.optimization.general import LevenbergMarquardtOptim
 #from org.apache.commons.math.optimization.fitting import GaussianParametersGuesser
 #from org.apache.commons.math.optimization.fitting import GaussianFitter
 
+setLayoutOverplot(2)
+
+#initial_guess_params = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+Peak1_center = getParam('Peak1 Center',0.5)
+Peak1_amplitude = getParam('Peak1 Amplitude',0.5)
+Peak1_width = getParam('Peak1 Width',0.5)
+
+Peak2_center = getParam('Peak2 Center',0.5)
+Peak2_amplitude = getParam('Peak2 Amplitude',0.5)
+Peak2_width = getParam('Peak2 Width',0.5)
+
+initial_guess_params = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
+
+x = linspace(-5,5,32*8)
+nf = 0.02  # Noise Factor
+
+randomSeed(354646)
+aa1 = rand(1).value(0)
+bb1 = rand(1).value(0)
+cc1 = rand(1).value(0)
+dd1 = rand(1).value(0)
+
+aa2 = rand(1).value(0)
+bb2 = rand(1).value(0)
+cc2 = rand(1).value(0)
+cc2 = cc1 * 2
+dd2 = rand(1).value(0)
+
+gauss1 = aa1 + bb1*exp(-((x - cc1)**2 / (2*dd1**2)))
+#gauss_noisy = (aa1 + (0.1*rand(x.length())) ) + (bb1 + (0.1*rand(x.length())) )*exp(-((x - cc1)**2 / (2*(dd1 + (0.1*rand(x.length())) )**2)))
+gauss_noisy = (aa1 + (nf*rand(x.length())) ) + (bb1 + (nf*rand(x.length())) )*exp(-((x - cc1)**2 / (2*(dd1 + (nf*rand(x.length())) )**2))) + (
+              (aa2 + (nf*rand(x.length())) ) + (bb2 + (nf*rand(x.length())) )*exp(-((x - cc2)**2 / (2*(dd2 + (nf*rand(x.length())) )**2))) )
+
+#gauss_noisy = (a + (0.1*rand(x.length())) ) + (b + (0.1*rand(x.length())) )*exp(-((x - c)**2 / (2*(d + (0.1*rand(x.length())) )**2)))
 
 
-x = linspace(-5,5,1000)
+plot(0,x,gauss_noisy)
+#plot(0,x,gauss)
 
-a = rand(1).value(0)
-b = rand(1).value(0)
-c = rand(1).value(0)
-d = rand(1).value(0)
-
-gauss = a + b*exp(-((x - c)**2 / (2*d**2)))
+#stop
 
 
-plot(0,x,gauss)
-
-stop
-
-
-class function(ParametricRealFunction):
+class GaussFit(ParametricRealFunction):
     def value(self, x, params):
-        a = params[0]
-        b = params[1]
-        c = params[2]
-        d = params[3]
-        return (a + b*exp(-((x - c)**2 / (2*d**2))))
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2))))
     def gradient(self, x, params):
-        a = params[0]
-        b = params[1]
-        c = params[2]
-        d = params[3]
-        return [sin(b*x+c),(a*x*cos(b*x+c)),a*cos(b*x+c),1]  
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        return [1,
+                exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2)))]  
+
+class GaussDoubleFit(ParametricRealFunction):
+    def value(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2)))) + (a2 + b2*exp(-((x - c2)**2 / (2*d2**2))))
+    def gradient(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        return [1,
+                exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2))),
+                1,
+                exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2)))]  
 
 
         
-f = function()
+f = GaussDoubleFit()
 ftr = CurveFitter(LevenbergMarquardtOptimizer())
 
-for i in xrange(len(time)):
-    ftr.addObservedPoint(float(time[i]),float(val[i]))
+for i in xrange(len(x)):
+    #ftr.addObservedPoint(float(x[i]),float(gauss[i]))
+    ftr.addObservedPoint(float(x[i]),float(gauss_noisy[i]))
 
-initial_guess_params = [0.5,0.5,0.5,0.5]
+#Peak2
+
 
 result = ftr.fit(f,initial_guess_params)
 
 print 'result: ', result
+
+print 'a = ',round(aa1,4),' guess:',round(result[0],4)
+print 'b = ',round(bb1,4),' guess:',round(result[1],4)
+print 'c = ',round(cc1,4),' guess:',round(result[2],4)
+print 'd = ',round(dd1,4),' guess:',round(result[3],4)
+print 'a = ',round(aa2,4),' guess:',round(result[4],4)
+print 'b = ',round(bb2,4),' guess:',round(result[5],4)
+print 'c = ',round(cc2,4),' guess:',round(result[6],4)
+print 'd = ',round(dd2,4),' guess:',round(result[7],4)
 
 yy= zeros( x.length() )
 for i in xrange(x.length()):

@@ -1,0 +1,18 @@
+
+dasPlot= dom.plots[0].controller.dasPlot
+
+from org.das2.event import BoxSelectorMouseModule
+
+mm= BoxSelectorMouseModule.create( dasPlot, 'runAnalysis' )
+
+from org.autoplot.JythonUtil import invokeScriptSoon
+
+def boxSelected(event):
+    drtr= event.getXRange()
+    tr= drtr.toString().replace(' ','+')
+    script= URI( PWD + 'echoTime.jy?timerange='+tr )
+    invokeScriptSoon( script, dom, monitor.getSubtaskMonitor('s1') )
+        
+mm.boxSelected=boxSelected
+
+dasPlot.dasMouseInputAdapter.primaryModule= mm

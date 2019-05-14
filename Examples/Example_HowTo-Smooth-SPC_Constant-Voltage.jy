@@ -1,0 +1,31 @@
+#smoo
+
+tr = '2018-11-03 19:19 to 19:20'
+   
+spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
+
+spc_a = trim(spc_a,tr)
+mv_lo = spc_a.property(QDataSet.DEPEND_1)
+formatDataSet(spc_a,'testCDF.cdf')
+plot(spc_a)
+
+r = where(le(mv_lo,150).or(ge(mv_lo,2000)))
+
+#spc_a = spc_a[r]
+spc_a = removeValues(spc_a,r)
+
+
+plot(1,spc_a)
+plot(2,smooth(spc_a,5))
+
+
+
+mv_lo = spc_a.property(QDataSet.DEPEND_1)
+for volts in mv_lo[0,:]:
+    r = where(eq(mv_lo,volts))
+    try:
+        spc_a[r] = smooth(spc_a[r],5)
+    except:
+        continue
+        
+plot(3,spc_a)

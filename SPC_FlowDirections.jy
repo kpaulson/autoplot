@@ -6,7 +6,8 @@
 #for j in xrange(len(dqf[0,:])):
 #    print dqf[:,j]
     
-tr = '2018-11-03 19:10 to 19:20'
+tr = '2018-11-03 19:00 to 19:20'
+#tr = '2018-11-03 19:19 to 19:20'
     
 spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
 spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
@@ -41,6 +42,26 @@ fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
 
 U = (fluxDifference_scy/totalFlux)/0.035
 V = (fluxDifference_scx/totalFlux)/0.035
+
+U.putProperty(QDataSet.VALID_MIN,None)
+V.putProperty(QDataSet.VALID_MIN,None)
+U.putProperty(QDataSet.VALID_MAX,None)
+V.putProperty(QDataSet.VALID_MAX,None)
+
+#r0 = where(valid(U)) *(-1) + 1
+#U[r0] = -180
+#r0 = where(valid(V)) *(-1) + 1
+#V[r0] = -180
+
+for j in xrange(len(U[0,:])):
+    try:
+        U[:,j] = medianFilter(U[:,j],3)
+    except:
+        continue
+    try:
+        V[:,j] = medianFilter(V[:,j],3)
+    except:
+        continue
 
 U.putProperty(QDataSet.UNITS,Units.degrees)
 V.putProperty(QDataSet.UNITS,Units.degrees)

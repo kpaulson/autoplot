@@ -115,10 +115,14 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
     
     Bn.putProperty(QDataSet.LABEL,'B!B||!N')
     Bn.putProperty(QDataSet.NAME,'B!B||!N')
-    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
-    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
-    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
-    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
+#    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
+#    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
+#    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
+#    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
+    Bp.putProperty(QDataSet.LABEL,'B!B&perp;x!N')
+    Bp.putProperty(QDataSet.NAME,'B!B&perp;x!N')
+    Bq.putProperty(QDataSet.LABEL,'B!B&perp;y!N')
+    Bq.putProperty(QDataSet.NAME,'B!B&perp;y!N')
     Btotal.putProperty(QDataSet.LABEL,'|B|')
     Btotal.putProperty(QDataSet.NAME,'|B|')
     
@@ -148,41 +152,28 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Returns:
         Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization"""
          
-    ###
-    ### RUN POLARIZATION ANALYSIS
-    ###
+    # ###
+    # ### RUN POLARIZATION ANALYSIS
+    # ###
   
     ###
     ### DEFINE J_PRIME (INPUT) MATRIX ELEMENTS
     ###
 
-#    monitor.setTaskProgress(41)
     monitor.setProgressMessage('Defining J-Prime Matrix Components')
 
-    #T = float( window * float(1.0/64.0) )
-    #scale = float( 1.0 / T ) * 2
-
     Jxx_prime = ( (Bp_fft[:,:,0]*Bp_fft[:,:,0]) + (Bp_fft[:,:,1]*Bp_fft[:,:,1]) )
-#    monitor.setTaskProgress(42)
     Jyy_prime = ( (Bq_fft[:,:,0]*Bq_fft[:,:,0]) + (Bq_fft[:,:,1]*Bq_fft[:,:,1]) )
-#    monitor.setTaskProgress(43)
     Jzz_prime = ( (Bn_fft[:,:,0]*Bn_fft[:,:,0]) + (Bn_fft[:,:,1]*Bn_fft[:,:,1]) )
-#    monitor.setTaskProgress(44)
 
     Jxy_prime_real = ( (Bp_fft[:,:,0]*Bq_fft[:,:,0]) + (Bp_fft[:,:,1]*Bq_fft[:,:,1]) )
-#    monitor.setTaskProgress(45)
     Jxy_prime_img = ( (Bq_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bq_fft[:,:,1]) )
-#    monitor.setTaskProgress(46)
 
     Jxz_prime_real = ( (Bp_fft[:,:,0]*Bn_fft[:,:,0]) + (Bp_fft[:,:,1]*Bn_fft[:,:,1]) )
-#    monitor.setTaskProgress(47)
     Jxz_prime_img = ( (Bn_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bn_fft[:,:,1]) )
-#    monitor.setTaskProgress(48)
 
     Jyz_prime_real = ( (Bn_fft[:,:,0]*Bq_fft[:,:,0]) + (Bn_fft[:,:,1]*Bq_fft[:,:,1]) )
-#    monitor.setTaskProgress(49)
     Jyz_prime_img = ( (Bq_fft[:,:,0]*Bn_fft[:,:,1]) - (Bn_fft[:,:,0]*Bq_fft[:,:,1]) )
-#    monitor.setTaskProgress(50)
 
     fft_time = Jxx_prime.property(QDataSet.DEPEND_0)
     frequency_axis = Jxx_prime.property(QDataSet.DEPEND_1)
@@ -193,7 +184,6 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### DEFINE K-HAT VECTOR (MEANS - IMAGINARY COMPONENTS)
     ###
 
-#    monitor.setTaskProgress(51)
     monitor.setProgressMessage('Finding Wave-Normal Direction (Means)')
 
     img_mag = sqrt( Jxy_prime_img**2 + Jxz_prime_img**2 + Jyz_prime_img**2 )
@@ -203,20 +193,6 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     kz = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
     trace = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
 
-    # for j in xrange( len(Jxx_prime[1,:]) ):
-          # for i in xrange( len(Jxx_prime[:,1]) ):
-                # if ( abs(img_mag[i,j]) < 1E-5 ): # linear polarizations will have zero off-diagonal imaginary components
-                      # trace[i,j] = Jxx_prime[i,j] + Jyy_prime[i,j] + Jzz_prime[i,j]
-                      # kx[i,j] = sqrt( Jxx_prime[i,j] / trace[i,j] )
-                      # ky[i,j] = Jxy_prime_real[i,j] / ( trace[i,j] * Jxx_prime[i,j] )
-                      # kz[i,j] = Jxz_prime_real[i,j] / ( trace[i,j] * Jxx_prime[i,j] )
-                # else: # for normal elliptical or circular polarizations
-                      # trace[i,j] = Jxx_prime[i,j] + Jyy_prime[i,j] + Jzz_prime[i,j]
-                      # kx[i,j] = Jyz_prime_img[i,j] / img_mag[i,j]
-                      # ky[i,j] = -Jxz_prime_img[i,j] / img_mag[i,j]
-                      # kz[i,j] = Jxy_prime_img[i,j] / img_mag[i,j]
-
-    
     trace = Jxx_prime + Jyy_prime + Jzz_prime
     r = where(lt(abs(img_mag) , 1E-5))
     kx[r] = sqrt( Jxx_prime[r] / trace[r] )
@@ -256,13 +232,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Ny_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
     Nz_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
     Nz_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
-    
-    # for j in xrange( len(kx[1,:]) ): #This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
-          # for i in xrange( len(kx[:,1]) ):
-                # if ( ( (kx[i,j] * Nx_fftarray[i,j]) + (ky[i,j]* Ny_fftarray[i,j]) + (kz[i,j] * Nz_fftarray[i,j]) ) < 0):
-                      # kx[i,j] = -kx[i,j]
-                      # ky[i,j] = -ky[i,j]
-                      # kz[i,j] = -kz[i,j]
+   
     #This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
     r = where(lt( ((kx * Nx_fftarray) + (ky* Ny_fftarray) + (kz * Nz_fftarray)) , 0 ))
     kx[r] = -kx[r]
@@ -273,28 +243,21 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### DEFINE WAVE-NORMAL COORDINATES AND ROTATE J-PRIME - DEFINE J MATRIX IN _|_ DIRECTIONS
     ###
 
-#    monitor.setTaskProgress(52)
     monitor.setProgressMessage('Creating Wave-Normal Coordinate System')
      
     theta = acos( kx*Nx_fftarray + ky*Ny_fftarray + kz*Nz_fftarray )
     factor = sin( theta )
-#    monitor.setTaskProgress(53)
     
     r = where(gt(theta , (PI/2)))
     theta[r] = PI - theta[r]
-    # for j in xrange( len(kx[1,:]) ):
-          # for i in xrange( len(kx[:,1]) ):
-                # if ( theta[i,j] > (PI/2) ):
-                      # theta[i,j] = PI - theta[i,j]
 
     Rx = ((ky * Nz_fftarray) - (kz * Ny_fftarray)) / factor # R_hat = k_hat x N_hat so is perpendicular to plane of wave normal and magnetic field
     Ry = ((kz * Nx_fftarray) - (kx * Nz_fftarray)) / factor
     Rz = ((kx * Ny_fftarray) - (ky * Nx_fftarray)) / factor
-#    monitor.setTaskProgress(70)
+
     Sx = (Ry * kz) - (Rz * ky)# S_hat = R_hat x k_hat so is in plane of wave normal and magnetic field
     Sy = (Rz * kx) - (Rx * kz)
     Sz = (Rx * ky) - (Ry * kx)
-#    monitor.setTaskProgress(71)
 
     Jxx = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
     Jyy = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
@@ -302,7 +265,6 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Jxy_real = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
     Jxy_img = dblarr( len( kx[:,1] ) , len( kx[1,:] ) ) 
 
-#    monitor.setTaskProgress(54)
     monitor.setProgressMessage('Rotating J-Prime into Wave-Normal')
 
     ###
@@ -328,38 +290,13 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### SMOOTHING OVER FREQUENCY BINS (NECESSARY FOR POLARIZATION COMPARISON ANALYSIS)
     ###
 
-#    monitor.setTaskProgress(55)
     monitor.setProgressMessage('Smoothing Across Frequency Bins')
-
-    # TEMP_Jxx = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
-    # TEMP_Jyy = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
-    # TEMP_Jzz = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
-    # TEMP_Jxy_real = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
-    # TEMP_Jxy_img = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
-    
     
     if ( len( Jxx[1,:] ) < 5 ):
           freq_avg = 3 #number of frequency bins to average over for polarization, must be odd (is 5 too much? Its is what is in Means paper)
     else:
           freq_avg = 5
 
-    # for i in xrange( len(Jxx[:,1]) ): #This is a pretty dumb way to do it, but I don't think boxcar average across y-axis is a function yet.
-          # TEMP_Jxx[:,i] = smooth( transpose( Jxx )[:,i] , freq_avg )
-          # TEMP_Jyy[:,i] = smooth( transpose(Jyy)[:,i] , freq_avg )
-          # TEMP_Jzz[:,i] = smooth( transpose(Jzz)[:,i] , freq_avg )
-          # TEMP_Jxy_real[:,i] = smooth( transpose(Jxy_real)[:,i] , freq_avg )
-          # TEMP_Jxy_img[:,i] = smooth( transpose(Jxy_img)[:,i] , freq_avg )
-
-# #    monitor.setTaskProgress(56)
-
-    # Jxx = transpose( TEMP_Jxx )
-    # Jyy = transpose( TEMP_Jyy )
-    # Jzz = transpose( TEMP_Jzz )
-    # Jxy_real = transpose( TEMP_Jxy_real )
-    # Jxy_img = transpose( TEMP_Jxy_img )
-    
-    # del ( [ TEMP_Jxx , TEMP_Jyy , TEMP_Jzz , TEMP_Jxy_real , TEMP_Jxy_img ] )
-    
     Jxx      = smooth1(Jxx     ,freq_avg)
     Jyy      = smooth1(Jyy     ,freq_avg)
     Jzz      = smooth1(Jzz     ,freq_avg)
@@ -376,38 +313,32 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### POWER IN MAGNETIC FIELD DIRECTIONS
     ###
 
-    #monitor.setTaskProgress(75)
     #monitor.setProgressMessage('Defining Wave Intensity')
 
     Power_compressional = Jzz_prime
     Power_perp = sqrt(Jxx**2 + Jyy**2) 
     #Power_transverse = Jxx_prime + Jyy_prime # upon recommendation from Chuck, this is the wave intensity rather than magnitude of diagonal elements
-                
-
-
+         
+         
     ###
     ### DEFINE POLARIZATION PARAMETERS USING J MATRIX
     ###
           
-    #monitor.setTaskProgress(76)
     #monitor.setProgressMessage('Calculating Degree of Polarization')
     Deg_Polarization = sqrt ( 1 - ( (4 * J_det) / ( (Jxx + Jyy)**2 ) ) )
     Deg_Polarization.putProperty ( QDataSet.VALID_MIN , 0 )
 
-    #monitor.setTaskProgress(77)
     #monitor.setProgressMessage('Calculating Coherency')
     Coherency = sqrt( (Jxy_real*Jxy_real + Jxy_img*Jxy_img) / (Jxx * Jyy) )
     Coherency.putProperty ( QDataSet.VALID_MIN , 0 )
 
     Angle_Polarization = toDegrees( 0.5 * atan((2 * Jxx) / (Jxx - Jyy)) ) # sure Jxx isn't supposed to be Jxy_real?
 
-#    monitor.setTaskProgress(57)
     monitor.setProgressMessage('Calculating Ellipticity and Handedness')
     Handedness = ( (1 * (2 * Jxy_img) / sqrt( (Jxx + Jyy)**2 - (4 * J_det) ) ))
     Ellipticity = ( tan ( 0.5 * asin( Handedness ) ))
     Ellipticity.putProperty ( QDataSet.VALID_MIN , -1 )
 
-#    monitor.setTaskProgress(58)
     monitor.setProgressMessage('Definining Wave-Normal angle relative to |B|')
     Angle_Normal = toDegrees( theta )
     Angle_Normal.putProperty ( QDataSet.VALID_MIN , 0 )
@@ -420,7 +351,6 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### ONLY KEEPING TERMS WITH WAVE POWER ASSOCIATED
     ###
     
-#    monitor.setTaskProgress(59)
     monitor.setProgressMessage('Throwing out Values of Low Wave Power')
     if ( wave_power_min > 0 ): # this executes a step function zero-ing out spectra where there are no waves (to make it easier to see what is happening) 
         r = where(lt(Wave_Power,wave_power_min))
@@ -517,242 +447,298 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
 # ############################################################################################
 # ############################################################################################
 
+# ############################################################################################
+# ############################################################################################
+
+
+
+timerange         = '2019-03-29 to 2019-04-30'
+
+freq_min          = 0.2    # Minimum frequency kept for analysis
+freq_max          = 8.     # Maximum frequency kept for analysis (cutting out unwanted data helps speed things up)
+window            = 2048   # Number of points for FFT window -> TODO: change this to seconds?
+slide             = 4      # Amount of overlap if sliding window (2=1/2, 4=3/4, 8=7/8, etc.)
+
+wave_power_min    = 0.07   # Minimum amount of wave power in (nT^2/Hz) to keep for analysis (set to 0 to skip)
+
+trend_seconds     = 10     # Number of seconds over which to average magField to determine background field direction
+
+logyn             = 'T'    # Display the frequency axis logarithmically, 'T' or 'F'?
+output_dir        = '/home/kpaulson/Research/PSP/Wave_Polarization/'      # Local directory for image/file storage
+
+    
+
+# ############################################################################################
+# ############################################################################################
+
+# ############################################################################################
+# ############################################################################################
+
 import java
 
-#tr                = '2018-11-03 18:40 to 19:40'
+power_min         = wave_power_min
+power_max         = 1E2
 
-freq_min          = 0.2
-freq_max          = 16.
-window            = 2048
-slide             = 8
-
-wave_power_min    = 1E-3
-
-trend_seconds     = 10
-
-dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ','2018-11-03')
+dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',timerange)
 monitor.started()
 monitor.setLabel('PSP Polarization')
 monitor.setTaskSize(len(dds))
 
 for ind in xrange(len(dds)):
     monitor.setTaskProgress(ind)
+    monitor.setProgressMessage('Downloading Data')
     
     if ind < len(dds)-1:
-        #tr = dds[ind]+' to '+str(dds[ind+1])
-        tr = dds[ind]+' to '+dds[ind+1]
-
-
-    mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-    mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
-    #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
-    mag = trim(mag,tr)
-    
-    mag_time = mag.property(QDataSet.DEPEND_0)
-    
-    pos = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
-    pos_time = pos.property(QDataSet.DEPEND_0)
-    
-    Bx = mag[:,0]
-    By = mag[:,1]
-    Bz = mag[:,2]
-    Btotal = magnitude(mag)
+        try:
+            #tr = dds[ind]+' to '+str(dds[ind+1])
+            tr = dds[ind]+' to '+dds[ind+1]
     
     
-    # ###
-    # ### ROTATE INTO FIELD-ALIGNED COORDINATES
-    # ###
-    
-    monitor.setProgressMessage('Rotating Data')
-    
-    TEMP_Rx = pos[:,0]  # Theoretically I would use a radial position vector to calculate the perpendicular field components.
-    TEMP_Ry = pos[:,1]
-    TEMP_Rz = pos[:,2]
-    
-    TEMP_Rx = ones(len(pos))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
-    TEMP_Ry = zeros(len(pos))
-    TEMP_Rz = zeros(len(pos))
-    TEMP_Rx.putProperty(QDataSet.DEPEND_0,pos_time)
-    TEMP_Ry.putProperty(QDataSet.DEPEND_0,pos_time)
-    TEMP_Rz.putProperty(QDataSet.DEPEND_0,pos_time)
-    
-    ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
-    
-    
-    # ###
-    # ### GENERATE FFTs
-    # ###
-    
-    monitor.setProgressMessage('Generating FFTs')
-    
-    Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
-    Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
-    Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
-    
-
-    # ###
-    # ### RUN POLARIZATION
-    # ###
-    
-    monitor.setProgressMessage('Running Polarization')
-
-    ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization , Wave_Power) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min )
-    
-    
-    # ###
-    # ### PREPARE STUFF
-    # ###
-    
-    
-    background_grey = java.awt.Color(216,216,216,255)
-    
-    if ( logyn == 'T'):
-      logfreq = 1
-    else:
-      logfreq = 0
-    
-    from org.das2.graph.DasColorBar.Type import APL_RAINBOW_BLACK0
-    from org.das2.graph.DasColorBar.Type import BLUE_WHITE_RED_WEDGE
-    from org.das2.graph.DasColorBar.Type import GRAYSCALE
-    from org.das2.graph.DasColorBar.Type import INVERSE_GRAYSCALE
-    from org.das2.graph.LegendPosition import *
-    
-    putProps([Bp, Bq, Bn ] , QDataSet.VALID_MAX , 1E10 )
-    putProps([Bp, Bq, Bn ] , QDataSet.VALID_MIN , -1E10 )
-    
-    
-    ###
-    ### PLOT STUFF
-    ###
-    
-    monitor.setProgressMessage('Plotting Parameters')
-    
-    r = where(Bp.ge(-1E10).and(Bp.ge(-1E10)).and(Bp.le(1E10).and(Bp.le(1E10))))
-    #Bp = Bp[r]
-    #Bn = Bn[r]
-    #Btime = Btime[r]
-    
-    y_max = 1.1 * max( max(abs(Bp[r])) , max(abs(Bn[r])) )
-    
-    setLayoutOverplot(2)
-    plotx ( 0 , Btime , Bp , yrange=[-y_max,y_max] , renderType='series' , title = 'Polarization parameters for RBSP-'+SPACECRAFT , ytitle='Field!CComponents' )
-    plotx ( 1 , Btime , Bn , yrange=[-y_max,y_max] , renderType='series' )
-    dom.plotElements[0].setDisplayLegend(True)
-    dom.plotElements[1].style.color= Color.BLUE
-    dom.plotElements[1].setDisplayLegend(True)
-    
-    plotx ( 2 , Wave_Power , ytitle='Frequency (Hz)', ylog=logfreq , yrange=[freq_min, freq_max] , zlog=1, zrange=[power_min , power_max], ztitle='Wave Intensity!C     (nT!U2!N/Hz)' )#, title = 'Polarization parameters for RBSP S/C-'+SC_upper+' - '+start_date+'T'+str(start_hour))
-    plotx ( 3 , Coherency , ylog=logfreq , yrange=[freq_min, freq_max] , ztitle='Coherency', zlog=0, zrange=[0,1] )
-    plotx ( 4 , Angle_Normal , ylog=logfreq , yrange=[freq_min, freq_max] , ztitle='Wave-Normal!CRelative to |B|', zrange=[0, 90])
-    plotx ( 5 , Ellipticity , ylog=logfreq , yrange=[freq_min, freq_max] , zrange=[-1 , 1], ztitle='     Ellipticity!CRH               LH')#, ztitle='              Ellipticity!C!BRight                         Left!C!BHand                       Hand!N' )
-    
-    monitor.setProgressMessage('Tweaking Plots')
-    waitUntilIdle()
-    
-    dom.plots[0].xaxis.drawTickLabels = 0
-    dom.plots[0].controller.dasColorBar.setFillColor(background_grey)
-    dom.plots[0].setDisplayLegend(True)
-    dom.plots[0].setLegendPosition(OutsideNE)
-    
-    dom.plots[1].xaxis.drawTickLabels = 0
-    dom.plots[1].displayTitle = 0
-    dom.plots[1].setColortable(APL_RAINBOW_BLACK0)
-    dom.plots[1].controller.dasColorBar.setFillColor(background_grey)
-    
-    dom.plots[2].xaxis.drawTickLabels = 0
-    dom.plots[2].displayTitle = 0
-    dom.plots[2].setColortable(GRAYSCALE)
-    dom.plots[2].controller.dasColorBar.setFillColor(background_grey)
-    
-    dom.plots[3].xaxis.drawTickLabels = 0
-    dom.plots[3].displayTitle = 0
-    dom.plots[3].setColortable(INVERSE_GRAYSCALE)
-    dom.plots[3].controller.dasColorBar.setFillColor(background_grey)
-    
-    dom.plots[4].displayTitle = 0
-    dom.plots[4].setColortable(BLUE_WHITE_RED_WEDGE)
-    dom.plots[4].controller.dasColorBar.setFillColor(background_grey)
-    #dom.plots[4].ticksURI = 'vap+das2server:http://emfisis.physics.uiowa.edu/das/das2Server?dataset=rbsp/ephemeris'+SPACECRAFT+'.dsdf&timerange='+str(starttitle)+' through '+str(endtitle)+'&interval=60'
-    
-    waitUntilIdle()
-    fixLayout()
-    
-    dom.plots[0].controller.dasPlot.row.ptMaximum = 10 #closes in gaps between windows after "Fix Layout" to be a little more compact
-    dom.plots[1].controller.dasPlot.row.ptMaximum = 10
-    dom.plots[2].controller.dasPlot.row.ptMaximum = 10
-    dom.plots[3].controller.dasPlot.row.ptMaximum = 10
-    dom.plots[4].controller.dasPlot.row.ptMaximum = 10
-    
-    dom.controller.bind( dom.plots[2].yaxis, dom.plots[2].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE ) #adds binding along frequency axis between plots
-    dom.controller.bind( dom.plots[3].yaxis, dom.plots[3].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
-    dom.controller.bind( dom.plots[4].yaxis, dom.plots[4].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
-    
-    dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[1].xaxis, dom.plots[1].xaxis.PROP_RANGE ) #adds binding along time axis between plots
-    dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[2].xaxis, dom.plots[2].xaxis.PROP_RANGE )
-    dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[3].xaxis, dom.plots[3].xaxis.PROP_RANGE )
-    dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[4].xaxis, dom.plots[4].xaxis.PROP_RANGE )
-
-    stop
-
-
-    # ###
-    # ### WRITE STUFF
-    # ###
-    
-    write_stuff = False
-    if write_stuff == True:
-        
-        monitor.setProgressMessage('Writing to File')
-        
-        Btime.putProperty(QDataSet.NAME,'Bfield_time')
-        fft_time.putProperty(QDataSet.NAME,'FFT_time')
-        frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
-        
-        tempOutputFile = 'C:/Users/Kristoff/Desktop/TEMP_polarization'#.cdf'
-        b_wna = bundle(Bp, Bq, Bn)
-        b_wna.putProperty(QDataSet.NAME,'Bfield_wna')
-        b_wna.putProperty(QDataSet.TITLE,'Magnetic Field in wave-normal coordinates')
-        b_wna.putProperty(QDataSet.VALID_MIN,-1E10)
-        b_wna.putProperty(QDataSet.VALID_MAX, 1E10)
-        b_wna.putProperty(QDataSet.DEPEND_0, Btime)
-        
-        failedToWrite = True
-        write_fail_counter = 0
-        while failedToWrite == True:
+            mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+            mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+            
+            #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
+            mag = trim(mag,tr)
+            
+            mag_time = mag.property(QDataSet.DEPEND_0)
+            
+            pos = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+            pos_time = pos.property(QDataSet.DEPEND_0)
+            
+            Bx = mag[:,0]
+            By = mag[:,1]
+            Bz = mag[:,2]
+            Btotal = magnitude(mag)
+            
+            
+            # ###
+            # ### ROTATE INTO FIELD-ALIGNED COORDINATES
+            # ###
+            
+            monitor.setProgressMessage('Rotating Data')
+            
+            TEMP_Rx = pos[:,0]  # Theoretically I would use a radial position vector to calculate the perpendicular field components.
+            TEMP_Ry = pos[:,1]
+            TEMP_Rz = pos[:,2]
+            
+            TEMP_Rx = ones(len(pos))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
+            TEMP_Ry = zeros(len(pos))
+            TEMP_Rz = zeros(len(pos))
+            TEMP_Rx.putProperty(QDataSet.DEPEND_0,pos_time)
+            TEMP_Ry.putProperty(QDataSet.DEPEND_0,pos_time)
+            TEMP_Rz.putProperty(QDataSet.DEPEND_0,pos_time)
+            
             try:
-                formatDataSet(b_wna,tempOutputFile+'.cdf')
-                failedToWrite = False
+                ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
             except:
-                write_fail_counter+=1
-                tempOutputFile = tempOutputFile+str(write_fail_counter)
-        tempOutputFile = tempOutputFile+'.cdf'
+                TEMP_Rx = ones(len(mag))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
+                TEMP_Ry = zeros(len(mag))
+                TEMP_Rz = zeros(len(mag))
+                TEMP_Rx.putProperty(QDataSet.DEPEND_0,mag_time)
+                TEMP_Ry.putProperty(QDataSet.DEPEND_0,mag_time)
+                TEMP_Rz.putProperty(QDataSet.DEPEND_0,mag_time)
+                ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+            
+            
+            # ###
+            # ### GENERATE FFTs
+            # ###
+            
+            monitor.setProgressMessage('Generating FFTs')
+            
+            Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
+            Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
+            Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
+            
         
-        Coherency.putProperty(QDataSet.NAME,'Coherency')
-        Coherency.putProperty(QDataSet.VALID_MIN,0)
-        Coherency.putProperty(QDataSet.VALID_MAX,1)
-        Ellipticity.putProperty(QDataSet.NAME,'Ellipticity')
-        Ellipticity.putProperty(QDataSet.VALID_MIN,-1)
-        Ellipticity.putProperty(QDataSet.VALID_MAX,1)
-        Angle_Normal.putProperty(QDataSet.NAME,'Angle_Normal')
-        Angle_Normal.putProperty(QDataSet.VALID_MIN,0)
-        Angle_Normal.putProperty(QDataSet.VALID_MAX,90)
-        Power_perp.putProperty(QDataSet.NAME,'Power_Perp')
-        Power_perp.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
-        Power_perp.putProperty(QDataSet.VALID_MIN,0)
-        Power_perp.putProperty(QDataSet.VALID_MAX,1E10)
-        Power_par.putProperty(QDataSet.NAME,'Power_Par')
-        Power_par.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
-        Power_par.putProperty(QDataSet.VALID_MIN,0)
-        Power_par.putProperty(QDataSet.VALID_MAX,1E10)
+            # ###
+            # ### RUN POLARIZATION
+            # ###
+            
+            monitor.setProgressMessage('Running Polarization')
         
-        putProps([Coherency, Ellipticity, Angle_Normal, Power_perp, Power_par] , QDataSet.DEPEND_0 , fft_time )
-        putProps([Coherency, Ellipticity, Angle_Normal, Power_perp, Power_par] , QDataSet.DEPEND_1 , frequency_axis )
+            ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization , Wave_Power) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min )
+            
+            
+            # ###
+            # ### PREPARE STUFF
+            # ###
+            
+            
+            background_grey = java.awt.Color(216,216,216,255)
+            
+            if ( logyn == 'T'):
+              logfreq = 1
+            else:
+              logfreq = 0
+            
+            from org.das2.graph.DasColorBar.Type import APL_RAINBOW_BLACK0
+            from org.das2.graph.DasColorBar.Type import BLUE_WHITE_RED_WEDGE
+            from org.das2.graph.DasColorBar.Type import GRAYSCALE
+            from org.das2.graph.DasColorBar.Type import INVERSE_GRAYSCALE
+            from org.das2.graph.LegendPosition import *
+            from org.das2.graph.SpectrogramRenderer.RebinnerEnum import lanlNearestNeighbor
+            from org.das2.graph.SpectrogramRenderer.RebinnerEnum import nearestNeighbor
+            
+            putProps([Bp, Bq, Bn ] , QDataSet.VALID_MAX , 1E10 )
+            putProps([Bp, Bq, Bn ] , QDataSet.VALID_MIN , -1E10 )
+            
+            
+            ###
+            ### PLOT STUFF
+            ###
+            
+            monitor.setProgressMessage('Plotting Parameters')
+            
+            r = where(Bp.ge(-1E10).and(Bp.ge(-1E10)).and(Bp.le(1E10).and(Bp.le(1E10))))
+            #Bp = Bp[r]
+            #Bn = Bn[r]
+            #Btime = Btime[r]
+            
+            y_max = 1.1 * max( max(abs(Bp[r])) , max(abs(Bn[r])) )
+            
+            setLayoutOverplot(2)
+            plotx ( 0 , mag_time , Bp , yrange=[-y_max,y_max] , renderType='series' , title = 'Polarization parameters for PSP' , ytitle='Field!CComponents' )
+            plotx ( 1 , mag_time , Bn , yrange=[-y_max,y_max] , renderType='series' )
+            dom.plotElements[0].setDisplayLegend(True)
+            dom.plotElements[1].style.color= Color.BLUE
+            dom.plotElements[1].setDisplayLegend(True)
+            
+            plotx ( 2 , Wave_Power , ytitle='Frequency (Hz)', ylog=logfreq , yrange=[freq_min, freq_max] , zlog=1, zrange=[power_min , power_max], ztitle='Wave Intensity!C(nT!U2!N/Hz)' )#, title = 'Polarization parameters for RBSP S/C-'+SC_upper+' - '+start_date+'T'+str(start_hour))
+            plotx ( 3 , Coherency , ylog=logfreq , yrange=[freq_min, freq_max] , ztitle='Coherency', zlog=0, zrange=[0,1] )
+            plotx ( 4 , Angle_Normal , ylog=logfreq , yrange=[freq_min, freq_max] , ztitle='Wave-Normal!CRelative to |B|', zrange=[0, 90])
+            plotx ( 5 , Ellipticity , ylog=logfreq , yrange=[freq_min, freq_max] , zrange=[-1 , 1], ztitle='Ellipticity!CRH               LH')#, ztitle='              Ellipticity!C!BRight                         Left!C!BHand                       Hand!N' )
+            
+            monitor.setProgressMessage('Tweaking Plots')
+            waitUntilIdle()
+            
+            dom.plots[0].xaxis.drawTickLabels = 0
+            dom.plots[0].controller.dasColorBar.setFillColor(background_grey)
+            dom.plots[0].setDisplayLegend(True)
+            dom.plots[0].setLegendPosition(OutsideNE)
+            dom.plots[0].xaxis.setRange(datumRange(tr))
+            
+            dom.plots[1].xaxis.drawTickLabels = 0
+            dom.plots[1].displayTitle = 0
+            dom.plots[1].setColortable(APL_RAINBOW_BLACK0)
+            dom.plots[1].controller.dasColorBar.setFillColor(background_grey)
+            dom.plots[1].xaxis.setRange(datumRange(tr))
+            dom.plotElements[2].style.setRebinMethod(nearestNeighbor)
+            
+            dom.plots[2].xaxis.drawTickLabels = 0
+            dom.plots[2].displayTitle = 0
+            dom.plots[2].setColortable(GRAYSCALE)
+            dom.plots[2].controller.dasColorBar.setFillColor(background_grey)
+            dom.plots[2].xaxis.setRange(datumRange(tr))
+            dom.plotElements[3].style.setRebinMethod(nearestNeighbor)
+            
+            dom.plots[3].xaxis.drawTickLabels = 0
+            dom.plots[3].displayTitle = 0
+            dom.plots[3].setColortable(INVERSE_GRAYSCALE)
+            dom.plots[3].controller.dasColorBar.setFillColor(background_grey)
+            dom.plots[3].xaxis.setRange(datumRange(tr))
+            dom.plotElements[4].style.setRebinMethod(nearestNeighbor)
+            
+            dom.plots[4].displayTitle = 0
+            dom.plots[4].setColortable(BLUE_WHITE_RED_WEDGE)
+            dom.plots[4].controller.dasColorBar.setFillColor(background_grey)
+            dom.plots[4].xaxis.setRange(datumRange(tr))
+            dom.plotElements[5].style.setRebinMethod(nearestNeighbor)
+            #dom.plots[4].ticksURI = 'vap+das2server:http://emfisis.physics.uiowa.edu/das/das2Server?dataset=rbsp/ephemeris'+SPACECRAFT+'.dsdf&timerange='+str(starttitle)+' through '+str(endtitle)+'&interval=60'
+            
+            waitUntilIdle()
+            fixLayout()
+            
+            dom.plots[0].controller.dasPlot.row.ptMaximum = 10 #closes in gaps between windows after "Fix Layout" to be a little more compact
+            dom.plots[1].controller.dasPlot.row.ptMaximum = 10
+            dom.plots[2].controller.dasPlot.row.ptMaximum = 10
+            dom.plots[3].controller.dasPlot.row.ptMaximum = 10
+            dom.plots[4].controller.dasPlot.row.ptMaximum = 10
+            
+            dom.controller.bind( dom.plots[2].yaxis, dom.plots[2].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE ) #adds binding along frequency axis between plots
+            dom.controller.bind( dom.plots[3].yaxis, dom.plots[3].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+            dom.controller.bind( dom.plots[4].yaxis, dom.plots[4].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+            
+            dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[1].xaxis, dom.plots[1].xaxis.PROP_RANGE ) #adds binding along time axis between plots
+            dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[2].xaxis, dom.plots[2].xaxis.PROP_RANGE )
+            dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[3].xaxis, dom.plots[3].xaxis.PROP_RANGE )
+            dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[4].xaxis, dom.plots[4].xaxis.PROP_RANGE )
         
-        formatDataSet(Power_perp,tempOutputFile+'?append=T')
-        formatDataSet(Power_par,tempOutputFile+'?append=T')
-        formatDataSet(Coherency,tempOutputFile+'?append=T')
-        formatDataSet(Ellipticity,tempOutputFile+'?append=T')
-        formatDataSet(Angle_Normal,tempOutputFile+'?append=T')
+            waitUntilIdle()
+            dom.plots[4].xaxis.setRange(datumRange(tr))
+            
+            # ###
+            # ### SAVE PLOT
+            # ###
+            
+            waitUntilIdle()
+            writeToPng(output_dir+'PSP_Polarization_'+dds[ind][0:8]+'_'+dds[ind][-5:-3]+dds[ind][-2:]+'-'+dds[ind+1][-5:-3]+dds[ind+1][-2:]+'.png')
+        
+            #stop
+        
+        
+            # ###
+            # ### WRITE STUFF
+            # ###
+            
+            write_stuff = False
+            if write_stuff == True:
+                
+                monitor.setProgressMessage('Writing to File')
+                
+                Btime.putProperty(QDataSet.NAME,'Bfield_time')
+                fft_time.putProperty(QDataSet.NAME,'FFT_time')
+                frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
+                
+                tempOutputFile = 'C:/Users/Kristoff/Desktop/TEMP_polarization'#.cdf'
+                b_wna = bundle(Bp, Bq, Bn)
+                b_wna.putProperty(QDataSet.NAME,'Bfield_wna')
+                b_wna.putProperty(QDataSet.TITLE,'Magnetic Field in wave-normal coordinates')
+                b_wna.putProperty(QDataSet.VALID_MIN,-1E10)
+                b_wna.putProperty(QDataSet.VALID_MAX, 1E10)
+                b_wna.putProperty(QDataSet.DEPEND_0, Btime)
+                
+                failedToWrite = True
+                write_fail_counter = 0
+                while failedToWrite == True:
+                    try:
+                        formatDataSet(b_wna,tempOutputFile+'.cdf')
+                        failedToWrite = False
+                    except:
+                        write_fail_counter+=1
+                        tempOutputFile = tempOutputFile+str(write_fail_counter)
+                tempOutputFile = tempOutputFile+'.cdf'
+                
+                Coherency.putProperty(QDataSet.NAME,'Coherency')
+                Coherency.putProperty(QDataSet.VALID_MIN,0)
+                Coherency.putProperty(QDataSet.VALID_MAX,1)
+                Ellipticity.putProperty(QDataSet.NAME,'Ellipticity')
+                Ellipticity.putProperty(QDataSet.VALID_MIN,-1)
+                Ellipticity.putProperty(QDataSet.VALID_MAX,1)
+                Angle_Normal.putProperty(QDataSet.NAME,'Angle_Normal')
+                Angle_Normal.putProperty(QDataSet.VALID_MIN,0)
+                Angle_Normal.putProperty(QDataSet.VALID_MAX,90)
+                Power_perp.putProperty(QDataSet.NAME,'Power_Perp')
+                Power_perp.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
+                Power_perp.putProperty(QDataSet.VALID_MIN,0)
+                Power_perp.putProperty(QDataSet.VALID_MAX,1E10)
+                Power_par.putProperty(QDataSet.NAME,'Power_Par')
+                Power_par.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
+                Power_par.putProperty(QDataSet.VALID_MIN,0)
+                Power_par.putProperty(QDataSet.VALID_MAX,1E10)
+                
+                putProps([Coherency, Ellipticity, Angle_Normal, Power_perp, Power_par] , QDataSet.DEPEND_0 , fft_time )
+                putProps([Coherency, Ellipticity, Angle_Normal, Power_perp, Power_par] , QDataSet.DEPEND_1 , frequency_axis )
+                
+                formatDataSet(Power_perp,tempOutputFile+'?append=T')
+                formatDataSet(Power_par,tempOutputFile+'?append=T')
+                formatDataSet(Coherency,tempOutputFile+'?append=T')
+                formatDataSet(Ellipticity,tempOutputFile+'?append=T')
+                formatDataSet(Angle_Normal,tempOutputFile+'?append=T')
+                
+        except:
+            
+            continue
 
 monitor.finished()
 

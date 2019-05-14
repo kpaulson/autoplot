@@ -1,3 +1,5 @@
+# ############################################################################################
+
 ###
 ### USED IN CONJUNCTION WITH Hanningfft TO CREATE SLIDING WINDOW FUNCTION
 ###
@@ -19,3 +21,6 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
     
     result = merge( processed_ds , processed_ds_too )
     return( result )
+
+
+# ############################################################################################

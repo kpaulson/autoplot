@@ -1,131 +1,268 @@
 
-from org.apache.commons import *
 
-from org.apache.commons.math.optimization.fitting import CurveFitter
-from org.apache.commons.math.optimization.fitting import *
-from org.apache.commons.math.optimization.fitting import ParametricRealFunction
-from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+    #from org.apache.commons import *
+    #
+    #from org.apache.commons.math.optimization.fitting import CurveFitter
+    ##from org.apache.commons.math3.optimization.fitting import CurveFitter
+    #from org.apache.commons.math.optimization.fitting import *
+    #from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+    #from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+    #
+    ##from org.apache.commons.math.optimization.fitting import GaussianFunction
+    ##from org.apache.commons.math.optimization.fitting import GaussianParametersGuesser
+    ##from org.apache.commons.math.optimization.fitting import GaussianFitter
+    #
+    #setLayoutOverplot(2)
+    #
+    ##Peak1_center = getParam('Peak1 Center',0.5)
+    ##Peak1_amplitude = getParam('Peak1 Amplitude',0.5)
+    ##Peak1_width = getParam('Peak1 Width',0.5)
+    ##
+    ##Peak2_center = getParam('Peak2 Center',0.5)
+    ##Peak2_center = getParam('Peak2 Center',Peak1_center*2)
+    ##Peak2_amplitude = getParam('Peak2 Amplitude',0.5)
+    ##Peak2_width = getParam('Peak2 Width',0.5)
+    #
+    #Peak1_center = getParam('Peak1 Center',rand(1).value(0))
+    #Peak1_amplitude = getParam('Peak1 Amplitude',rand(1).value(0))
+    #Peak1_width = getParam('Peak1 Width',rand(1).value(0))
+    #
+    #Peak2_center = getParam('Peak2 Center',Peak1_center*2)
+    #Peak2_amplitude = getParam('Peak2 Amplitude',rand(1).value(0))
+    #Peak2_width = getParam('Peak2 Width',rand(1).value(0))
+    #
+    #initial_guess_params = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
+    #
+    #x = linspace(-5,5,32*2)
+    #nf = 0.02  # Noise Factor
+    #
+    ##randomSeed(354646)
+    #aa1 = rand(1).value(0)
+    #bb1 = rand(1).value(0)
+    #cc1 = rand(1).value(0)
+    #dd1 = rand(1).value(0)
+    #
+    #aa2 = rand(1).value(0)
+    #bb2 = rand(1).value(0)
+    #cc2 = rand(1).value(0)
+    #cc2 = cc1 * 2
+    #dd2 = rand(1).value(0)
+    #
+    #gauss1 = aa1 + bb1*exp(-((x - cc1)**2 / (2*dd1**2)))
+    ##gauss_noisy = (aa1 + (0.1*rand(x.length())) ) + (bb1 + (0.1*rand(x.length())) )*exp(-((x - cc1)**2 / (2*(dd1 + (0.1*rand(x.length())) )**2)))
+    #gauss_noisy = (aa1 + (nf*rand(x.length())) ) + (bb1 + (nf*rand(x.length())) )*exp(-((x - cc1)**2 / (2*(dd1 + (nf*rand(x.length())) )**2))) + (
+    #              (aa2 + (nf*rand(x.length())) ) + (bb2 + (nf*rand(x.length())) )*exp(-((x - cc2)**2 / (2*(dd2 + (nf*rand(x.length())) )**2))) )
+    #
+    #
+    #plot(0,x,gauss_noisy)
+    ##plot(0,x,gauss)
 
-#from org.apache.commons.math.optimization.fitting import GaussianFunction
-#from org.apache.commons.math.optimization.fitting import GaussianParametersGuesser
-#from org.apache.commons.math.optimization.fitting import GaussianFitter
+# #########################################################################################
 
-setLayoutOverplot(2)
+def GaussianFitter(ds,single_or_double,inputGuessParams,chi_squared_critical_min,maxAttempts):
+    '''Subroutine to fit dataset to single or double gaussian peaks.
+    Inputs:
+        ds                         = rank1 dataset to be fit
+        single_or_double           = str flag ['single','double'] as to whether to fit one or two peaks
+        inputGuessParams           = rank1 list of 4 or 8 guessed parameters describing ideal gaussian
+        chi_squared_critical_min   = minimum chi^2 value sufficient for output (will continue trying X times until found)
+    Returns:
+        min_chi_squared   = rank0 value of lowest achieved chi^2 value
+        results           = rank1 list of output paramters satisfying gaussian fit function (in order of input)
+        f                 = ParametricRealFunction satisfying fit
+    '''
 
-#initial_guess_params = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
-Peak1_center = getParam('Peak1 Center',0.5)
-Peak1_amplitude = getParam('Peak1 Amplitude',0.5)
-Peak1_width = getParam('Peak1 Width',0.5)
+    from org.apache.commons.math.optimization.fitting import CurveFitter
+    from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+    from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
 
-Peak2_center = getParam('Peak2 Center',0.5)
-Peak2_amplitude = getParam('Peak2 Amplitude',0.5)
-Peak2_width = getParam('Peak2 Width',0.5)
+    class GaussFit(ParametricRealFunction):
+        def value(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2))))
+        def gradient(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            return [1,
+                    exp(-((x - c1)**2 / (2*d1**2))),
+                    (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                    (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2)))]  
+    
+    class GaussDoubleFit(ParametricRealFunction):
+        def value(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            a2 = params[4]
+            b2 = params[5]
+            c2 = params[6]
+            d2 = params[7]
+            return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2)))) + (a2 + b2*exp(-((x - c2)**2 / (2*d2**2))))
+        def gradient(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            a2 = params[4]
+            b2 = params[5]
+            c2 = params[6]
+            d2 = params[7]
+            return [1,
+                    exp(-((x - c1)**2 / (2*d1**2))),
+                    (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                    (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2))),
+                    1,
+                    exp(-((x - c2)**2 / (2*d2**2))),
+                    (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
+                    (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2)))]  
+    
+    
+    if single_or_double == 'single':
+        f = GaussFit()
+    elif single_or_double == 'double':
+        f = GaussDoubleFit()
+        
+    ftr = CurveFitter(LevenbergMarquardtOptimizer())
+    
+    x = ds.property(QDataSet.DEPEND_0)
+    for i in xrange(len(x)):
+        ftr.addObservedPoint(float(x[i]),float(ds[i]))
+        
+    range_scale = max(x).value()
+    peak_scale = max(ds).value()
+    width_scale = (max(x)-min(x))/len(x)
+    
+    #chi_squared_critical_min = 2.#0.005
+    chi_squared = chi_squared_critical_min
+    min_chi_squared = chi_squared_critical_min*10.
+    tryIndex = 1
+    while chi_squared >= chi_squared_critical_min and tryIndex<maxAttempts:
+        try:
+            if tryIndex > 1:
+                print 'Tried again tryIndex=',tryIndex
+        
+#            Peak1_center = getParam('Peak1 Center',rand(1).value(0)*max(x))
+#            Peak1_amplitude = getParam('Peak1 Amplitude',rand(1).value(0)*max(ds))
+#            Peak1_width = getParam('Peak1 Width',rand(1).value(0)*(max(x)-min(x))/len(x))
+#
+#            Peak2_center = getParam('Peak2 Center',Peak1_center*2)
+#            Peak2_amplitude = getParam('Peak2 Amplitude',rand(1).value(0)*max(ds))
+#            Peak2_width = getParam('Peak2 Width',rand(1).value(0)*(max(x)-min(x))/len(x))
+            
+            
+            
+            Peak1_center     = long(rand(1).value(0)*range_scale)
+            Peak1_amplitude  = long(rand(1).value(0)*peak_scale)
+            Peak1_width      = long(rand(1).value(0)*width_scale)
+            
+            Peak2_center     = long(Peak1_center*2)
+            Peak2_amplitude  = long(rand(1).value(0)*peak_scale)
+            Peak2_width      = long(rand(1).value(0)*width_scale)
+            
+            inputGuessParams = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
+            
+            result = ftr.fit(f,inputGuessParams)
+            
+            y= zeros( x.length() )
+            chi_squared = 0
+            for i in xrange(x.length()):
+                y[i]= f.value(x[i],result)
+                chi_squared = chi_squared + ( ((ds[i]-y[i])**2) / (y[i]) )
+            
+            if chi_squared < min_chi_squared:
+                min_chi_squared = chi_squared
+                best_result = result
+                
+            tryIndex = tryIndex+1
+        except: 
+            tryIndex = tryIndex+1
+            continue
+        
+    return(min_chi_squared,best_result,f)
 
-initial_guess_params = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
 
-x = linspace(-5,5,32*8)
-nf = 0.02  # Noise Factor
+# #########################################################################################
+# #########################################################################################
 
-randomSeed(354646)
-aa1 = rand(1).value(0)
-bb1 = rand(1).value(0)
-cc1 = rand(1).value(0)
-dd1 = rand(1).value(0)
+########################
 
-aa2 = rand(1).value(0)
-bb2 = rand(1).value(0)
-cc2 = rand(1).value(0)
-cc2 = cc1 * 2
-dd2 = rand(1).value(0)
+#tr = '2018-11-03 19:00 to 19:20'
+tr = '2018-11-03 19:19 to 19:20'
+    
+spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
+spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
+spc_c = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?c_current',tr)
+spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?d_current',tr)
 
-gauss1 = aa1 + bb1*exp(-((x - cc1)**2 / (2*dd1**2)))
-#gauss_noisy = (aa1 + (0.1*rand(x.length())) ) + (bb1 + (0.1*rand(x.length())) )*exp(-((x - cc1)**2 / (2*(dd1 + (0.1*rand(x.length())) )**2)))
-gauss_noisy = (aa1 + (nf*rand(x.length())) ) + (bb1 + (nf*rand(x.length())) )*exp(-((x - cc1)**2 / (2*(dd1 + (nf*rand(x.length())) )**2))) + (
-              (aa2 + (nf*rand(x.length())) ) + (bb2 + (nf*rand(x.length())) )*exp(-((x - cc2)**2 / (2*(dd2 + (nf*rand(x.length())) )**2))) )
+#print spc_a
 
-#gauss_noisy = (a + (0.1*rand(x.length())) ) + (b + (0.1*rand(x.length())) )*exp(-((x - c)**2 / (2*(d + (0.1*rand(x.length())) )**2)))
+spc_list = [spc_a,spc_b,spc_c,spc_d]
 
 
-plot(0,x,gauss_noisy)
-#plot(0,x,gauss)
+sweep = 4
+
+
+TEMP_spc_list = []
+for spc in spc_list:
+    spc = trim(spc,tr)   # Cut down from full cdf to the desired timerange
+    mv_lo = spc.property(QDataSet.DEPEND_1)
+    for volts in mv_lo[0,:]:
+        r = where(eq(mv_lo,volts))
+        try:
+            spc[r] = smooth(spc[r],5)
+        except:
+            continue
+    
+    r = where(valid(spc[sweep,:]))
+    spc = spc[sweep,:][r]
+    
+    TEMP_spc_list.append(spc)
+    
+spc_list = TEMP_spc_list
+
+
+totalFlux = sum(spc_list)
+
+#sweep = 3
+#x = totalFlux.property(QDataSet.DEPEND_1)[sweep,:]
+#r = where(valid(totalFlux[sweep,:]))
+#totalFlux = totalFlux[sweep,:][r]
+#x = x[r]
+#plot(0,totalFlux,xrange=[sweep,2200])
 
 #stop
 
 
-class GaussFit(ParametricRealFunction):
-    def value(self, x, params):
-        a1 = params[0]
-        b1 = params[1]
-        c1 = params[2]
-        d1 = params[3]
-        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2))))
-    def gradient(self, x, params):
-        a1 = params[0]
-        b1 = params[1]
-        c1 = params[2]
-        d1 = params[3]
-        return [1,
-                exp(-((x - c1)**2 / (2*d1**2))),
-                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
-                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2)))]  
+#(min_chi_squared,best_result,f) = GaussianFitter(ds=totalFlux,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=5.)
+#print 'Best chi_squared: ', min_chi_squared
 
-class GaussDoubleFit(ParametricRealFunction):
-    def value(self, x, params):
-        a1 = params[0]
-        b1 = params[1]
-        c1 = params[2]
-        d1 = params[3]
-        a2 = params[4]
-        b2 = params[5]
-        c2 = params[6]
-        d2 = params[7]
-        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2)))) + (a2 + b2*exp(-((x - c2)**2 / (2*d2**2))))
-    def gradient(self, x, params):
-        a1 = params[0]
-        b1 = params[1]
-        c1 = params[2]
-        d1 = params[3]
-        a2 = params[4]
-        b2 = params[5]
-        c2 = params[6]
-        d2 = params[7]
-        return [1,
-                exp(-((x - c1)**2 / (2*d1**2))),
-                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
-                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2))),
-                1,
-                exp(-((x - c2)**2 / (2*d2**2))),
-                (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
-                (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2)))]  
+uu = 0
+for spc in spc_list:
+    print spc
+    (min_chi_squared,best_result,f) = GaussianFitter(ds=spc,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=1.,maxAttempts=50)
+    
+    xx = linspace(0,2400,32*8*4)
+    yy= zeros( xx.length() )
+    for i in xrange(xx.length()):
+        yy[i]= f.value(xx[i],best_result)
+    
+    plot(uu,spc)
+    plot(uu+1,xx, yy, color=Color.RED, lineWidth=3 , title='&Chi;!U2!N=%s'%min_chi_squared , ylog=False, yrange=[0,20])
+    
+    uu = uu+2
 
+stop
 
-        
-f = GaussDoubleFit()
-ftr = CurveFitter(LevenbergMarquardtOptimizer())
-
-for i in xrange(len(x)):
-    #ftr.addObservedPoint(float(x[i]),float(gauss[i]))
-    ftr.addObservedPoint(float(x[i]),float(gauss_noisy[i]))
-
-#Peak2
-
-
-result = ftr.fit(f,initial_guess_params)
-
-print 'result: ', result
-
-print 'a = ',round(aa1,4),' guess:',round(result[0],4)
-print 'b = ',round(bb1,4),' guess:',round(result[1],4)
-print 'c = ',round(cc1,4),' guess:',round(result[2],4)
-print 'd = ',round(dd1,4),' guess:',round(result[3],4)
-print 'a = ',round(aa2,4),' guess:',round(result[4],4)
-print 'b = ',round(bb2,4),' guess:',round(result[5],4)
-print 'c = ',round(cc2,4),' guess:',round(result[6],4)
-print 'd = ',round(dd2,4),' guess:',round(result[7],4)
-
-yy= zeros( x.length() )
-for i in xrange(x.length()):
-    yy[i]= f.value(x[i],result)
+xx = linspace(0,2400,32*8*4)
+yy= zeros( xx.length() )
+for i in xrange(xx.length()):
+    yy[i]= f.value(xx[i],best_result)
 #yy= map( f.value, time, result )  I can't figure out this one.
 
-plot( 1, x, yy, color=Color.RED, lineWidth=3 )
+plot( 1, xx, yy, color=Color.RED, lineWidth=3 , title='&Chi;!U2!N=%s'%min_chi_squared )

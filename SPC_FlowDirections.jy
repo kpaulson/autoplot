@@ -14,20 +14,20 @@ spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l
 spc_c = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?c_current',tr)
 spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?d_current',tr)
 
-print spc_a
+#print spc_a
 
 spc_list = [spc_a,spc_b,spc_c,spc_d]
 
 #for l in spc_list:
 #    trim(l,tr)
     
-print spc_a
+#print spc_a
 
 spc_a = trim(spc_a,tr)
 spc_b = trim(spc_b,tr)
 spc_c = trim(spc_c,tr)
 spc_d = trim(spc_d,tr)
-print spc_a
+#print spc_a
 
 spc_list = [spc_a,spc_b,spc_c,spc_d]
 i=0
@@ -81,3 +81,17 @@ mainFlowXsc = V[r]  # Mike's routine calls this elevation
 
 plot(3,mainFlowYsc,ytitle='Ysc Deflection')
 plot(4,mainFlowXsc,ytitle='Xsc Deflection')
+
+
+fluxDifference_agyro = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
+W = (fluxDifference_agyro/totalFlux)/0.035
+
+W.putProperty(QDataSet.VALID_MIN,None)
+W.putProperty(QDataSet.VALID_MAX,None)
+for j in xrange(len(W[0,:])):
+    try:
+        W[:,j] = medianFilter(W[:,j],3)
+    except:
+        continue
+        
+plot(5,W)

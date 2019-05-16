@@ -168,6 +168,9 @@ def GaussianFitter(ds,single_or_double,inputGuessParams,chi_squared_critical_min
             inputGuessParams = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
             
             result = ftr.fit(f,inputGuessParams)
+                
+            if tryIndex == 1:
+                best_result = result
             
             y= zeros( x.length() )
             chi_squared = 0
@@ -181,6 +184,8 @@ def GaussianFitter(ds,single_or_double,inputGuessParams,chi_squared_critical_min
                 
             tryIndex = tryIndex+1
         except: 
+            if tryIndex == 1:
+                best_result = [0,0,0,0,0,0,0,0]
             tryIndex = tryIndex+1
             continue
         
@@ -204,9 +209,9 @@ spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l
 
 spc_list = [spc_a,spc_b,spc_c,spc_d]
 
-
 sweep = 4
 
+smoothPoints = 5  # Number of points in time to smooth each SPC pad (reduce noise)
 
 TEMP_spc_list = []
 for spc in spc_list:
@@ -215,48 +220,68 @@ for spc in spc_list:
     for volts in mv_lo[0,:]:
         r = where(eq(mv_lo,volts))
         try:
-            spc[r] = smooth(spc[r],5)
+            spc[r] = smooth(spc[r],smoothPoints)  # smooths over spc data at each voltage level
         except:
             continue
     
-    r = where(valid(spc[sweep,:]))
-    spc = spc[sweep,:][r]
+#    timeSlice = putProperty(spc.property(QDataSet.DEPEND_0)[sweep],QDataSet.NAME,None)
+#    #r = where(valid(spc[sweep,:]))
+#    #spc = spc[sweep,:][r]
+#    r = where( (valid(spc)-1)*(-1) )
+#    spc = removeIndeces(spc,r)
     
     TEMP_spc_list.append(spc)
     
+#plot(0,spc_list[0])    
 spc_list = TEMP_spc_list
-
+#plot(2,TEMP_spc_list[0])
+#stop
 
 totalFlux = sum(spc_list)
 
-#sweep = 3
-#x = totalFlux.property(QDataSet.DEPEND_1)[sweep,:]
-#r = where(valid(totalFlux[sweep,:]))
-#totalFlux = totalFlux[sweep,:][r]
-#x = x[r]
-#plot(0,totalFlux,xrange=[sweep,2200])
-
-#stop
 
 
 #(min_chi_squared,best_result,f) = GaussianFitter(ds=totalFlux,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=5.)
 #print 'Best chi_squared: ', min_chi_squared
 
+
+#for spc in spc_list:
+#    for sweep in xrange(len(spc[0])):
+#        timeSlice = putProperty(spc.property(QDataSet.DEPEND_0)[sweep],QDataSet.NAME,None)
+#        r = where(valid(spc[sweep,:]))
+#        spcSlice = spc[sweep,:][r]
+    
+spcPeakFitList = []
 uu = 0
 for spc in spc_list:
     print spc
-    (min_chi_squared,best_result,f) = GaussianFitter(ds=spc,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=1.,maxAttempts=50)
     
-    xx = linspace(0,2400,32*8*4)
-    yy= zeros( xx.length() )
-    for i in xrange(xx.length()):
-        yy[i]= f.value(xx[i],best_result)
+    TEMP_spcPeakFit = None
+    for sweep in xrange(len(spc)):
+        print sweep
+        timeSlice = putProperty(spc.property(QDataSet.DEPEND_0)[sweep],QDataSet.NAME,None)
+        r = where(valid(spc[sweep,:]))
+        spcSlice = spc[sweep,:][r]
+        
+        (min_chi_squared,best_result,f) = GaussianFitter(ds=spcSlice,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=1.,maxAttempts=10)
+        
+        best_result.append(long(min_chi_squared))
+        best_result = dataset(best_result)
+        TEMP_spcPeakFit = bundle(TEMP_spcPeakFit,best_result)
+        
+    spcPeakFitList.append(TEMP_spcPeakFit)
     
-    plot(uu,spc)
-    plot(uu+1,xx, yy, color=Color.RED, lineWidth=3 , title='&Chi;!U2!N=%s'%min_chi_squared , ylog=False, yrange=[0,20])
-    
-    uu = uu+2
+#    xx = linspace(0,2400,32*8*4)
+#    yy= zeros( xx.length() )
+#    for i in xrange(xx.length()):
+#        yy[i]= f.value(xx[i],best_result)
+#
+#    plot(uu,spc)
+#    plot(uu+1,xx, yy, color=Color.RED, lineWidth=3 , title='&Chi;!U2!N=%s  timeSlice=%s!CpeakTemp1=%s  peakWidth1=%s'%(min_chi_squared,timeSlice,round(best_result[2],2),round(best_result[3],2)) , ylog=False, yrange=[0,20])
+#
+#    uu = uu+2
 
+print spcPeakFitList
 stop
 
 xx = linspace(0,2400,32*8*4)

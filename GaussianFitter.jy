@@ -144,8 +144,8 @@ def GaussianFitter(ds,single_or_double,inputGuessParams,chi_squared_critical_min
     tryIndex = 1
     while chi_squared >= chi_squared_critical_min and tryIndex<maxAttempts:
         try:
-            if tryIndex > 1:
-                print 'Tried again tryIndex=',tryIndex
+            #if tryIndex > 1:
+            #    print 'Tried again tryIndex=',tryIndex
         
 #            Peak1_center = getParam('Peak1 Center',rand(1).value(0)*max(x))
 #            Peak1_amplitude = getParam('Peak1 Amplitude',rand(1).value(0)*max(ds))
@@ -185,7 +185,7 @@ def GaussianFitter(ds,single_or_double,inputGuessParams,chi_squared_critical_min
             tryIndex = tryIndex+1
         except: 
             if tryIndex == 1:
-                best_result = [0,0,0,0,0,0,0,0]
+                best_result = [-1,-1,-1,-1,-1,-1,-1,-1]
             tryIndex = tryIndex+1
             continue
         
@@ -197,8 +197,8 @@ def GaussianFitter(ds,single_or_double,inputGuessParams,chi_squared_critical_min
 
 ########################
 
-#tr = '2018-11-03 19:00 to 19:20'
-tr = '2018-11-03 19:19 to 19:20'
+tr = '2018-11-03 19:00 to 19:20'
+#tr = '2018-11-03 19:19:50 to 19:20:00'
     
 spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
 spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
@@ -209,7 +209,7 @@ spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l
 
 spc_list = [spc_a,spc_b,spc_c,spc_d]
 
-sweep = 4
+#sweep = 4
 
 smoothPoints = 5  # Number of points in time to smooth each SPC pad (reduce noise)
 
@@ -224,25 +224,14 @@ for spc in spc_list:
         except:
             continue
     
-#    timeSlice = putProperty(spc.property(QDataSet.DEPEND_0)[sweep],QDataSet.NAME,None)
-#    #r = where(valid(spc[sweep,:]))
-#    #spc = spc[sweep,:][r]
-#    r = where( (valid(spc)-1)*(-1) )
-#    spc = removeIndeces(spc,r)
-    
     TEMP_spc_list.append(spc)
     
-#plot(0,spc_list[0])    
 spc_list = TEMP_spc_list
-#plot(2,TEMP_spc_list[0])
-#stop
 
-totalFlux = sum(spc_list)
+monitor.started()
+monitor.setTaskSize(len(spc_list)*len(spc_list[0]))
 
-
-
-#(min_chi_squared,best_result,f) = GaussianFitter(ds=totalFlux,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=5.)
-#print 'Best chi_squared: ', min_chi_squared
+#totalFlux = sum(spc_list)
 
 
 #for spc in spc_list:
@@ -254,11 +243,24 @@ totalFlux = sum(spc_list)
 spcPeakFitList = []
 uu = 0
 for spc in spc_list:
-    print spc
+    #print spc
+    monitor.setTaskProgress(uu)
+    monitor.setLabel('Gaussian Fits')
     
-    TEMP_spcPeakFit = None
+    TEMP_spcPeakFit       = None
+    resultTime            = None
+    resultPeak1_amplitude = None
+    resultPeak1_center    = None
+    resultPeak1_width     = None
+    resultPeak2_amplitude = None
+    resultPeak2_center    = None
+    resultPeak2_width     = None
+    resultmin_chi_squared = None
     for sweep in xrange(len(spc)):
-        print sweep
+        #print sweep
+        monitor.getSubtaskMonitor(0,len(spc),'SPC-%s'%(str(spc)[0]))
+        monitor.setTaskProgress((uu*len(spc))+sweep)
+    
         timeSlice = putProperty(spc.property(QDataSet.DEPEND_0)[sweep],QDataSet.NAME,None)
         r = where(valid(spc[sweep,:]))
         spcSlice = spc[sweep,:][r]
@@ -267,9 +269,65 @@ for spc in spc_list:
         
         best_result.append(long(min_chi_squared))
         best_result = dataset(best_result)
-        TEMP_spcPeakFit = bundle(TEMP_spcPeakFit,best_result)
+        
+        resultTime = append(resultTime,timeSlice)
+        resultPeak1_amplitude = append(resultPeak1_amplitude , best_result[1])
+        resultPeak1_center    = append(resultPeak1_center    , best_result[2])
+        resultPeak1_width     = append(resultPeak1_width     , best_result[3])
+        resultPeak2_amplitude = append(resultPeak2_amplitude , best_result[5])
+        resultPeak2_center    = append(resultPeak2_center    , best_result[6])
+        resultPeak2_width     = append(resultPeak2_width     , best_result[7])
+        resultmin_chi_squared = append(resultmin_chi_squared , best_result[8])
+        
+        
+    resultPeak1_amplitude.putProperty( QDataSet.NAME,'Peak1_amplitude_%s' %(str(spc)[0]))
+    resultPeak1_center.putProperty(    QDataSet.NAME,'Peak1_center_%s'    %(str(spc)[0]))
+    resultPeak1_width.putProperty(     QDataSet.NAME,'Peak1_width_%s'     %(str(spc)[0]))
+    resultPeak2_amplitude.putProperty( QDataSet.NAME,'Peak2_amplitude_%s' %(str(spc)[0]))
+    resultPeak2_center.putProperty(    QDataSet.NAME,'Peak2_center_%s'    %(str(spc)[0]))
+    resultPeak2_width.putProperty(     QDataSet.NAME,'Peak2_width_%s'     %(str(spc)[0]))
+    resultmin_chi_squared.putProperty( QDataSet.NAME,'Chi_squared_%s'     %(str(spc)[0]))
+    resultTime.putProperty(            QDataSet.NAME,'Epoch_%s'           %(str(spc)[0]))
+    
+    resultPeak1_amplitude.putProperty( QDataSet.VALID_MIN,0)
+    resultPeak1_center.putProperty(    QDataSet.VALID_MIN,0)
+    resultPeak1_width.putProperty(     QDataSet.VALID_MIN,0)
+    resultPeak2_amplitude.putProperty( QDataSet.VALID_MIN,0)
+    resultPeak2_center.putProperty(    QDataSet.VALID_MIN,0)
+    resultPeak2_width.putProperty(     QDataSet.VALID_MIN,0)
+    
+    resultPeak1_amplitude.putProperty( QDataSet.VALID_MAX,1E5)
+    resultPeak1_center.putProperty(    QDataSet.VALID_MAX,1E5)
+    resultPeak1_width.putProperty(     QDataSet.VALID_MAX,1E5)
+    resultPeak2_amplitude.putProperty( QDataSet.VALID_MAX,1E5)
+    resultPeak2_center.putProperty(    QDataSet.VALID_MAX,1E5)
+    resultPeak2_width.putProperty(     QDataSet.VALID_MAX,1E5)
+        
+    TEMP_spcPeakFit = bundle(TEMP_spcPeakFit,resultPeak1_amplitude,resultPeak1_center,resultPeak1_width)
+    TEMP_spcPeakFit = bundle(TEMP_spcPeakFit,resultPeak2_amplitude,resultPeak2_center,resultPeak2_width)
+    TEMP_spcPeakFit = bundle(TEMP_spcPeakFit,resultmin_chi_squared)
+    
+    TEMP_spcPeakFit.putProperty(QDataSet.DEPEND_0,resultTime)
+    TEMP_spcPeakFit.putProperty(QDataSet.NAME,'gaussianFits_%s' %(str(spc)[0]))
+    TEMP_spcPeakFit.putProperty(QDataSet.VALID_MIN,0)
+    TEMP_spcPeakFit.putProperty(QDataSet.VALID_MAX,1E5)
         
     spcPeakFitList.append(TEMP_spcPeakFit)
+    if (str(spc)[0]) == 'a':
+        formatDataSet(resultTime,'TEMP_gaussian.cdf')
+        formatDataSet(TEMP_spcPeakFit,'TEMP_gaussian.cdf?append=T')
+    else:
+        formatDataSet(TEMP_spcPeakFit,'TEMP_gaussian.cdf?append=T')
+        
+    del(TEMP_spcPeakFit)
+    del(
+        resultPeak1_amplitude ,
+        resultPeak1_center    ,
+        resultPeak1_width     ,
+        resultPeak2_amplitude ,
+        resultPeak2_center    ,
+        resultPeak2_width     ,
+        resultmin_chi_squared )
     
 #    xx = linspace(0,2400,32*8*4)
 #    yy= zeros( xx.length() )
@@ -279,9 +337,10 @@ for spc in spc_list:
 #    plot(uu,spc)
 #    plot(uu+1,xx, yy, color=Color.RED, lineWidth=3 , title='&Chi;!U2!N=%s  timeSlice=%s!CpeakTemp1=%s  peakWidth1=%s'%(min_chi_squared,timeSlice,round(best_result[2],2),round(best_result[3],2)) , ylog=False, yrange=[0,20])
 #
-#    uu = uu+2
+    uu = uu+1
 
-print spcPeakFitList
+print 'spcPeakFitList:',spcPeakFitList
+#formatDataSet(spcPeakFitList,'TEMP_gaussian.cdf')
 stop
 
 xx = linspace(0,2400,32*8*4)

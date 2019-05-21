@@ -1,0 +1,237 @@
+
+smoothPoints = 5
+
+spc_a_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_a&slice1=2')
+spc_b_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_b&slice1=2')
+spc_c_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_c&slice1=2')
+spc_d_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_d&slice1=2')
+
+spc_a_peak1_width.putProperty(QDataSet.VALID_MIN,None)
+spc_b_peak1_width.putProperty(QDataSet.VALID_MIN,None)
+spc_c_peak1_width.putProperty(QDataSet.VALID_MIN,None)
+spc_d_peak1_width.putProperty(QDataSet.VALID_MIN,None)
+
+spc_a_peak1_width.putProperty(QDataSet.VALID_MAX,None)
+spc_b_peak1_width.putProperty(QDataSet.VALID_MAX,None)
+spc_c_peak1_width.putProperty(QDataSet.VALID_MAX,None)
+spc_d_peak1_width.putProperty(QDataSet.VALID_MAX,None)
+
+spc_a_peak1_width = medianFilter(spc_a_peak1_width,smoothPoints)
+spc_b_peak1_width = medianFilter(spc_b_peak1_width,smoothPoints)
+spc_c_peak1_width = medianFilter(spc_c_peak1_width,smoothPoints)
+spc_d_peak1_width = medianFilter(spc_d_peak1_width,smoothPoints)
+
+
+
+A_x = (0.5*(spc_a_peak1_width+spc_d_peak1_width))/(0.5*(spc_b_peak1_width+spc_c_peak1_width))
+A_y = (0.5*(spc_a_peak1_width+spc_b_peak1_width))/(0.5*(spc_c_peak1_width+spc_d_peak1_width))
+
+A_x.putProperty(QDataSet.VALID_MIN,-1E5)
+A_y.putProperty(QDataSet.VALID_MIN,-1E5)
+A_x.putProperty(QDataSet.VALID_MAX,1E5)
+A_y.putProperty(QDataSet.VALID_MAX,1E5)
+
+plot(0,A_x,ylog=True)
+plot(1,A_y,ylog=True)
+
+
+
+# ############################################################################################ 
+
+
+def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
+    """Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
+	
+	Parameters:
+	    Bx = rank1 X component of magnetic field
+		By = rank1 Y component of magnetic field
+		Bz = rank1 Z component of magnetic field
+		TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
+		TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
+		TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
+		trend_seconds = rank0 number of seconds over which to average B to define as background
+		
+    Returns:
+	    (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
+		(Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
+		(Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
+		(Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
+	
+	"""
+    monitor.setLabel('Field Aligner')    
+    # ###
+    # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR
+    # ###    
+    
+    mag_time = Btotal.property(QDataSet.DEPEND_0)
+            #mag_time.putProperty(QDataSet.NAME,'B-field Time')
+            
+            #print mag_time[1]-mag_time[0]
+            #for i in xrange(len(mag_time)):
+            #    if( mag_time[i]-mag_time[0] > detrend_time ):
+            #        raise getmeouttahere
+            #print mag_time.property(QDataSet.UNITS)
+    
+    smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
+    
+    Bx_smooth = smooth(Bx,smooth_points)
+    By_smooth = smooth(By,smooth_points)
+    Bz_smooth = smooth(Bz,smooth_points)
+    Btotal_smooth = smooth(Btotal,smooth_points)
+    
+    Nx = Bx_smooth / Btotal_smooth
+    Ny = By_smooth / Btotal_smooth
+    Nz = Bz_smooth / Btotal_smooth
+    
+    
+    # ###
+    # ### PULL RADIAL VECTOR DATA AND DEFINE PERPENDICULAR VECTOR DIRECTIONS
+    # ###
+    
+    ephem_time = TEMP_Rx.property(QDataSet.DEPEND_0)
+    ephem_to_mag_ratio = findex(ephem_time,mag_time)
+    
+    TEMP_Rx = interpolate( TEMP_Rx, ephem_to_mag_ratio )
+    TEMP_Ry = interpolate( TEMP_Ry , ephem_to_mag_ratio )
+    TEMP_Rz = interpolate( TEMP_Rz , ephem_to_mag_ratio )
+    
+    TEMP_Rmag = sqrt(TEMP_Rx**2 + TEMP_Ry**2 + TEMP_Rz**2)
+    
+    Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
+    Ry = -(TEMP_Ry/TEMP_Rmag) 
+    Rz = -(TEMP_Rz/TEMP_Rmag) 
+    
+    TEMP_Px = ( Ny * Rz ) - ( Nz * Ry )
+    TEMP_Py = ( Nz * Rx ) - ( Nx * Rz )
+    TEMP_Pz = ( Nx * Ry ) - ( Ny * Rx )
+    
+    Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
+        
+    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction
+    Py = TEMP_Py / Pmag
+    Pz = TEMP_Pz / Pmag
+    
+    del( [ TEMP_Px , TEMP_Py , TEMP_Pz , Pmag ] )
+        
+    Qx = -( Py * Nz ) + ( Pz * Ny ) # N x P ~radial - positive is outward
+    Qy = -( Pz * Nx ) + ( Px * Nz )
+    Qz = -( Px * Ny ) + ( Py * Nx )
+    
+    
+    # ###
+    # ### TRANSFORM MAG DATA INTO FIELD-ALIGNED COORDINATES
+    # ###
+    
+    Bn = (Bx * Nx) + (By * Ny) + (Bz * Nz)
+    Bp = (Bx * Px) + (By * Py) + (Bz * Pz)
+    Bq = (Bx * Qx) + (By * Qy) + (Bz * Qz)
+   
+    Nx = round(Nx,3)
+    Ny = round(Ny,3)
+    Nz = round(Nz,3)     
+    
+    Px = round(Px,3)
+    Py = round(Py,3)
+    Pz = round(Pz,3) 
+    
+    Qx = round(Qx,3)
+    Qy = round(Qy,3)
+    Qz = round(Qz,3)           
+                    
+    ###
+    ### ADD LABELS AND UNITS AND STUFF, RETURN RESULTS
+    ###
+    
+    Bn.putProperty(QDataSet.LABEL,'B!B||!N')
+    Bn.putProperty(QDataSet.NAME,'B!B||!N')
+#    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
+#    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
+#    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
+#    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
+    Bp.putProperty(QDataSet.LABEL,'B!B&perp;x!N')
+    Bp.putProperty(QDataSet.NAME,'B!B&perp;x!N')
+    Bq.putProperty(QDataSet.LABEL,'B!B&perp;y!N')
+    Bq.putProperty(QDataSet.NAME,'B!B&perp;y!N')
+    Btotal.putProperty(QDataSet.LABEL,'|B|')
+    Btotal.putProperty(QDataSet.NAME,'|B|')
+    
+    
+    return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+    
+    
+
+
+
+############################################################################
+
+
+
+tr = '2018-11-03 19:00 to 19:20'
+    
+    
+mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+
+#mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
+mag = trim(mag,tr)
+
+mag_time = mag.property(QDataSet.DEPEND_0)
+
+pos = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+pos_time = pos.property(QDataSet.DEPEND_0)
+
+Bx = mag[:,0]
+By = mag[:,1]
+Bz = mag[:,2]
+Btotal = magnitude(mag)
+
+
+
+[A_x,A_y] = synchronize(Btotal,[A_x,A_y])
+
+smoothPoints = 64*16
+Bx_mean = smooth(Bx,smoothPoints)
+By_mean = smooth(By,smoothPoints)
+Bxy_total = sqrt(Bx_mean**2 + By_mean**2)
+
+A_Bpara = (A_x*Bx_mean + A_y*By_mean)/Bxy_total
+A_Bperp = (A_x*By_mean - A_y*Bx_mean)/Bxy_total
+
+setLayoutOverplot(2)
+plot(0,A_Bpara,color='blue')
+plot(1,A_Bperp,color='red')
+stop
+
+# ###
+# ### ROTATE INTO FIELD-ALIGNED COORDINATES
+# ###
+
+monitor.setProgressMessage('Rotating Data')
+
+TEMP_Rx = pos[:,0]  # Theoretically I would use a radial position vector to calculate the perpendicular field components.
+TEMP_Ry = pos[:,1]
+TEMP_Rz = pos[:,2]
+
+TEMP_Rx = ones(len(pos))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
+TEMP_Ry = zeros(len(pos))
+TEMP_Rz = zeros(len(pos))
+TEMP_Rx.putProperty(QDataSet.DEPEND_0,pos_time)
+TEMP_Ry.putProperty(QDataSet.DEPEND_0,pos_time)
+TEMP_Rz.putProperty(QDataSet.DEPEND_0,pos_time)
+
+try:
+    ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+except:
+    TEMP_Rx = ones(len(mag))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
+    TEMP_Ry = zeros(len(mag))
+    TEMP_Rz = zeros(len(mag))
+    TEMP_Rx.putProperty(QDataSet.DEPEND_0,mag_time)
+    TEMP_Ry.putProperty(QDataSet.DEPEND_0,mag_time)
+    TEMP_Rz.putProperty(QDataSet.DEPEND_0,mag_time)
+    ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+   
+            
+            
+
+
+

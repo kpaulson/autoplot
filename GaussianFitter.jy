@@ -172,7 +172,7 @@ def GaussianFitter(ds,single_or_double,inputGuessParams,chi_squared_critical_min
             tryIndex = tryIndex+1
         except: 
             if tryIndex == 1:
-                best_result = [-1,-1,-1,-1,-1,-1,-1,-1]
+                best_result = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
             tryIndex = tryIndex+1
             continue
         
@@ -266,17 +266,21 @@ def GaussianFitterUncontained(ds,single_or_double,inputGuessParams,chi_squared_c
     tryIndex = 1
     while chi_squared >= chi_squared_critical_min and tryIndex<maxAttempts:
         try:
-            Peak1_center     = long(rand(1).value(0)*range_scale)
-            Peak1_amplitude  = long(rand(1).value(0)*peak_scale)
-            Peak1_width      = long(rand(1).value(0)*width_scale)
-            
-            Peak2_center     = long(Peak1_center*2)
-            Peak2_amplitude  = long(rand(1).value(0)*peak_scale)
-            Peak2_width      = long(rand(1).value(0)*width_scale)
-            
-            inputGuessParams = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
-            
-            result = ftr.fit(f,inputGuessParams)
+            if tryIndex == 1:
+                result = ftr.fit(f,inputGuessParams)
+                
+            else:
+                Peak1_center     = long(rand(1).value(0)*range_scale)
+                Peak1_amplitude  = long(rand(1).value(0)*peak_scale)
+                Peak1_width      = long(rand(1).value(0)*width_scale)
+                
+                Peak2_center     = long(Peak1_center*2)
+                Peak2_amplitude  = long(rand(1).value(0)*peak_scale)
+                Peak2_width      = long(rand(1).value(0)*width_scale)
+                
+                inputGuessParams = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
+                
+                result = ftr.fit(f,inputGuessParams)
                 
             if tryIndex == 1:
                 best_result = result
@@ -294,7 +298,7 @@ def GaussianFitterUncontained(ds,single_or_double,inputGuessParams,chi_squared_c
             tryIndex = tryIndex+1
         except: 
             if tryIndex == 1:
-                best_result = [-1,-1,-1,-1,-1,-1,-1,-1]
+                best_result = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
             tryIndex = tryIndex+1
             continue
         
@@ -431,7 +435,12 @@ for spc in spc_list:
         spcSlice = spc[sweep,:][r]
         
         #(min_chi_squared,best_result,f) = GaussianFitter(ds=spcSlice,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=1.,maxAttempts=10)
-        (min_chi_squared,best_result,f) = GaussianFitterUncontained(ds=spcSlice,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=1.,maxAttempts=10)
+        if 'best_result' in locals() and ne(best_result[8],-1):  # If we have found a result in the previous slice and it isn't the garbage result, use it as the initial guess for this one
+            (min_chi_squared,best_result,f) = GaussianFitterUncontained(ds=spcSlice,single_or_double='double',inputGuessParams=best_result,chi_squared_critical_min=1.,maxAttempts=10)
+            
+        else:  # If there isn't a previous result to use, just go with random choices.
+            print 'going random'
+            (min_chi_squared,best_result,f) = GaussianFitterUncontained(ds=spcSlice,single_or_double='double',inputGuessParams=None,chi_squared_critical_min=1.,maxAttempts=10)
         
         best_result.append(long(min_chi_squared))
         best_result = dataset(best_result)

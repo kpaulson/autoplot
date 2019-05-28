@@ -1,3 +1,130 @@
+# ############################################################################################ 
+
+
+def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
+    """Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
+	
+	Parameters:
+	    Bx = rank1 X component of magnetic field
+		By = rank1 Y component of magnetic field
+		Bz = rank1 Z component of magnetic field
+		TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
+		TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
+		TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
+		trend_seconds = rank0 number of seconds over which to average B to define as background
+		
+    Returns:
+	    (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
+		(Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
+		(Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
+		(Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
+	
+	"""
+    monitor.setLabel('Field Aligner')    
+    # ###
+    # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR
+    # ###    
+    
+    mag_time = Btotal.property(QDataSet.DEPEND_0)
+            #mag_time.putProperty(QDataSet.NAME,'B-field Time')
+            
+            #print mag_time[1]-mag_time[0]
+            #for i in xrange(len(mag_time)):
+            #    if( mag_time[i]-mag_time[0] > detrend_time ):
+            #        raise getmeouttahere
+            #print mag_time.property(QDataSet.UNITS)
+    
+    smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
+    
+    Bx_smooth = smooth(Bx,smooth_points)
+    By_smooth = smooth(By,smooth_points)
+    Bz_smooth = smooth(Bz,smooth_points)
+    Btotal_smooth = smooth(Btotal,smooth_points)
+    
+    Nx = Bx_smooth / Btotal_smooth
+    Ny = By_smooth / Btotal_smooth
+    Nz = Bz_smooth / Btotal_smooth
+    
+    
+    # ###
+    # ### PULL RADIAL VECTOR DATA AND DEFINE PERPENDICULAR VECTOR DIRECTIONS
+    # ###
+    
+    ephem_time = TEMP_Rx.property(QDataSet.DEPEND_0)
+    ephem_to_mag_ratio = findex(ephem_time,mag_time)
+    
+    TEMP_Rx = interpolate( TEMP_Rx, ephem_to_mag_ratio )
+    TEMP_Ry = interpolate( TEMP_Ry , ephem_to_mag_ratio )
+    TEMP_Rz = interpolate( TEMP_Rz , ephem_to_mag_ratio )
+    
+    TEMP_Rmag = sqrt(TEMP_Rx**2 + TEMP_Ry**2 + TEMP_Rz**2)
+    
+    Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
+    Ry = -(TEMP_Ry/TEMP_Rmag) 
+    Rz = -(TEMP_Rz/TEMP_Rmag) 
+    
+    TEMP_Px = ( Ny * Rz ) - ( Nz * Ry )
+    TEMP_Py = ( Nz * Rx ) - ( Nx * Rz )
+    TEMP_Pz = ( Nx * Ry ) - ( Ny * Rx )
+    
+    Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
+        
+    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction
+    Py = TEMP_Py / Pmag
+    Pz = TEMP_Pz / Pmag
+    
+    del( [ TEMP_Px , TEMP_Py , TEMP_Pz , Pmag ] )
+        
+    Qx = -( Py * Nz ) + ( Pz * Ny ) # N x P ~radial - positive is outward
+    Qy = -( Pz * Nx ) + ( Px * Nz )
+    Qz = -( Px * Ny ) + ( Py * Nx )
+    
+    
+    # ###
+    # ### TRANSFORM MAG DATA INTO FIELD-ALIGNED COORDINATES
+    # ###
+    
+    Bn = (Bx * Nx) + (By * Ny) + (Bz * Nz)
+    Bp = (Bx * Px) + (By * Py) + (Bz * Pz)
+    Bq = (Bx * Qx) + (By * Qy) + (Bz * Qz)
+   
+    Nx = round(Nx,3)
+    Ny = round(Ny,3)
+    Nz = round(Nz,3)     
+    
+    Px = round(Px,3)
+    Py = round(Py,3)
+    Pz = round(Pz,3) 
+    
+    Qx = round(Qx,3)
+    Qy = round(Qy,3)
+    Qz = round(Qz,3)           
+                    
+    ###
+    ### ADD LABELS AND UNITS AND STUFF, RETURN RESULTS
+    ###
+    
+    Bn.putProperty(QDataSet.LABEL,'B!B||!N')
+    Bn.putProperty(QDataSet.NAME,'B!B||!N')
+#    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
+#    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
+#    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
+#    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
+    Bp.putProperty(QDataSet.LABEL,'B!B&perp;x!N')
+    Bp.putProperty(QDataSet.NAME,'B!B&perp;x!N')
+    Bq.putProperty(QDataSet.LABEL,'B!B&perp;y!N')
+    Bq.putProperty(QDataSet.NAME,'B!B&perp;y!N')
+    Btotal.putProperty(QDataSet.LABEL,'|B|')
+    Btotal.putProperty(QDataSet.NAME,'|B|')
+    
+    
+    return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+    
+    
+
+
+
+############################################################################
 
 
 
@@ -8,11 +135,22 @@
     
 tr = '2018-11-03 19:00 to 19:20'
 #tr = '2018-11-03 19:19 to 19:20'
+
+m_p               = 1.6726231E-24
+trend_seconds     = 10     # Number of seconds over which to average magField to determine background field direction
+
+cfa_sweap_file = 'http://sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     
-spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
-spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
-spc_c = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?c_current',tr)
-spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?d_current',tr)
+spc_a = getDataSet(cfa_sweap_file+'?a_current',tr)
+spc_b = getDataSet(cfa_sweap_file+'?b_current',tr)
+spc_c = getDataSet(cfa_sweap_file+'?c_current',tr)
+spc_d = getDataSet(cfa_sweap_file+'?d_current',tr)
+
+mv_lo = getDataSet(cfa_sweap_file+'?mv_lo',tr)
+mv_hi = getDataSet(cfa_sweap_file+'?mv_hi',tr)
+
+#plot(0,mv_hi-mv_lo)
+#stop
 
 #print spc_a
 
@@ -27,6 +165,9 @@ spc_a = trim(spc_a,tr)
 spc_b = trim(spc_b,tr)
 spc_c = trim(spc_c,tr)
 spc_d = trim(spc_d,tr)
+
+mv_lo = trim(mv_lo,tr)
+mv_hi = trim(mv_hi,tr)
 #print spc_a
 
 spc_list = [spc_a,spc_b,spc_c,spc_d]
@@ -83,6 +224,8 @@ plot(3,mainFlowYsc,ytitle='Ysc Deflection')
 plot(4,mainFlowXsc,ytitle='Xsc Deflection')
 
 
+###
+
 fluxDifference_agyro = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
 W = (fluxDifference_agyro/totalFlux)/0.035
 
@@ -95,3 +238,65 @@ for j in xrange(len(W[0,:])):
         continue
         
 plot(5,W)
+
+####
+
+# chi = (v_z2-v_z1) / (v_z2*tan(phi2) - v_z1*tan(phi1))
+# V_lo < 0.5*m*v^2 < V_hi
+
+v_z2 = mv_hi
+v_z1 = mv_lo
+v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) )  #in cm/s
+#plot(v_z)
+#stop
+
+vz_tanPhi   = v_z * tan(toRadians(U))
+vz_tanTheta = v_z * tan(toRadians(V))
+#plot(vz_tanPhi)
+#stop
+
+
+chi = zeros(len(U[:,0]),len(U[0,:]))
+psi = zeros(len(U[:,0]),len(U[0,:]))
+for i in xrange(len(U[:,0])):
+    chi[i] = diff(v_z[i,:]) / diff(vz_tanPhi[i,:])
+    psi[i] = diff(v_z[i,:]) / diff(vz_tanTheta[i,:])
+
+plot(chi)
+#stop
+
+mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+
+#mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
+mag = trim(mag,tr)
+
+mag_time = mag.property(QDataSet.DEPEND_0)
+
+pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+pos_time = pos.property(QDataSet.DEPEND_0)
+
+Bx = mag[:,0]
+By = mag[:,1]
+Bz = mag[:,2]
+Btotal = magnitude(mag)
+
+TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Ry = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+
+
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+
+(Nx,Ny,Nz) = synchronize(v_z,[Nx,Ny,Nz])
+
+epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chi - 1 )
+epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psi - 1 )
+
+epsilon_chi.putProperty(QDataSet.DEPEND_1,mv_lo)
+epsilon_psi.putProperty(QDataSet.DEPEND_1,mv_lo)
+
+reset()
+plot(0,totalFlux)
+plot(1,epsilon_chi)
+plot(2,epsilon_psi)

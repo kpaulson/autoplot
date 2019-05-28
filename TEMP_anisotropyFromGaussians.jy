@@ -1,10 +1,12 @@
 
 smoothPoints = 5
 
-spc_a_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_a&slice1=2')
-spc_b_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_b&slice1=2')
-spc_c_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_c&slice1=2')
-spc_d_peak1_width = getDataSet('file:/C:/tmp/TEMP_gaussian.cdf?gaussianFits_d&slice1=2')
+GaussianFile = 'file:/tmp/TEMP_gaussian.cdf'
+
+spc_a_peak1_width = getDataSet(GaussianFile+'?gaussianFits_a&slice1=2')
+spc_b_peak1_width = getDataSet(GaussianFile+'?gaussianFits_b&slice1=2')
+spc_c_peak1_width = getDataSet(GaussianFile+'?gaussianFits_c&slice1=2')
+spc_d_peak1_width = getDataSet(GaussianFile+'?gaussianFits_d&slice1=2')
 
 spc_a_peak1_width.putProperty(QDataSet.VALID_MIN,None)
 spc_b_peak1_width.putProperty(QDataSet.VALID_MIN,None)
@@ -167,6 +169,7 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 
 
 tr = '2018-11-03 19:00 to 19:20'
+tr = '2019-04-01 07:30 to 09:30'
     
     
 mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
@@ -187,20 +190,30 @@ Btotal = magnitude(mag)
 
 
 
-[A_x,A_y] = synchronize(Btotal,[A_x,A_y])
+#[A_x,A_y] = synchronize(Btotal,[A_x,A_y])
 
 smoothPoints = 64*16
-Bx_mean = smooth(Bx,smoothPoints)
-By_mean = smooth(By,smoothPoints)
-Bxy_total = sqrt(Bx_mean**2 + By_mean**2)
+Bx_mean = smooth(Bx,smoothPoints)[::32]
+By_mean = smooth(By,smoothPoints)[::32]
+Bz_mean = smooth(Bz,smoothPoints)[::32]
+Btotal_mean = sqrt(Bx_mean**2 + By_mean**2 + Bz_mean**2)
 
-A_Bpara = (A_x*Bx_mean + A_y*By_mean)/Bxy_total
-A_Bperp = (A_x*By_mean - A_y*Bx_mean)/Bxy_total
+[A_x,A_y] = synchronize(Bx_mean,[A_x,A_y])
+
+A_Bpara = (A_x*Bx_mean + A_y*By_mean + 0*Bz_mean)/Btotal_mean
+A_Bperp = (A_y*Bx_mean - A_x*By_mean)/Btotal_mean
+
+r = where(valid(A_Bpara))
+A_Bpara_filter = medianFilter(A_Bpara[r],10)
+r = where(valid(A_Bperp))
+A_Bperp_filter = medianFilter(A_Bperp[r],10)
+
 
 setLayoutOverplot(2)
-plot(0,A_Bpara,color='blue')
-plot(1,A_Bperp,color='red')
+plot(0,A_Bpara_filter,color='blue')
+plot(1,A_Bperp_filter,color='red')
 stop
+plot(2,smooth(Bx,64*2)[::64*2])
 
 # ###
 # ### ROTATE INTO FIELD-ALIGNED COORDINATES

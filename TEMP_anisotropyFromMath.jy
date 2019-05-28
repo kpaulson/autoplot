@@ -1,0 +1,97 @@
+
+
+
+#dqf = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?DQF&timerange=2018-307+9:00+to+18:00')
+#
+#for j in xrange(len(dqf[0,:])):
+#    print dqf[:,j]
+    
+tr = '2018-11-03 19:00 to 19:20'
+#tr = '2018-11-03 19:19 to 19:20'
+    
+spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
+spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
+spc_c = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?c_current',tr)
+spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?d_current',tr)
+
+#print spc_a
+
+spc_list = [spc_a,spc_b,spc_c,spc_d]
+
+#for l in spc_list:
+#    trim(l,tr)
+    
+#print spc_a
+
+spc_a = trim(spc_a,tr)
+spc_b = trim(spc_b,tr)
+spc_c = trim(spc_c,tr)
+spc_d = trim(spc_d,tr)
+#print spc_a
+
+spc_list = [spc_a,spc_b,spc_c,spc_d]
+i=0
+#for l in spc_list:
+#    plot(i,l)
+#    i = i+1
+#STOP
+totalFlux = sum(spc_list)
+
+fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
+fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
+
+U = (fluxDifference_scy/totalFlux)/0.035
+V = (fluxDifference_scx/totalFlux)/0.035
+
+U.putProperty(QDataSet.VALID_MIN,None)
+V.putProperty(QDataSet.VALID_MIN,None)
+U.putProperty(QDataSet.VALID_MAX,None)
+V.putProperty(QDataSet.VALID_MAX,None)
+
+#r0 = where(valid(U)) *(-1) + 1
+#U[r0] = -180
+#r0 = where(valid(V)) *(-1) + 1
+#V[r0] = -180
+
+for j in xrange(len(U[0,:])):
+    try:
+        U[:,j] = medianFilter(U[:,j],3)
+    except:
+        continue
+    try:
+        V[:,j] = medianFilter(V[:,j],3)
+    except:
+        continue
+
+U.putProperty(QDataSet.UNITS,Units.degrees)
+V.putProperty(QDataSet.UNITS,Units.degrees)
+
+plot(0,totalFlux)
+plot(1,U)
+plot(2,V)
+
+peaks = reduceMax(totalFlux,1)
+r = where(eq(totalFlux,peaks))
+
+mainFlowYsc = U[r]  # Mike's routine calls this azimuth (and is negative)
+mainFlowXsc = V[r]  # Mike's routine calls this elevation
+
+#mainFlowU = smooth1(U,3)[r]
+#mainFlowV = smooth1(V,3)[r]
+
+plot(3,mainFlowYsc,ytitle='Ysc Deflection')
+plot(4,mainFlowXsc,ytitle='Xsc Deflection')
+
+
+fluxDifference_agyro = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
+W = (fluxDifference_agyro/totalFlux)/0.035
+
+W.putProperty(QDataSet.VALID_MIN,None)
+W.putProperty(QDataSet.VALID_MAX,None)
+for j in xrange(len(W[0,:])):
+    try:
+        W[:,j] = medianFilter(W[:,j],3)
+    except:
+        continue
+        
+plot(5,W)

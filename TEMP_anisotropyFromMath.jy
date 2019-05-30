@@ -233,16 +233,16 @@ mainFlowXsc = V[r]  # Mike's routine calls this elevation
 
 ###
 
-fluxDifference_agyro = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
-W = (fluxDifference_agyro/totalFlux)/0.035
-
-W.putProperty(QDataSet.VALID_MIN,None)
-W.putProperty(QDataSet.VALID_MAX,None)
-for j in xrange(len(W[0,:])):
-    try:
-        W[:,j] = medianFilter(W[:,j],3)
-    except:
-        continue
+#fluxDifference_agyro = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
+#W = (fluxDifference_agyro/totalFlux)/0.035
+#
+#W.putProperty(QDataSet.VALID_MIN,None)
+#W.putProperty(QDataSet.VALID_MAX,None)
+#for j in xrange(len(W[0,:])):
+#    try:
+#        W[:,j] = medianFilter(W[:,j],3)
+#    except:
+#        continue
         
 #plot(5,W)
 
@@ -254,6 +254,7 @@ for j in xrange(len(W[0,:])):
 v_z2 = mv_hi
 v_z1 = mv_lo 
 v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) )    # in cm/s
+v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) ) / 1.E5   # in cm/s
 #plot(v_z)
 #stop
 
@@ -279,9 +280,9 @@ r_upper = copy(r)
 r_upper[:,1] = r[:,1]+2
 #plot(chi)
 
-setLayoutOverplot(3) 
-#waitUntilIdle()
-plot(0,totalFlux)
+#setLayoutOverplot(3) 
+
+#plot(0,totalFlux)
 plot(0,totalFlux,colorTable='apl_rainbow_black0')
 upperBound = dblarr(len(totalFlux))
 upperBound = mv_lo[r_upper]
@@ -290,24 +291,54 @@ lowerBound = mv_lo[r_lower]
 plot(1,upperBound)
 plot(2,lowerBound)
 
+
+from org.apache.commons.math.optimization.fitting import CurveFitter
+from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+
+class LinFit(ParametricRealFunction):
+    def value(self, x, params):
+        a = params[0]
+        b = params[1]
+        return (a*x + b)
+    def gradient(self, x, params):
+        a = params[0]
+        b = params[1]
+        return [x,1]
+
+inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
 chiline = None
 psiline = None
-dds= generateTimeRanges('$Y$m$d $H:$(M,span=3) ',tr)
-    for dd in dds:
-        v_z_dd = trim(v_z,dd)
-        vz_tanTheta_dd = trim(vz_tanTheta,dd)
-        totalFlux_dd = trim(totalFlux,dd)
-        temp_v_z = None
-        temp_vz_tanTheta = None
-        temp_totalFlux = None
-        for i in xrange(len(v_z)):
-            temp_v_z = concatenate(temp_v_z,v_z[i,:])
-            temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta[i,:])
-            temp_totalFlux = concatenate(temp_totalFlux,totalFlux[i,:])
-        r = where(ge(temp_totalFlux,5))
-        plot(3,temp_v_z[r],temp_vz_tanTheta[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
-
+dds= generateTimeRanges('$Y-$m-$d $H:$(M,span=2)',tr)
+for ind in xrange(len(dds)-1):
+    tr_dds = dds[ind]+' to '+dds[ind+1]
+    v_z_dd = trim(v_z,tr_dds)
+    vz_tanTheta_dd = trim(vz_tanTheta,tr_dds)
+    #vz_tanTheta_dd = trim(vz_tanTheta,'%s to %s'%())
+    totalFlux_dd = trim(totalFlux,tr_dds)
     
+    temp_v_z = None
+    temp_vz_tanTheta = None
+    temp_totalFlux = None
+    for i in xrange(len(v_z_dd)):
+        temp_v_z = concatenate(temp_v_z,v_z_dd[i,:])
+        temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])
+        temp_totalFlux = concatenate(temp_totalFlux,totalFlux_dd[i,:])
+    norm_temp_totalFlux = normalize(temp_totalFlux)
+    r = where(ge(temp_totalFlux,5).and(valid(temp_totalFlux)))
+    plot(3,temp_v_z[r],temp_vz_tanTheta[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
+
+    f = LinFit()
+    ftr = CurveFitter(LevenbergMarquardtOptimizer())
+
+    for i in xrange(len(temp_v_z[r])):
+        ftr.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]),float(temp_vz_tanTheta[r][i]))
+    result = ftr.fit(f,inputGuessParams)
+    print 'slope:',result[0]
+    print 'offset:',result[1]
+    
+    xx = linspace( min(temp_v_z[where(valid(temp_v_z))]) , max(temp_v_z[where(valid(temp_v_z))]) , 100)
+    plot(4,xx,(result[0]*xx + result[1]),color='red',xtitle=tr_dds)
 #stop
 
 #plot(1,v_z[r])

@@ -126,28 +126,29 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 
 ############################################################################
 
-
+#plot(3,mv_hi-mv_lo)
 
 #dqf = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?DQF&timerange=2018-307+9:00+to+18:00')
 #
 #for j in xrange(len(dqf[0,:])):
 #    print dqf[:,j]
     
-tr = '2018-11-03 19:00 to 19:20'
-#tr = '2018-11-03 19:19 to 19:20'
+tr = '2018-11-03 18:33 to 18:39'
+tr = '2018-11-02 16:55 to 17:10'
+#tr = '2018-10-30 19:10 to 19:40'
 
 m_p               = 1.6726231E-24
-trend_seconds     = 10     # Number of seconds over which to average magField to determine background field direction
+trend_seconds     = 30     # Number of seconds over which to average magField to determine background field direction
 
 cfa_sweap_file = 'http://sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     
-spc_a = getDataSet(cfa_sweap_file+'?a_current',tr)
-spc_b = getDataSet(cfa_sweap_file+'?b_current',tr)
-spc_c = getDataSet(cfa_sweap_file+'?c_current',tr)
-spc_d = getDataSet(cfa_sweap_file+'?d_current',tr)
+spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
 
-mv_lo = getDataSet(cfa_sweap_file+'?mv_lo',tr)
-mv_hi = getDataSet(cfa_sweap_file+'?mv_hi',tr)
+mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
 
 #plot(0,mv_hi-mv_lo)
 #stop
@@ -170,7 +171,13 @@ mv_lo = trim(mv_lo,tr)
 mv_hi = trim(mv_hi,tr)
 #print spc_a
 
+
+#spc_a = putProperty(spc_a/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
+#spc_b = putProperty(spc_b/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
+#spc_c = putProperty(spc_c/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
+#spc_d = putProperty(spc_d/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
 spc_list = [spc_a,spc_b,spc_c,spc_d]
+#spc_list = [spc_a/(mv_hi-mv_lo),spc_b/(mv_hi-mv_lo),spc_c/(mv_hi-mv_lo),spc_d/(mv_hi-mv_lo)]
 i=0
 #for l in spc_list:
 #    plot(i,l)
@@ -207,9 +214,9 @@ for j in xrange(len(U[0,:])):
 U.putProperty(QDataSet.UNITS,Units.degrees)
 V.putProperty(QDataSet.UNITS,Units.degrees)
 
-plot(0,totalFlux)
-plot(1,U)
-plot(2,V)
+#plot(0,totalFlux)
+#plot(1,U)
+#plot(2,V)
 
 peaks = reduceMax(totalFlux,1)
 r = where(eq(totalFlux,peaks))
@@ -220,8 +227,8 @@ mainFlowXsc = V[r]  # Mike's routine calls this elevation
 #mainFlowU = smooth1(U,3)[r]
 #mainFlowV = smooth1(V,3)[r]
 
-plot(3,mainFlowYsc,ytitle='Ysc Deflection')
-plot(4,mainFlowXsc,ytitle='Xsc Deflection')
+#plot(3,mainFlowYsc,ytitle='Ysc Deflection')
+#plot(4,mainFlowXsc,ytitle='Xsc Deflection')
 
 
 ###
@@ -237,7 +244,7 @@ for j in xrange(len(W[0,:])):
     except:
         continue
         
-plot(5,W)
+#plot(5,W)
 
 ####
 
@@ -245,25 +252,73 @@ plot(5,W)
 # V_lo < 0.5*m*v^2 < V_hi
 
 v_z2 = mv_hi
-v_z1 = mv_lo
-v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) )  #in cm/s
+v_z1 = mv_lo 
+v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) )    # in cm/s
 #plot(v_z)
 #stop
 
-vz_tanPhi   = v_z * tan(toRadians(U))
-vz_tanTheta = v_z * tan(toRadians(V))
+vz_tanPhi   = v_z * tan(toRadians(U))     # Vy
+vz_tanTheta = v_z * tan(toRadians(V))     # Vx
 #plot(vz_tanPhi)
 #stop
 
 
 chi = zeros(len(U[:,0]),len(U[0,:]))
 psi = zeros(len(U[:,0]),len(U[0,:]))
-for i in xrange(len(U[:,0])):
-    chi[i] = diff(v_z[i,:]) / diff(vz_tanPhi[i,:])
-    psi[i] = diff(v_z[i,:]) / diff(vz_tanTheta[i,:])
+#for i in xrange(len(U[:,0])):
+#    chi[i] = diff(v_z[i,:]) / diff(vz_tanPhi[i,:])
+#    psi[i] = diff(v_z[i,:]) / diff(vz_tanTheta[i,:])
 
-plot(chi)
+#v_z.putProperty(QDataSet.DEPEND_1,mv_lo)  
+
+###
+# Define upper point
+r_lower = copy(r)
+r_lower[:,1] = r[:,1]-2
+r_upper = copy(r)
+r_upper[:,1] = r[:,1]+2
+#plot(chi)
+
+setLayoutOverplot(3) 
+#waitUntilIdle()
+plot(0,totalFlux)
+plot(0,totalFlux,colorTable='apl_rainbow_black0')
+upperBound = dblarr(len(totalFlux))
+upperBound = mv_lo[r_upper]
+lowerBound = dblarr(len(totalFlux))
+lowerBound = mv_lo[r_lower]
+plot(1,upperBound)
+plot(2,lowerBound)
+
+chiline = None
+psiline = None
+dds= generateTimeRanges('$Y$m$d $H:$(M,span=3) ',tr)
+    for dd in dds:
+        v_z_dd = trim(v_z,dd)
+        vz_tanTheta_dd = trim(vz_tanTheta,dd)
+        totalFlux_dd = trim(totalFlux,dd)
+        temp_v_z = None
+        temp_vz_tanTheta = None
+        temp_totalFlux = None
+        for i in xrange(len(v_z)):
+            temp_v_z = concatenate(temp_v_z,v_z[i,:])
+            temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta[i,:])
+            temp_totalFlux = concatenate(temp_totalFlux,totalFlux[i,:])
+        r = where(ge(temp_totalFlux,5))
+        plot(3,temp_v_z[r],temp_vz_tanTheta[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
+
+    
 #stop
+
+#plot(1,v_z[r])
+#plot(2,chi[r-1])
+#plot(2,v_z[r_upper])
+#plot(r)
+chiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanPhi[r_upper] - vz_tanPhi[r_lower])
+psiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanTheta[r_upper] - vz_tanTheta[r_lower])
+#plot(3,chiline)
+plot(4,psiline)
+stop
 
 mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
 mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
@@ -290,13 +345,13 @@ TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 
 (Nx,Ny,Nz) = synchronize(v_z,[Nx,Ny,Nz])
 
-epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chi - 1 )
-epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psi - 1 )
+epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chiline - 1 )
+epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psiline - 1 )
 
 epsilon_chi.putProperty(QDataSet.DEPEND_1,mv_lo)
 epsilon_psi.putProperty(QDataSet.DEPEND_1,mv_lo)
 
-reset()
+#reset()
 plot(0,totalFlux)
-plot(1,epsilon_chi)
-plot(2,epsilon_psi)
+plot(3,epsilon_chi,ytitle='&epsilon;&Chi;')
+plot(4,epsilon_psi,ytitle='&epsilon;&Psi;')

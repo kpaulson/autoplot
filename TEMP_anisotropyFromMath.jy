@@ -134,7 +134,7 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 #    print dqf[:,j]
     
 tr = '2018-11-03 18:33 to 18:39'
-tr = '2018-11-02 16:55 to 17:10'
+tr = '2018-11-02 16:45 to 17:20'
 #tr = '2018-10-30 19:10 to 19:40'
 
 m_p               = 1.6726231E-24
@@ -280,7 +280,7 @@ r_upper = copy(r)
 r_upper[:,1] = r[:,1]+2
 #plot(chi)
 
-#setLayoutOverplot(3) 
+#setLayoutOverplot(4) 
 
 #plot(0,totalFlux)
 plot(0,totalFlux,colorTable='apl_rainbow_black0')
@@ -309,47 +309,67 @@ class LinFit(ParametricRealFunction):
 inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
 chiline = None
 psiline = None
-dds= generateTimeRanges('$Y-$m-$d $H:$(M,span=2)',tr)
+epsilonEpoch = None
+dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=10)',tr)
 for ind in xrange(len(dds)-1):
     tr_dds = dds[ind]+' to '+dds[ind+1]
+    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
+    
     v_z_dd = trim(v_z,tr_dds)
+    vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
     vz_tanTheta_dd = trim(vz_tanTheta,tr_dds)
     #vz_tanTheta_dd = trim(vz_tanTheta,'%s to %s'%())
     totalFlux_dd = trim(totalFlux,tr_dds)
     
     temp_v_z = None
     temp_vz_tanTheta = None
+    temp_vz_tanPhi = None
     temp_totalFlux = None
     for i in xrange(len(v_z_dd)):
         temp_v_z = concatenate(temp_v_z,v_z_dd[i,:])
+        temp_vz_tanPhi = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])
         temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])
         temp_totalFlux = concatenate(temp_totalFlux,totalFlux_dd[i,:])
     norm_temp_totalFlux = normalize(temp_totalFlux)
-    r = where(ge(temp_totalFlux,5).and(valid(temp_totalFlux)))
-    plot(3,temp_v_z[r],temp_vz_tanTheta[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
+    r = where(ge(temp_totalFlux,8).and(valid(temp_totalFlux)))
+    #plot(4,temp_v_z[r],temp_vz_tanTheta[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
+    #plot(6,temp_v_z[r],temp_vz_tanPhi[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
 
     f = LinFit()
-    ftr = CurveFitter(LevenbergMarquardtOptimizer())
+    ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
+    ftr_psi = CurveFitter(LevenbergMarquardtOptimizer())
 
     for i in xrange(len(temp_v_z[r])):
-        ftr.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]),float(temp_vz_tanTheta[r][i]))
-    result = ftr.fit(f,inputGuessParams)
-    print 'slope:',result[0]
-    print 'offset:',result[1]
+        ftr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]),float(temp_vz_tanPhi[r][i]))
+        ftr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]),float(temp_vz_tanTheta[r][i]))
+    result_chi = ftr_chi.fit(f,inputGuessParams)
+    result_psi = ftr_psi.fit(f,inputGuessParams)
+#    print 'slope:',result[0]
+#    print 'offset:',result[1]
     
-    xx = linspace( min(temp_v_z[where(valid(temp_v_z))]) , max(temp_v_z[where(valid(temp_v_z))]) , 100)
-    plot(4,xx,(result[0]*xx + result[1]),color='red',xtitle=tr_dds)
+    xx = linspace( min(temp_v_z[r][where(valid(temp_v_z[r]))]) , max(temp_v_z[r][where(valid(temp_v_z[r]))]) , 100)
+    #plot(5,xx,(result_psi[0]*xx + result_psi[1]),color='red',xtitle=tr_dds)
+    #plot(7,xx,(result_chi[0]*xx + result_chi[1]),color='red',xtitle=tr_dds)
+    
+    psiline = concatenate(psiline,result_psi[0])
+    chiline = concatenate(chiline,result_chi[0])
+    epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
+psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+plot(8,psiline)
 #stop
 
 #plot(1,v_z[r])
 #plot(2,chi[r-1])
 #plot(2,v_z[r_upper])
 #plot(r)
-chiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanPhi[r_upper] - vz_tanPhi[r_lower])
-psiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanTheta[r_upper] - vz_tanTheta[r_lower])
+
+#chiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanPhi[r_upper] - vz_tanPhi[r_lower])
+#psiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanTheta[r_upper] - vz_tanTheta[r_lower])
+
 #plot(3,chiline)
-plot(4,psiline)
-stop
+#plot(4,psiline)
+#stop
 
 mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
 mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
@@ -374,10 +394,17 @@ TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 
 ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
 
-(Nx,Ny,Nz) = synchronize(v_z,[Nx,Ny,Nz])
+(Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
 
 epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chiline - 1 )
 epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psiline - 1 )
+epsilon_chi = -1. / ( 1 + Nx*Nz*chiline - Nz**2 )
+epsilon_psi = -1. / ( 1 + Ny*Nz*psiline - Nz**2 )
+
+plot(8,epsilonEpoch,epsilon_chi,color='red')
+plot(8,epsilonEpoch,1. / ( Nz**2 + Ny*Nz*0 - 1 ),color='red')
+plot(9,epsilonEpoch,epsilon_psi,color='blue')
+stop
 
 epsilon_chi.putProperty(QDataSet.DEPEND_1,mv_lo)
 epsilon_psi.putProperty(QDataSet.DEPEND_1,mv_lo)

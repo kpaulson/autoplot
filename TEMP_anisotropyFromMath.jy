@@ -135,6 +135,8 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
     
 tr = '2018-11-03 18:33 to 18:39'
 tr = '2018-11-02 16:45 to 17:20'
+tr = '2019-04-02 07:00 to 09:00'
+tr = '2019-04-02 08:00 to 08:15'
 #tr = '2018-10-30 19:10 to 19:40'
 
 m_p               = 1.6726231E-24
@@ -311,6 +313,7 @@ chiline = None
 psiline = None
 epsilonEpoch = None
 dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=10)',tr)
+dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$(S,span=10)',tr)
 for ind in xrange(len(dds)-1):
     tr_dds = dds[ind]+' to '+dds[ind+1]
     plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
@@ -359,6 +362,16 @@ chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 plot(8,psiline)
 #stop
 
+output_file = '/home/kpaulson/Research/PSP/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
+
+psiline.putProperty(QDataSet.NAME,'Psi')
+psiline.putProperty(QDataSet.DESCRIPTION,'Linear fit of scan points over 10-second range in Vy/Vz space')
+chiline.putProperty(QDataSet.NAME,'Chi')
+chiline.putProperty(QDataSet.DESCRIPTION,'Linear fit of scan points over 10-second range in Vx/Vz space')
+formatDataSet(psiline,output_file)
+formatDataSet(chiline,output_file+'?append=T')
+
+
 #plot(1,v_z[r])
 #plot(2,chi[r-1])
 #plot(2,v_z[r_upper])
@@ -396,14 +409,26 @@ TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 
 (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
 
+Bunit = bundle(Nx,Ny,Nz)
+Bunit.putProperty(QDataSet.NAME,'B_hat')
+Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+formatDataSet(Bunit,output_file+'?append=T')
+
 epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chiline - 1 )
 epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psiline - 1 )
 epsilon_chi = -1. / ( 1 + Nx*Nz*chiline - Nz**2 )
 epsilon_psi = -1. / ( 1 + Ny*Nz*psiline - Nz**2 )
 
+epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny )
+formatDataSet(epsilon_chi,output_file+'?append=T')
+formatDataSet(epsilon_psi,output_file+'?append=T')
+
 plot(8,epsilonEpoch,epsilon_chi,color='red')
 plot(8,epsilonEpoch,1. / ( Nz**2 + Ny*Nz*0 - 1 ),color='red')
 plot(9,epsilonEpoch,epsilon_psi,color='blue')
+plot(8,epsilonEpoch,- chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx ),color='red')
+plot(9,epsilonEpoch,- psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny ),color='blue')
 stop
 
 epsilon_chi.putProperty(QDataSet.DEPEND_1,mv_lo)

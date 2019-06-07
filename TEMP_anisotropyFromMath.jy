@@ -135,14 +135,15 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
     
 tr = '2018-11-03 18:33 to 18:39'
 tr = '2018-11-02 16:45 to 17:20'
-tr = '2019-04-02 07:00 to 09:00'
-tr = '2019-04-02 08:00 to 08:15'
+tr = '2019-04-01 07:00 to 10:00'
+tr = '2018-11-04 05:40 to 06:00'
+#tr = '2019-04-01 08:00 to 08:15'
 #tr = '2018-10-30 19:10 to 19:40'
 
 m_p               = 1.6726231E-24
 trend_seconds     = 30     # Number of seconds over which to average magField to determine background field direction
 
-cfa_sweap_file = 'http://sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     
 spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
 spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
@@ -186,6 +187,7 @@ i=0
 #    i = i+1
 #STOP
 totalFlux = sum(spc_list)
+#totalFlux = totalFlux/((mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo))
 
 fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
 fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
@@ -220,6 +222,9 @@ V.putProperty(QDataSet.UNITS,Units.degrees)
 #plot(1,U)
 #plot(2,V)
 
+#totalFlux = totalFlux / (mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo)
+totalFlux = totalFlux/( (mv_hi-mv_lo))
+totalFlux.putProperty(QDataSet.DEPEND_1,mv_lo)
 peaks = reduceMax(totalFlux,1)
 r = where(eq(totalFlux,peaks))
 
@@ -334,9 +339,8 @@ for ind in xrange(len(dds)-1):
         temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])
         temp_totalFlux = concatenate(temp_totalFlux,totalFlux_dd[i,:])
     norm_temp_totalFlux = normalize(temp_totalFlux)
-    r = where(ge(temp_totalFlux,8).and(valid(temp_totalFlux)))
-    #plot(4,temp_v_z[r],temp_vz_tanTheta[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
-    #plot(6,temp_v_z[r],temp_vz_tanPhi[r],temp_totalFlux[r],renderType='colorScatter',symsize=3.,zlog=True,zrange=[1,200],colorTable='apl_rainbow_black0')
+    r = where(ge(temp_totalFlux,0).and(valid(temp_totalFlux)))  # Removes points from the measurement below a particular threschhold
+    
 
     f = LinFit()
     ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
@@ -359,10 +363,11 @@ for ind in xrange(len(dds)-1):
     epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
 psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-plot(8,psiline)
+#plot(8,psiline)
 #stop
 
 output_file = '/home/kpaulson/Research/PSP/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
+output_file = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
 
 psiline.putProperty(QDataSet.NAME,'Psi')
 psiline.putProperty(QDataSet.DESCRIPTION,'Linear fit of scan points over 10-second range in Vy/Vz space')
@@ -414,27 +419,29 @@ Bunit.putProperty(QDataSet.NAME,'B_hat')
 Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 formatDataSet(Bunit,output_file+'?append=T')
 
-epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chiline - 1 )
-epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psiline - 1 )
-epsilon_chi = -1. / ( 1 + Nx*Nz*chiline - Nz**2 )
-epsilon_psi = -1. / ( 1 + Ny*Nz*psiline - Nz**2 )
+#epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chiline - 1 )
+#epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psiline - 1 )
+#epsilon_chi = -1. / ( 1 + Nx*Nz*chiline - Nz**2 )
+#epsilon_psi = -1. / ( 1 + Ny*Nz*psiline - Nz**2 )
 
 epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
 epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny )
 formatDataSet(epsilon_chi,output_file+'?append=T')
 formatDataSet(epsilon_psi,output_file+'?append=T')
 
-plot(8,epsilonEpoch,epsilon_chi,color='red')
-plot(8,epsilonEpoch,1. / ( Nz**2 + Ny*Nz*0 - 1 ),color='red')
-plot(9,epsilonEpoch,epsilon_psi,color='blue')
-plot(8,epsilonEpoch,- chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx ),color='red')
-plot(9,epsilonEpoch,- psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny ),color='blue')
-stop
-
-epsilon_chi.putProperty(QDataSet.DEPEND_1,mv_lo)
-epsilon_psi.putProperty(QDataSet.DEPEND_1,mv_lo)
-
-#reset()
-plot(0,totalFlux)
-plot(3,epsilon_chi,ytitle='&epsilon;&Chi;')
-plot(4,epsilon_psi,ytitle='&epsilon;&Psi;')
+#plot(8,epsilonEpoch,epsilon_chi,color='red')
+#plot(8,epsilonEpoch,1. / ( Nz**2 + Ny*Nz*0 - 1 ),color='red')
+#plot(9,epsilonEpoch,epsilon_psi,color='blue')
+plot(4,epsilonEpoch,epsilon_chi,color='red')
+plot(5,epsilonEpoch,epsilon_psi,color='blue',ytitle='(&omega;!B&perp;!N/&omega;!B||!N)!U2!N - 1')
+plot(4,epsilonEpoch,sqrt(epsilon_chi+1),color='red')
+plot(5,epsilonEpoch,sqrt(epsilon_psi+1),color='blue',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+#stop
+#
+#epsilon_chi.putProperty(QDataSet.DEPEND_1,mv_lo)
+#epsilon_psi.putProperty(QDataSet.DEPEND_1,mv_lo)
+#
+##reset()
+#plot(0,totalFlux)
+#plot(3,epsilon_chi,ytitle='&epsilon;&Chi;')
+#plot(4,epsilon_psi,ytitle='&epsilon;&Psi;')

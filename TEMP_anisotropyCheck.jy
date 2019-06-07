@@ -1,0 +1,99 @@
+randomSeed(30)
+
+length = 300000#0
+
+aniso = 0.8
+
+p1 = randomn(1,length)
+p2 = randomn(20,length)*aniso
+
+#p3 = randomn(1,length,2)
+#plot(p3)
+#stop
+
+#p1_hist = histogram(p1,50)
+#p2_hist = histogram(p2,50)
+
+#plot(p1_hist)
+#plot(1,p2_hist)
+
+theta = 30
+slope = toRadians(theta)
+
+
+
+p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[50,50],dataset([-3,3]),dataset([-3,3]))
+#p1p2_hist = histogram2d(p1*cos(slope),p2*cos(slope),[50,50],dataset([-5,5]),dataset([-5,5]))
+
+#plot(2,p1,p2)
+setLayoutOverplot(5)
+plot(0,p1p2_hist,colorTable='apl_rainbow_black0',zlog=True,zrange=[1E-2,1E6])
+
+peaks = None
+peaks1 = None
+peaks2 = None
+for i in xrange(len(p1p2_hist)):
+    #temp_slice_peak_dep0 = i
+    #temp_slice_peak_dep1 = imax(slice0(p1p2_hist,i))
+    
+    temp_slice_peak_dep0 = p1p2_hist[i,:][imax(slice0(p1p2_hist,i))]
+    temp_slice_peak_dep1 = p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))]
+    
+    #temp_slice_peak_dep1 = where(eq(max(slice0(p1p2_hist,i))
+    peaks1 = concatenate(peaks1,temp_slice_peak_dep0)
+    peaks2 = concatenate(peaks2,temp_slice_peak_dep1)
+    #peaks1 = concatenate(peaks1,p1p2_hist.property(QDataSet.DEPEND_0)[imax(slice0(p1p2_hist,i))])
+    #temp_peak2 = slice0(p1p2_hist,i)
+    #peaks2 = concatenate(peaks2,p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))])
+plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=5,color='black')
+
+line = p1p2_hist.property(QDataSet.DEPEND_0)*tan(slope)
+plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[-5,5],yrange=[-5,5],xtitle='Vz',ytitle='Vx')
+
+#plot(3,total(p1p2_hist,1),ylog=True,yrange=[1E-2,1E6])
+#plot(4,total(p1p2_hist,0),ylog=True,yrange=[1E-2,1E6])
+#stop
+#for i in xrange(5):
+#    plot(i+2,slice0(p1p2_hist,i+8))
+
+
+
+from org.apache.commons.math.optimization.fitting import CurveFitter
+from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+
+class LinFit(ParametricRealFunction):
+    def value(self, x, params):
+        a = params[0]
+        b = params[1]
+        return (a*x + b)
+    def gradient(self, x, params):
+        a = params[0]
+        b = params[1]
+        return [x,1]
+        
+inputGuessParams = [0.5,0.5]
+f = LinFit()
+ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
+peaks1 = normalize(peaks1)
+#plot(5,p1p2_hist.property(QDataSet.DEPEND_0),peaks1)
+#plot(5 , (p1p2_hist.property(QDataSet.DEPEND_0)) , (peaks2) , peaks1 , renderType='colorScatter')
+#plot(5 , float(p1p2_hist.property(QDataSet.DEPEND_0)) , float(peaks2) , float(peaks1) )
+
+for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0))):
+    #ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]),float(peaks1[i]))
+    ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))#,float(ones(len((peaks1)))[i]))
+    
+result_chi = ftr_chi.fit(f,inputGuessParams)
+   
+chiline = result_chi[0]
+print 'chi:',chiline
+print result_chi[1] 
+plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0],color='blue')
+
+Nz = cos(slope)
+Nx = sin(slope)
+epsilon_chi =  chiline / ( (chiline*(1 - Nx**2)) + Nz*Nx )
+
+print 'epsilon:',epsilon_chi
+print 'input_anisotropy:',aniso

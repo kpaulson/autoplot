@@ -7,13 +7,13 @@
 #    print dqf[:,j]
     
 tr = '2018-11-03 19:00 to 19:20'
-tr = '2019-04-14 00:00 to 13:00'
+#tr = '2019-04-14 00:00 to 13:00'
 #tr = '2018-11-03 19:19 to 19:20'
     
-spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
-spc_b = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
-spc_c = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?c_current',tr)
-spc_d = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?d_current',tr)
+spc_a = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
+spc_b = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?b_current',tr)
+spc_c = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?c_current',tr)
+spc_d = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?d_current',tr)
 
 #print spc_a
 

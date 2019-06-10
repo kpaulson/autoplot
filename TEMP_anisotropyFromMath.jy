@@ -1,3 +1,5 @@
+
+
 # ############################################################################################ 
 
 
@@ -302,6 +304,7 @@ plot(2,lowerBound)
 from org.apache.commons.math.optimization.fitting import CurveFitter
 from org.apache.commons.math.optimization.fitting import ParametricRealFunction
 from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+from org.apache.commons.math.stat.regression      import SimpleRegression
 
 class LinFit(ParametricRealFunction):
     def value(self, x, params):
@@ -312,6 +315,34 @@ class LinFit(ParametricRealFunction):
         a = params[0]
         b = params[1]
         return [x,1]
+####################
+
+mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+
+#mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
+mag = trim(mag,tr)
+
+mag_time = mag.property(QDataSet.DEPEND_0)
+
+pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+pos_time = pos.property(QDataSet.DEPEND_0)
+
+Bx = mag[:,0]
+By = mag[:,1]
+Bz = mag[:,2]
+Btotal = magnitude(mag)
+
+TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Ry = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+
+
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+
+(Nx_temp,Ny_temp,Nz_temp) = synchronize(totalFlux,[Nx,Ny,Nz])
+#################
+
 
 inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
 chiline = None
@@ -328,39 +359,58 @@ for ind in xrange(len(dds)-1):
     vz_tanTheta_dd = trim(vz_tanTheta,tr_dds)
     #vz_tanTheta_dd = trim(vz_tanTheta,'%s to %s'%())
     totalFlux_dd = trim(totalFlux,tr_dds)
+    Nx_temp_dd = trim(Nx_temp,tr_dds)
+    Ny_temp_dd = trim(Ny_temp,tr_dds)
     
     temp_v_z = None
     temp_vz_tanTheta = None
     temp_vz_tanPhi = None
     temp_totalFlux = None
+    temp_Nx_temp_dd = None
+    temp_Ny_temp_dd = None
     for i in xrange(len(v_z_dd)):
-        temp_v_z = concatenate(temp_v_z,v_z_dd[i,:])
-        temp_vz_tanPhi = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])
+        temp_v_z         = concatenate(temp_v_z,v_z_dd[i,:])
+        temp_vz_tanPhi   = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])
         temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])
-        temp_totalFlux = concatenate(temp_totalFlux,totalFlux_dd[i,:])
+        temp_totalFlux   = concatenate(temp_totalFlux,totalFlux_dd[i,:])
+        temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
+        temp_Ny_temp_dd  = concatenate(temp_Ny_temp_dd,ones(len(v_z_dd[i,:]))*Ny_temp_dd[i])
+        
     norm_temp_totalFlux = normalize(temp_totalFlux)
-    r = where(ge(temp_totalFlux,0).and(valid(temp_totalFlux)))  # Removes points from the measurement below a particular threschhold
+    r = where(ge(temp_totalFlux,0.5).and(valid(temp_totalFlux)))  # Removes points from the measurement below a particular threschhold
     
 
     f = LinFit()
     ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
     ftr_psi = CurveFitter(LevenbergMarquardtOptimizer())
+    
+    regr_chi = SimpleRegression()
+    regr_psi = SimpleRegression()
 
     for i in xrange(len(temp_v_z[r])):
-        ftr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]),float(temp_vz_tanPhi[r][i]))
-        ftr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]),float(temp_vz_tanTheta[r][i]))
+        ftr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]),float(temp_vz_tanPhi[r][i]))
+        ftr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]),float(temp_vz_tanTheta[r][i]))
+        
+        #regr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[i]),float(temp_vz_tanPhi[r][i]))
+        #regr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[i]),float(temp_vz_tanTheta[r][i]))
+        
     result_chi = ftr_chi.fit(f,inputGuessParams)
     result_psi = ftr_psi.fit(f,inputGuessParams)
+    plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter')
+    plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter')
 #    print 'slope:',result[0]
 #    print 'offset:',result[1]
     
-    xx = linspace( min(temp_v_z[r][where(valid(temp_v_z[r]))]) , max(temp_v_z[r][where(valid(temp_v_z[r]))]) , 100)
-    #plot(5,xx,(result_psi[0]*xx + result_psi[1]),color='red',xtitle=tr_dds)
-    #plot(7,xx,(result_chi[0]*xx + result_chi[1]),color='red',xtitle=tr_dds)
+    #xx = linspace( min(temp_v_z[r][where(valid(temp_v_z[r]))]) , max(temp_v_z[r][where(valid(temp_v_z[r]))]) , 100)
+    xx_x = linspace( min((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
+    xx_y = linspace( min((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
+    plot(5,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle=tr_dds)
+    plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds)
     
     psiline = concatenate(psiline,result_psi[0])
     chiline = concatenate(chiline,result_chi[0])
     epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
+    sleep(1000)
 psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 #plot(8,psiline)

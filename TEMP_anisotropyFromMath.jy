@@ -144,8 +144,9 @@ tr = '2018-11-04 05:00 to 06:00'
 
 plotFitsAndPauseALot = True
 
-m_p               = 1.6726231E-24
-trend_seconds     = 30     # Number of seconds over which to average magField to determine background field direction
+m_p                  = 1.6726231E-24
+trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
+minFluxValueForFit   = 0.8
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     
@@ -384,7 +385,7 @@ for ind in xrange(len(dds)-1):
         
     norm_temp_totalFlux = normalize(temp_totalFlux)
     r = where(ge(temp_totalFlux,0.5).and(valid(temp_totalFlux)))  # Removes points from the measurement below a particular threschhold
-    r = where(ge(temp_totalFlux,0.5).and(valid(temp_totalFlux)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
+    r = where(ge(temp_totalFlux,minFluxValueForFit).and(valid(temp_totalFlux)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
     
 
     f = LinFit()

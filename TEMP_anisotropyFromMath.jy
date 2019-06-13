@@ -138,9 +138,11 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 tr = '2018-11-03 18:33 to 18:39'
 tr = '2018-11-02 16:45 to 17:20'
 tr = '2019-04-01 07:00 to 10:00'
-tr = '2018-11-04 05:40 to 06:00'
+tr = '2018-11-04 05:00 to 06:00'
 #tr = '2019-04-01 08:00 to 08:15'
 #tr = '2018-10-30 19:10 to 19:40'
+
+plotFitsAndPauseALot = True
 
 m_p               = 1.6726231E-24
 trend_seconds     = 30     # Number of seconds over which to average magField to determine background field direction
@@ -263,7 +265,7 @@ mainFlowXsc = V[r]  # Mike's routine calls this elevation
 v_z2 = mv_hi
 v_z1 = mv_lo 
 v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) )    # in cm/s
-v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) ) / 1.E5   # in cm/s
+v_z = sqrt( (2/m_p) * (mv_lo + (mv_hi-mv_lo)/2) ) / 1.E5   # in km/s
 #plot(v_z)
 #stop
 
@@ -345,9 +347,11 @@ TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 
 
 inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
-chiline = None
-psiline = None
-epsilonEpoch = None
+chiline                = None
+psiline                = None
+epsilonEpoch           = None
+chiSquaredReduced_chi  = None
+chiSquaredReduced_psi  = None
 dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=10)',tr)
 dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$(S,span=10)',tr)
 for ind in xrange(len(dds)-1):
@@ -375,9 +379,12 @@ for ind in xrange(len(dds)-1):
         temp_totalFlux   = concatenate(temp_totalFlux,totalFlux_dd[i,:])
         temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
         temp_Ny_temp_dd  = concatenate(temp_Ny_temp_dd,ones(len(v_z_dd[i,:]))*Ny_temp_dd[i])
+    #plot(8,temp_Nx_temp_dd[where(valid(temp_v_z))])
+    #plot(9,indgen(341),temp_v_z[where(valid(temp_v_z))]),temp_Nx_temp_dd[where(valid(temp_v_z))])
         
     norm_temp_totalFlux = normalize(temp_totalFlux)
     r = where(ge(temp_totalFlux,0.5).and(valid(temp_totalFlux)))  # Removes points from the measurement below a particular threschhold
+    r = where(ge(temp_totalFlux,0.5).and(valid(temp_totalFlux)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
     
 
     f = LinFit()
@@ -396,23 +403,33 @@ for ind in xrange(len(dds)-1):
         
     result_chi = ftr_chi.fit(f,inputGuessParams)
     result_psi = ftr_psi.fit(f,inputGuessParams)
-    plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter')
-    plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter')
 #    print 'slope:',result[0]
 #    print 'offset:',result[1]
     
     #xx = linspace( min(temp_v_z[r][where(valid(temp_v_z[r]))]) , max(temp_v_z[r][where(valid(temp_v_z[r]))]) , 100)
     xx_x = linspace( min((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
     xx_y = linspace( min((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
-    plot(5,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle=tr_dds)
-    plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds)
+
     
     psiline = concatenate(psiline,result_psi[0])
     chiline = concatenate(chiline,result_chi[0])
+    
+    temp_chiSquaredReduced_chi = abs(total( ( temp_vz_tanPhi[r] - (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) )**2 / (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) ) ) / len(temp_v_z[r])
+    temp_chiSquaredReduced_psi = abs(total( ( temp_vz_tanTheta[r] - (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) )**2 / (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) ) ) / len(temp_v_z[r])
+    chiSquaredReduced_chi = concatenate(chiSquaredReduced_chi,temp_chiSquaredReduced_chi)
+    chiSquaredReduced_psi = concatenate(chiSquaredReduced_psi,temp_chiSquaredReduced_psi)
+    
     epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
-    sleep(1000)
+    if plotFitsAndPauseALot == True:
+        plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter')
+        plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter')
+        plot(5,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle=tr_dds,title=str(mean(Ny_temp_dd)))
+        plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title=str(mean(Nx_temp_dd)))
+        sleep(1000)
 psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+chiSquaredReduced_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+chiSquaredReduced_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 #plot(8,psiline)
 #stop
 
@@ -423,8 +440,15 @@ psiline.putProperty(QDataSet.NAME,'Psi')
 psiline.putProperty(QDataSet.DESCRIPTION,'Linear fit of scan points over 10-second range in Vy/Vz space')
 chiline.putProperty(QDataSet.NAME,'Chi')
 chiline.putProperty(QDataSet.DESCRIPTION,'Linear fit of scan points over 10-second range in Vx/Vz space')
+chiSquaredReduced_chi.putProperty(QDataSet.NAME,'ChiSquared_chi')
+chiSquaredReduced_chi.putProperty(QDataSet.DESCRIPTION,'Reduced chi-squared from linear fit determining Chi')
+chiSquaredReduced_psi.putProperty(QDataSet.NAME,'ChiSquared_psi')
+chiSquaredReduced_psi.putProperty(QDataSet.DESCRIPTION,'Reduced chi-squared from linear fit determining Psi')
+
 formatDataSet(psiline,output_file)
 formatDataSet(chiline,output_file+'?append=T')
+formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
+formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
 
 
 #plot(1,v_z[r])
@@ -439,28 +463,28 @@ formatDataSet(chiline,output_file+'?append=T')
 #plot(4,psiline)
 #stop
 
-mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
-
-#mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
-mag = trim(mag,tr)
-
-mag_time = mag.property(QDataSet.DEPEND_0)
-
-pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
-pos_time = pos.property(QDataSet.DEPEND_0)
-
-Bx = mag[:,0]
-By = mag[:,1]
-Bz = mag[:,2]
-Btotal = magnitude(mag)
-
-TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-TEMP_Ry = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-
-
-( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+#mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+#mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+#
+##mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
+#mag = trim(mag,tr)
+#
+#mag_time = mag.property(QDataSet.DEPEND_0)
+#
+#pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+#pos_time = pos.property(QDataSet.DEPEND_0)
+#
+#Bx = mag[:,0]
+#By = mag[:,1]
+#Bz = mag[:,2]
+#Btotal = magnitude(mag)
+#
+#TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+#TEMP_Ry = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+#TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+#
+#
+#( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
 
 (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
 
@@ -474,8 +498,10 @@ formatDataSet(Bunit,output_file+'?append=T')
 #epsilon_chi = -1. / ( 1 + Nx*Nz*chiline - Nz**2 )
 #epsilon_psi = -1. / ( 1 + Ny*Nz*psiline - Nz**2 )
 
-epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
-epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny )
+#epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+#epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny )
+epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
+epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz )
 formatDataSet(epsilon_chi,output_file+'?append=T')
 formatDataSet(epsilon_psi,output_file+'?append=T')
 
@@ -484,8 +510,10 @@ formatDataSet(epsilon_psi,output_file+'?append=T')
 #plot(9,epsilonEpoch,epsilon_psi,color='blue')
 plot(4,epsilonEpoch,epsilon_chi,color='red')
 plot(5,epsilonEpoch,epsilon_psi,color='blue',ytitle='(&omega;!B&perp;!N/&omega;!B||!N)!U2!N - 1')
-plot(4,epsilonEpoch,sqrt(epsilon_chi+1),color='red')
-plot(5,epsilonEpoch,sqrt(epsilon_psi+1),color='blue',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+#plot(4,epsilonEpoch,sqrt(epsilon_chi+1),color='red')
+#plot(5,epsilonEpoch,sqrt(epsilon_psi+1),color='blue',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+
+
 #stop
 #
 #epsilon_chi.putProperty(QDataSet.DEPEND_1,mv_lo)

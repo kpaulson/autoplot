@@ -138,11 +138,11 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 tr = '2018-11-03 18:33 to 18:39'
 tr = '2018-11-02 16:45 to 17:20'
 tr = '2019-04-01 07:00 to 10:00'
-tr = '2018-11-04 05:00 to 06:00'
+#tr = '2018-11-04 04:40 to 06:20'
 #tr = '2019-04-01 08:00 to 08:15'
 #tr = '2018-10-30 19:10 to 19:40'
 
-plotFitsAndPauseALot = True
+plotFitsAndPauseALot = False
 
 m_p                  = 1.6726231E-24
 trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
@@ -295,7 +295,7 @@ r_upper[:,1] = r[:,1]+2
 #setLayoutOverplot(4) 
 
 #plot(0,totalFlux)
-plot(0,totalFlux,colorTable='apl_rainbow_black0')
+plot(0,totalFlux,colorTable='apl_rainbow_black0',ztitle='Current')
 upperBound = dblarr(len(totalFlux))
 upperBound = mv_lo[r_upper]
 lowerBound = dblarr(len(totalFlux))
@@ -337,8 +337,8 @@ Bz = mag[:,2]
 Btotal = magnitude(mag)
 
 TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-TEMP_Ry = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Ry = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 
 
 ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
@@ -422,11 +422,11 @@ for ind in xrange(len(dds)-1):
     
     epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
     if plotFitsAndPauseALot == True:
-        plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter')
-        plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter')
+        plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
+        plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
         plot(5,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle=tr_dds,title=str(mean(Ny_temp_dd)))
-        plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title=str(mean(Nx_temp_dd)))
-        sleep(1000)
+        plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title=str(mean(Nx_temp_dd)))
+        sleep(3000)
 psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiSquaredReduced_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
@@ -446,8 +446,8 @@ chiSquaredReduced_chi.putProperty(QDataSet.DESCRIPTION,'Reduced chi-squared from
 chiSquaredReduced_psi.putProperty(QDataSet.NAME,'ChiSquared_psi')
 chiSquaredReduced_psi.putProperty(QDataSet.DESCRIPTION,'Reduced chi-squared from linear fit determining Psi')
 
-formatDataSet(psiline,output_file)
-formatDataSet(chiline,output_file+'?append=T')
+formatDataSet(chiline,output_file)
+formatDataSet(psiline,output_file+'?append=T')
 formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
 formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
 
@@ -503,8 +503,17 @@ formatDataSet(Bunit,output_file+'?append=T')
 #epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny )
 epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
 epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz )
+epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')
+epsilon_psi.putProperty(QDataSet.NAME,'Epsilon_psi')
 formatDataSet(epsilon_chi,output_file+'?append=T')
 formatDataSet(epsilon_psi,output_file+'?append=T')
+
+anisotropy_chi = sqrt(epsilon_chi+1)
+anisotropy_psi = sqrt(epsilon_psi+1)
+anisotropy_chi.putProperty(QDataSet.NAME,'Anisotropy_chi')
+anisotropy_psi.putProperty(QDataSet.NAME,'Anisotropy_psi')
+formatDataSet(anisotropy_chi,output_file+'?append=T')
+formatDataSet(anisotropy_psi,output_file+'?append=T')
 
 #plot(8,epsilonEpoch,epsilon_chi,color='red')
 #plot(8,epsilonEpoch,1. / ( Nz**2 + Ny*Nz*0 - 1 ),color='red')

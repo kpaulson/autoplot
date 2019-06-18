@@ -1,12 +1,12 @@
-randomSeed(30)
+#randomSeed(30)
 
-length = 300000#0
+length = 600000#0
 
-aniso = 0.8
+aniso = 0.5
 
-p1 = randomn(1,length)
-p2 = randomn(20,length)*aniso
-
+p1 = randomn(long(rand(1)[0]*1E6),length)
+p2 = randomn(long(rand(1)[0]*1E6),length)*aniso
+#p1/p2
 #p3 = randomn(1,length,2)
 #plot(p3)
 #stop
@@ -17,17 +17,20 @@ p2 = randomn(20,length)*aniso
 #plot(p1_hist)
 #plot(1,p2_hist)
 
-theta = 30
+theta = 40
 slope = toRadians(theta)
 
+Nz = cos(slope)
+Nx = sin(slope)
+#Nz = sin(slope)
+#Nx = cos(slope)
 
 
-p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[50,50],dataset([-3,3]),dataset([-3,3]))
+p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-5,5]),dataset([-5,5]))
 #p1p2_hist = histogram2d(p1*cos(slope),p2*cos(slope),[50,50],dataset([-5,5]),dataset([-5,5]))
 
-#plot(2,p1,p2)
-setLayoutOverplot(5)
-plot(0,p1p2_hist,colorTable='apl_rainbow_black0',zlog=True,zrange=[1E-2,1E6])
+#setLayoutOverplot(5)
+plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E6])
 
 peaks = None
 peaks1 = None
@@ -45,10 +48,10 @@ for i in xrange(len(p1p2_hist)):
     #peaks1 = concatenate(peaks1,p1p2_hist.property(QDataSet.DEPEND_0)[imax(slice0(p1p2_hist,i))])
     #temp_peak2 = slice0(p1p2_hist,i)
     #peaks2 = concatenate(peaks2,p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))])
-plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=5,color='black')
+plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=7,color='black')
 
 line = p1p2_hist.property(QDataSet.DEPEND_0)*tan(slope)
-plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[-5,5],yrange=[-5,5],xtitle='Vz',ytitle='Vx')
+plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[-5,5],yrange=[-5,5],xtitle='Vz',ytitle='Vx',lineWidth=4)
 
 #plot(3,total(p1p2_hist,1),ylog=True,yrange=[1E-2,1E6])
 #plot(4,total(p1p2_hist,0),ylog=True,yrange=[1E-2,1E6])
@@ -81,19 +84,31 @@ peaks1 = normalize(peaks1)
 #plot(5 , float(p1p2_hist.property(QDataSet.DEPEND_0)) , float(peaks2) , float(peaks1) )
 
 for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0))):
-    #ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]),float(peaks1[i]))
-    ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))#,float(ones(len((peaks1)))[i]))
+    ftr_chi.addObservedPoint(float(peaks1[i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))
+    #ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))#,float(ones(len((peaks1)))[i]))
     
 result_chi = ftr_chi.fit(f,inputGuessParams)
    
+
+
+###############################
+###############################
+###############################
+
+
 chiline = result_chi[0]
-print 'chi:',chiline
-print result_chi[1] 
-plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0],color='blue')
+print 'chiline:',chiline
+#print result_chi[1] 
+plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0],color='blue',lineWidth=4)
 
-Nz = cos(slope)
-Nx = sin(slope)
-epsilon_chi =  chiline / ( (chiline*(1 - Nx**2)) + Nz*Nx )
+#chiline = tan(chiline)
 
-print 'epsilon:',epsilon_chi
+epsilon_chi =  - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+#epsilon_chi =  -1 / ( chiline*Nx*Nz - (1 - Nz**2) )
+
+phi = atan(chiline)
+#print 'ecc:',(tan((slope - phi)/slope))
+
+#print '1/epsilon:',1./sqrt(epsilon_chi+1)
+print 'measured_anisotropy:',sqrt(epsilon_chi+1)
 print 'input_anisotropy:',aniso

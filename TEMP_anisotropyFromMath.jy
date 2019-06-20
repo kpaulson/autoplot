@@ -138,6 +138,7 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 tr = '2018-11-03 18:33 to 18:39'
 tr = '2018-11-02 16:45 to 17:20'
 tr = '2019-04-01 07:00 to 10:00'
+tr = '2019-04-05 17:30 to 22:30'
 #tr = '2018-11-04 04:40 to 06:20'
 #tr = '2019-04-01 08:00 to 08:15'
 #tr = '2018-10-30 19:10 to 19:40'
@@ -146,7 +147,8 @@ plotFitsAndPauseALot = False
 
 m_p                  = 1.6726231E-24
 trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
-minFluxValueForFit   = 0.8
+minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value
+fitSeconds           = 30     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     
@@ -158,17 +160,8 @@ spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
 mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
 mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
 
-#plot(0,mv_hi-mv_lo)
-#stop
-
-#print spc_a
 
 spc_list = [spc_a,spc_b,spc_c,spc_d]
-
-#for l in spc_list:
-#    trim(l,tr)
-    
-#print spc_a
 
 spc_a = trim(spc_a,tr)
 spc_b = trim(spc_b,tr)
@@ -300,8 +293,8 @@ upperBound = dblarr(len(totalFlux))
 upperBound = mv_lo[r_upper]
 lowerBound = dblarr(len(totalFlux))
 lowerBound = mv_lo[r_lower]
-plot(1,upperBound)
-plot(2,lowerBound)
+#plot(1,upperBound)
+#plot(2,lowerBound)
 
 
 from org.apache.commons.math.optimization.fitting import CurveFitter
@@ -353,89 +346,102 @@ psiline                = None
 epsilonEpoch           = None
 chiSquaredReduced_chi  = None
 chiSquaredReduced_psi  = None
-dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=10)',tr)
-dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$(S,span=10)',tr)
+dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(fitSeconds),tr)
+dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$(S,span=%s)'%(fitSeconds),tr)
+
+monitor.started()
+monitor.setTaskSize(len(dds)-1)
 for ind in xrange(len(dds)-1):
-    tr_dds = dds[ind]+' to '+dds[ind+1]
-    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
-    
-    v_z_dd = trim(v_z,tr_dds)
-    vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
-    vz_tanTheta_dd = trim(vz_tanTheta,tr_dds)
-    #vz_tanTheta_dd = trim(vz_tanTheta,'%s to %s'%())
-    totalFlux_dd = trim(totalFlux,tr_dds)
-    Nx_temp_dd = trim(Nx_temp,tr_dds)
-    Ny_temp_dd = trim(Ny_temp,tr_dds)
-    
-    temp_v_z = None
-    temp_vz_tanTheta = None
-    temp_vz_tanPhi = None
-    temp_totalFlux = None
-    temp_Nx_temp_dd = None
-    temp_Ny_temp_dd = None
-    for i in xrange(len(v_z_dd)):
-        temp_v_z         = concatenate(temp_v_z,v_z_dd[i,:])
-        temp_vz_tanPhi   = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])
-        temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])
-        temp_totalFlux   = concatenate(temp_totalFlux,totalFlux_dd[i,:])
-        temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
-        temp_Ny_temp_dd  = concatenate(temp_Ny_temp_dd,ones(len(v_z_dd[i,:]))*Ny_temp_dd[i])
-    #plot(8,temp_Nx_temp_dd[where(valid(temp_v_z))])
-    #plot(9,indgen(341),temp_v_z[where(valid(temp_v_z))]),temp_Nx_temp_dd[where(valid(temp_v_z))])
+    monitor.setTaskProgress(ind)
+    try:
+        tr_dds = dds[ind]+' to '+dds[ind+1]
+        plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
         
-    norm_temp_totalFlux = normalize(temp_totalFlux)
-    r = where(ge(temp_totalFlux,0.5).and(valid(temp_totalFlux)))  # Removes points from the measurement below a particular threschhold
-    r = where(ge(temp_totalFlux,minFluxValueForFit).and(valid(temp_totalFlux)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
-    
-
-    f = LinFit()
-    ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
-    ftr_psi = CurveFitter(LevenbergMarquardtOptimizer())
-    
-    regr_chi = SimpleRegression()
-    regr_psi = SimpleRegression()
-
-    for i in xrange(len(temp_v_z[r])):
-        ftr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]),float(temp_vz_tanPhi[r][i]))
-        ftr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]),float(temp_vz_tanTheta[r][i]))
+        v_z_dd = trim(v_z,tr_dds)
+        vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
+        vz_tanTheta_dd = trim(vz_tanTheta,tr_dds)
+        #vz_tanTheta_dd = trim(vz_tanTheta,'%s to %s'%())
+        totalFlux_dd = trim(totalFlux,tr_dds)
+        Nx_temp_dd = trim(Nx_temp,tr_dds)
+        Ny_temp_dd = trim(Ny_temp,tr_dds)
         
-        #regr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[i]),float(temp_vz_tanPhi[r][i]))
-        #regr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[i]),float(temp_vz_tanTheta[r][i]))
+        temp_v_z = None
+        temp_vz_tanTheta = None
+        temp_vz_tanPhi = None
+        temp_totalFlux = None
+        temp_Nx_temp_dd = None
+        temp_Ny_temp_dd = None
+        for i in xrange(len(v_z_dd)):
+            temp_v_z         = concatenate(temp_v_z,v_z_dd[i,:])
+            temp_vz_tanPhi   = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])
+            temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])
+            temp_totalFlux   = concatenate(temp_totalFlux,totalFlux_dd[i,:])
+            temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
+            temp_Ny_temp_dd  = concatenate(temp_Ny_temp_dd,ones(len(v_z_dd[i,:]))*Ny_temp_dd[i])
+        #plot(8,temp_Nx_temp_dd[where(valid(temp_v_z))])
+        #plot(9,indgen(341),temp_v_z[where(valid(temp_v_z))]),temp_Nx_temp_dd[where(valid(temp_v_z))])
+            
+        norm_temp_totalFlux = normalize(temp_totalFlux)
+        r = where(ge(temp_totalFlux,0.5).and(valid(temp_totalFlux)))  # Removes points from the measurement below a particular threschhold
+        r = where(ge(temp_totalFlux,minFluxValueForFit).and(valid(temp_totalFlux)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
         
-    result_chi = ftr_chi.fit(f,inputGuessParams)
-    result_psi = ftr_psi.fit(f,inputGuessParams)
-#    print 'slope:',result[0]
-#    print 'offset:',result[1]
     
-    #xx = linspace( min(temp_v_z[r][where(valid(temp_v_z[r]))]) , max(temp_v_z[r][where(valid(temp_v_z[r]))]) , 100)
-    xx_x = linspace( min((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
-    xx_y = linspace( min((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
+        f = LinFit()
+        ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
+        ftr_psi = CurveFitter(LevenbergMarquardtOptimizer())
+        
+        regr_chi = SimpleRegression()
+        regr_psi = SimpleRegression()
+    
+        for i in xrange(len(temp_v_z[r])):
+            ftr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]),float(temp_vz_tanPhi[r][i]))
+            ftr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]),float(temp_vz_tanTheta[r][i]))
+            
+            #regr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[i]),float(temp_vz_tanPhi[r][i]))
+            #regr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[i]),float(temp_vz_tanTheta[r][i]))
+            
+        result_chi = ftr_chi.fit(f,inputGuessParams)
+        result_psi = ftr_psi.fit(f,inputGuessParams)
+    #    print 'slope:',result[0]
+    #    print 'offset:',result[1]
+        
+        #xx = linspace( min(temp_v_z[r][where(valid(temp_v_z[r]))]) , max(temp_v_z[r][where(valid(temp_v_z[r]))]) , 100)
+        xx_x = linspace( min((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
+        xx_y = linspace( min((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
+    
+        
+        psiline = concatenate(psiline,result_psi[0])
+        chiline = concatenate(chiline,result_chi[0])
+        
+        temp_chiSquaredReduced_chi = abs(total( ( temp_vz_tanPhi[r] - (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) )**2 / (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) ) ) / len(temp_v_z[r])
+        temp_chiSquaredReduced_psi = abs(total( ( temp_vz_tanTheta[r] - (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) )**2 / (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) ) ) / len(temp_v_z[r])
+        chiSquaredReduced_chi = concatenate(chiSquaredReduced_chi,temp_chiSquaredReduced_chi)
+        chiSquaredReduced_psi = concatenate(chiSquaredReduced_psi,temp_chiSquaredReduced_psi)
+        
+        epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
+        if plotFitsAndPauseALot == True:
+            plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
+            plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
+            plot(5,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle=tr_dds,title=str(mean(Ny_temp_dd)))
+            plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title=str(mean(Nx_temp_dd)))
+            sleep(3000)
+    except:
+        print 'oopsy, couldn\'t fit for some reason'
+        continue
+#        psiline = concatenate(psiline,-1E36)
+#        chiline = concatenate(chiline,-1E36)
+#        chiSquaredReduced_chi = concatenate(chiSquaredReduced_chi,-1E36)
+#        chiSquaredReduced_psi = concatenate(chiSquaredReduced_psi,-1E36)
 
-    
-    psiline = concatenate(psiline,result_psi[0])
-    chiline = concatenate(chiline,result_chi[0])
-    
-    temp_chiSquaredReduced_chi = abs(total( ( temp_vz_tanPhi[r] - (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) )**2 / (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) ) ) / len(temp_v_z[r])
-    temp_chiSquaredReduced_psi = abs(total( ( temp_vz_tanTheta[r] - (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) )**2 / (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) ) ) / len(temp_v_z[r])
-    chiSquaredReduced_chi = concatenate(chiSquaredReduced_chi,temp_chiSquaredReduced_chi)
-    chiSquaredReduced_psi = concatenate(chiSquaredReduced_psi,temp_chiSquaredReduced_psi)
-    
-    epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
-    if plotFitsAndPauseALot == True:
-        plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
-        plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
-        plot(5,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle=tr_dds,title=str(mean(Ny_temp_dd)))
-        plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title=str(mean(Nx_temp_dd)))
-        sleep(3000)
+monitor.finished()
 psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiSquaredReduced_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 chiSquaredReduced_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-#plot(8,psiline)
-#stop
+
 
 output_file = '/home/kpaulson/Research/PSP/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
-output_file = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
+#output_file = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
 
 psiline.putProperty(QDataSet.NAME,'Psi')
 psiline.putProperty(QDataSet.DESCRIPTION,'Linear fit of scan points over 10-second range in Vy/Vz space')
@@ -452,40 +458,6 @@ formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
 formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
 
 
-#plot(1,v_z[r])
-#plot(2,chi[r-1])
-#plot(2,v_z[r_upper])
-#plot(r)
-
-#chiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanPhi[r_upper] - vz_tanPhi[r_lower])
-#psiline = (v_z[r_upper]-v_z[r_lower]) / (vz_tanTheta[r_upper] - vz_tanTheta[r_lower])
-
-#plot(3,chiline)
-#plot(4,psiline)
-#stop
-
-#mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-#mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
-#
-##mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
-#mag = trim(mag,tr)
-#
-#mag_time = mag.property(QDataSet.DEPEND_0)
-#
-#pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
-#pos_time = pos.property(QDataSet.DEPEND_0)
-#
-#Bx = mag[:,0]
-#By = mag[:,1]
-#Bz = mag[:,2]
-#Btotal = magnitude(mag)
-#
-#TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-#TEMP_Ry = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-#TEMP_Rz = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-#
-#
-#( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
 
 (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
 
@@ -493,11 +465,6 @@ Bunit = bundle(Nx,Ny,Nz)
 Bunit.putProperty(QDataSet.NAME,'B_hat')
 Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
 formatDataSet(Bunit,output_file+'?append=T')
-
-#epsilon_chi = 1. / ( Nz**2 + Nx*Nz*chiline - 1 )
-#epsilon_psi = 1. / ( Nz**2 + Ny*Nz*psiline - 1 )
-#epsilon_chi = -1. / ( 1 + Nx*Nz*chiline - Nz**2 )
-#epsilon_psi = -1. / ( 1 + Ny*Nz*psiline - Nz**2 )
 
 #epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
 #epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny )
@@ -515,14 +482,14 @@ anisotropy_psi.putProperty(QDataSet.NAME,'Anisotropy_psi')
 formatDataSet(anisotropy_chi,output_file+'?append=T')
 formatDataSet(anisotropy_psi,output_file+'?append=T')
 
-#plot(8,epsilonEpoch,epsilon_chi,color='red')
-#plot(8,epsilonEpoch,1. / ( Nz**2 + Ny*Nz*0 - 1 ),color='red')
-#plot(9,epsilonEpoch,epsilon_psi,color='blue')
+
 plot(4,epsilonEpoch,epsilon_chi,color='red')
 plot(5,epsilonEpoch,epsilon_psi,color='blue',ytitle='(&omega;!B&perp;!N/&omega;!B||!N)!U2!N - 1')
 #plot(4,epsilonEpoch,sqrt(epsilon_chi+1),color='red')
 #plot(5,epsilonEpoch,sqrt(epsilon_psi+1),color='blue',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
 
+plot(6,epsilonEpoch,anisotropy_chi,chiSquaredReduced_chi,symbolSize=4)
+plot(7,epsilonEpoch,anisotropy_psi,chiSquaredReduced_psi,symbolSize=4)
 
 #stop
 #

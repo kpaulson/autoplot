@@ -139,6 +139,7 @@ tr = '2018-11-03 18:33 to 18:39'
 tr = '2018-11-02 16:45 to 17:20'
 tr = '2019-04-01 07:00 to 10:00'
 tr = '2019-04-05 17:30 to 22:30'
+tr = '2018-11-12'
 #tr = '2018-11-04 04:40 to 06:20'
 #tr = '2019-04-01 08:00 to 08:15'
 #tr = '2018-10-30 19:10 to 19:40'
@@ -148,7 +149,7 @@ plotFitsAndPauseALot = False
 m_p                  = 1.6726231E-24
 trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
 minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value
-fitSeconds           = 30     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
+fitSeconds           = 20     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     
@@ -329,8 +330,8 @@ By = mag[:,1]
 Bz = mag[:,2]
 Btotal = magnitude(mag)
 
-TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-TEMP_Ry = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Rx = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Ry = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 
 
@@ -483,13 +484,19 @@ formatDataSet(anisotropy_chi,output_file+'?append=T')
 formatDataSet(anisotropy_psi,output_file+'?append=T')
 
 
-plot(4,epsilonEpoch,epsilon_chi,color='red')
-plot(5,epsilonEpoch,epsilon_psi,color='blue',ytitle='(&omega;!B&perp;!N/&omega;!B||!N)!U2!N - 1')
-#plot(4,epsilonEpoch,sqrt(epsilon_chi+1),color='red')
-#plot(5,epsilonEpoch,sqrt(epsilon_psi+1),color='blue',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+#plot(4,epsilonEpoch,epsilon_chi,color='red')
+#plot(5,epsilonEpoch,epsilon_psi,color='blue',ytitle='(&omega;!B&perp;!N/&omega;!B||!N)!U2!N - 1')
+plot(4,epsilonEpoch,sqrt(epsilon_chi+1),color='red')
+plot(5,epsilonEpoch,sqrt(epsilon_psi+1),color='blue',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
 
-plot(6,epsilonEpoch,anisotropy_chi,chiSquaredReduced_chi,symbolSize=4)
-plot(7,epsilonEpoch,anisotropy_psi,chiSquaredReduced_psi,symbolSize=4)
+#plot(6,epsilonEpoch,anisotropy_chi,chiSquaredReduced_chi,symbolSize=4)
+#plot(7,epsilonEpoch,anisotropy_psi,chiSquaredReduced_psi,symbolSize=4)
+
+
+
+
+
+
 
 #stop
 #

@@ -13,19 +13,20 @@ angleBinNumber = 40       # Number of bins in incident mag angle space
 
 anisotropyMin = 0.01
 anisotropyMax = 30
-anisotropyBinNumber = 30  # Number of bins in anisotropy space
+anisotropyBinNumber = 30  # Number of bins in anisotropy space (TODO: fix the rebin method to use log space)
 
 timeToStopProcessing = '2019-06-28 16:00'   # Time in UT until which the process will run and aggregate data before writing the result
 
-temp_outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
-outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
-
-
-
-
-
 magSlopes = linspace(angleMin,angleMax,angleBinNumber)
 anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
+
+
+
+aniso = 0.5
+theta = 40
+slope = toRadians(theta)
+
+
 
 
 from org.apache.commons.math.optimization.fitting import CurveFitter
@@ -269,71 +270,51 @@ elif generatingDeltaPlusMinusMaps == True:
             
             deltaPlus.putProperty(QDataSet.VALID_MIN,0)
             deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
-            deltaPlus.putProperty(QDataSet.NAME,'DELTA_PLUS')
-            deltaPlus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
-            deltaPlus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
             deltaMinus.putProperty(QDataSet.VALID_MIN,0)
             deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
-            deltaMinus.putProperty(QDataSet.NAME,'DELTA_MINUS')
-            deltaMinus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
-            deltaMinus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
             
-            deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
-            deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
-            deltaPlusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_PLUS')
-            deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_MINUS')
-            
-            # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
             #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
             #plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
             
-            deltaPlusRebin  = rebin(deltaPlusLink,magSlopes,anisotropyList)
-            deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
-            plot(0,deltaPlusRebin,colorTable='apl_rainbow_white0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],ztitle='DELTA_PLUS',zlog=True)
-            plot(1,deltaMinusRebin,xtitle='Incident MAG Angle',colorTable='apl_rainbow_white0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],ztitle='DELTA_MINUS',zlog=True)
+            deltaPlusRebin  = rebin(link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),magSlopes,anisotropyList)
+            deltaMinusRebin = rebin(link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),magSlopes,anisotropyList)
+            plot(0,deltaPlusRebin,colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+            plot(1,deltaMinusRebin,xtitle='Incident MAG Angle',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
         
-            formatDataSet( deltaPlusLink   , temp_outputMap )
-            formatDataSet( deltaMinusLink  , temp_outputMap+'?append=T' )
-            formatDataSet( deltaPlusRebin  , temp_outputMap+'?append=T' )
-            formatDataSet( deltaMinusRebin , temp_outputMap+'?append=T' )
+            outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
+            formatDataSet( link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus) , outputMap )
+            formatDataSet( link(deltaMinus_dep0,deltaMinus_dep1,-deltaMinus) , outputMap+'?append=T' )
+            formatDataSet( deltaPlusRebin  , outputMap+'?append=T' )
+            formatDataSet( deltaMinusRebin , outputMap+'?append=T' )
       
     deltaPlus.putProperty(QDataSet.VALID_MIN,0)
     deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
-    deltaPlus.putProperty(QDataSet.NAME,'DELTA_PLUS')
-    deltaPlus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
-    deltaPlus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+    deltaPlus.putProperty(QDataSet.NAME,'Anisotropy DELTA_PLUS')
     deltaMinus.putProperty(QDataSet.VALID_MIN,0)
     deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
     deltaMinus.putProperty(QDataSet.NAME,'Anisotropy DELTA_MINUS')
-    deltaMinus.putProperty(QDataSet.NAME,'DELTA_MINUS')
-    deltaMinus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
-    deltaMinus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
-            
-    deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
-    deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
-    deltaPlusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_PLUS')
-    deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_MINUS')
-    
-    # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
     #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
     #plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
     
-    deltaPlusRebin  = rebin(deltaPlusLink ,magSlopes,anisotropyList)
-    deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
     
+    deltaPlusRebin  = rebin(link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),magSlopes,anisotropyList)
+    deltaMinusRebin = rebin(link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),magSlopes,anisotropyList)
+    plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+    plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+        
+  
+    outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+    formatDataSet( link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus) , outputMap )
+    formatDataSet( link(deltaMinus_dep0,deltaMinus_dep1,-deltaMinus) , outputMap+'?append=T' )
+       
+        
     deltaPlusRebin.putProperty(QDataSet.VALID_MIN,0)
     deltaPlusRebin.putProperty(QDataSet.VALID_MAX,1E10)
     deltaPlusRebin.putProperty(QDataSet.NAME,'UncertaintyMap DELTA_PLUS')
-    deltaMinusRebin.putProperty(QDataSet.VALID_MIN,0)
-    deltaMinusRebin.putProperty(QDataSet.VALID_MAX,1E10)
+    deltaMinusRebin.putProperty(QDataSet.VALID_MIN,-1E10)
+    deltaMinusRebin.putProperty(QDataSet.VALID_MAX,0)
     deltaMinusRebin.putProperty(QDataSet.NAME,'UncertaintyMap DELTA_MINUS')
     
-    plot(0,deltaPlusRebin,colorTable='apl_rainbow_white0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],ztitle='DELTA_PLUS',zlog=True)
-    plot(1,deltaMinusRebin,xtitle='Incident MAG Angle',colorTable='apl_rainbow_white0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],ztitle='DELTA_MINUS',zlog=True)
-        
-  
-    formatDataSet( deltaPlusLink   , outputMap )
-    formatDataSet( deltaMinusLink  , outputMap+'?append=T' )
     formatDataSet( deltaPlusRebin  , outputMap+'?append=T' )
     formatDataSet( deltaMinusRebin , outputMap+'?append=T' )
     

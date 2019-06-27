@@ -1,0 +1,48 @@
+filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/SPC_Anisotropy_2018-11-10.cdf'
+
+chi = getDataSet(filename+'?Anisotropy_chi')
+chi_plus = getDataSet(filename+'?anisotropy_chi_deltaPlus')
+chi_minus = getDataSet(filename+'?anisotropy_chi_deltaMinus')
+ChiSquared_chi = getDataSet(filename+'?ChiSquared_chi')
+psi = getDataSet(filename+'?Anisotropy_psi')
+psi_plus = getDataSet(filename+'?anisotropy_psi_deltaPlus')
+psi_minus = getDataSet(filename+'?anisotropy_psi_deltaMinus')
+ChiSquared_psi = getDataSet(filename+'?ChiSquared_psi')
+
+#chi.putProperty(QDataSet.DELTA_PLUS,chi_plus+ChiSquared_chi)
+#chi.putProperty(QDataSet.DELTA_MINUS,chi_minus+ChiSquared_chi)
+#psi.putProperty(QDataSet.DELTA_PLUS,psi_plus+ChiSquared_psi)
+#psi.putProperty(QDataSet.DELTA_MINUS,psi_minus+ChiSquared_psi)
+chi.putProperty(QDataSet.DELTA_PLUS,chi_plus)
+chi.putProperty(QDataSet.DELTA_MINUS,chi_minus)
+psi.putProperty(QDataSet.DELTA_PLUS,psi_plus)
+psi.putProperty(QDataSet.DELTA_MINUS,psi_minus)
+
+
+plot(0,chi)
+plot(1,psi)
+
+
+chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2)
+psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2)
+
+combined_delta_magnitude = sqrt(chi_deltaMagnitude**2 + psi_deltaMagnitude**2)
+
+#inverse_normalized_chi_delta = 1./( chi_deltaMagnitude / combined_delta_magnitude )
+#inverse_normalized_psi_delta = 1./( psi_deltaMagnitude / combined_delta_magnitude )
+
+inverse_normalized_chi_delta = 1./( chi_deltaMagnitude )
+inverse_normalized_psi_delta = 1./( psi_deltaMagnitude )
+
+#plot(2,inverse_normalized_psi_delta)
+
+
+
+average_anisotropy = (inverse_normalized_chi_delta*chi + inverse_normalized_psi_delta*psi) / (inverse_normalized_chi_delta + inverse_normalized_psi_delta)
+average_anisotropy_uncertainty = 2*((inverse_normalized_chi_delta+inverse_normalized_psi_delta)**-2)
+average_anisotropy.putProperty(QDataSet.DELTA_PLUS,average_anisotropy_uncertainty)
+average_anisotropy.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_uncertainty)
+
+
+plot(2,average_anisotropy)
+

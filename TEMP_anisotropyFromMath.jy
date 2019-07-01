@@ -128,7 +128,7 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 
 ############################################################################
 
-timerange = '2018-11-04'
+timerange = '2018-11-02 to 2018-11-16'
 
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
@@ -233,6 +233,7 @@ for tr in trs:
     windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
     vdf = totalFlux/v_z*windowWidths
     vdf.putProperty(QDataSet.DEPEND_1,v_z)
+    del(windowWidths,mv_hi)
     
     #totalFlux = totalFlux / (mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo)
     #totalFlux = totalFlux/( (mv_hi-mv_lo))
@@ -240,8 +241,8 @@ for tr in trs:
     peaks = reduceMax(totalFlux,1)
     r = where(eq(totalFlux,peaks))
     
-    mainFlowYsc = U[r]  # Mike's routine calls this azimuth (and is negative)
-    mainFlowXsc = V[r]  # Mike's routine calls this elevation
+    #mainFlowYsc = U[r]  # Mike's routine calls this azimuth (and is negative)
+    #mainFlowXsc = V[r]  # Mike's routine calls this elevation
     
     #mainFlowU = smooth1(U,3)[r]
     #mainFlowV = smooth1(V,3)[r]
@@ -283,8 +284,8 @@ for tr in trs:
     #stop
     
     
-    chi = zeros(len(U[:,0]),len(U[0,:]))
-    psi = zeros(len(U[:,0]),len(U[0,:]))
+    #chi = zeros(len(U[:,0]),len(U[0,:]))
+    #psi = zeros(len(U[:,0]),len(U[0,:]))
     #for i in xrange(len(U[:,0])):
     #    chi[i] = diff(v_z[i,:]) / diff(vz_tanPhi[i,:])
     #    psi[i] = diff(v_z[i,:]) / diff(vz_tanTheta[i,:])
@@ -303,10 +304,10 @@ for tr in trs:
     
     #plot(0,totalFlux)
     plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='vdf')
-    upperBound = dblarr(len(vdf))
-    upperBound = mv_lo[r_upper]
-    lowerBound = dblarr(len(vdf))
-    lowerBound = mv_lo[r_lower]
+    #upperBound = dblarr(len(vdf))
+    #upperBound = vdf[r_upper]
+    #lowerBound = dblarr(len(vdf))
+    #lowerBound = vdf[r_lower]
     #plot(1,upperBound)
     #plot(2,lowerBound)
     
@@ -472,7 +473,7 @@ for tr in trs:
     
     
     output_file = '/home/kpaulson/Research/PSP/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
-    output_file = '/home/kpaulson/Research/PSP/Anisotropy/SPC_Anisotropy_%s.cdf'%(tr)
+    output_file = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_%s.cdf'%(tr)
     #output_file = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
     
     psiline.putProperty(QDataSet.NAME,'Psi')

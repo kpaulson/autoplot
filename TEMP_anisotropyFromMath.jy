@@ -128,7 +128,9 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 
 ############################################################################
 
-timerange = '2018-11-02 to 2018-11-16'
+timerange = getParam('timerange','2018-11-02 11:00 to 11:30','Iteration Timerange')
+version = '0.2'
+plotFitsAndPauseALot = False
 
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
@@ -146,7 +148,6 @@ for tr in trs:
     #tr = '2019-04-01 08:00 to 08:15'
     #tr = '2018-10-30 16:10 to 20:40'
     
-    plotFitsAndPauseALot = False
     
     m_p                  = 1.6726231E-24
     q                    = 1.6022E-12
@@ -365,6 +366,9 @@ for tr in trs:
     epsilonEpoch           = None
     chiSquaredReduced_chi  = None
     chiSquaredReduced_psi  = None
+    rSquared_chi           = None
+    rSquared_psi           = None
+    
     if ge(fitSeconds,1.):
         dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(fitSeconds),tr)
         dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$(S,span=%s)'%(fitSeconds),tr)
@@ -380,7 +384,8 @@ for tr in trs:
         
         try:
             tr_dds = dds[ind]+' to '+dds[ind+1]
-            plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
+            if mod(ind,20) == 0:
+                plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
             
             v_z_dd = trim(v_z,tr_dds)
             vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
@@ -401,8 +406,8 @@ for tr in trs:
             temp_Ny_temp_dd = None
             for i in xrange(len(v_z_dd)):
                 temp_v_z         = concatenate(temp_v_z,v_z_dd[i,:])
-                temp_vz_tanPhi   = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])
-                temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])
+                temp_vz_tanPhi   = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])      # Vy
+                temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])  # Vx
                 temp_totalFlux   = concatenate(temp_totalFlux,totalFlux_dd[i,:])
                 temp_vdf         = concatenate(temp_vdf,vdf_dd[i,:])
                 temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
@@ -416,6 +421,9 @@ for tr in trs:
             r = where(ge(temp_totalFlux,minFluxValueForFit).and(valid(temp_totalFlux)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
             r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
             
+            # These two lines below should create a step function on the normalized weights such that anything less than 0.5 goes to 0. The idea is that this will only fit the points that are above half the max of the peak
+            blackoutNormalized = where(lt(norm_temp_vdf,0.5))
+            norm_temp_vdf[blackoutNormalized] = 0
         
             f = LinFit()
             ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
@@ -425,10 +433,10 @@ for tr in trs:
             regr_psi = SimpleRegression()
             
             for i in xrange(len(temp_v_z[r])):
-                #ftr_chi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]),float(temp_vz_tanPhi[r][i]))
-                #ftr_psi.addObservedPoint(float(norm_temp_totalFlux[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]),float(temp_vz_tanTheta[r][i]))
-                ftr_chi.addObservedPoint(float(norm_temp_vdf[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]),float(temp_vz_tanPhi[r][i]))
-                ftr_psi.addObservedPoint(float(norm_temp_vdf[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]),float(temp_vz_tanTheta[r][i]))
+                #ftr_chi.addObservedPoint(float(norm_temp_vdf[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]),float(temp_vz_tanPhi[r][i]))
+                #ftr_psi.addObservedPoint(float(norm_temp_vdf[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]),float(temp_vz_tanTheta[r][i]))
+                ftr_chi.addObservedPoint(float(norm_temp_vdf[r][i]),float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]),float(temp_vz_tanTheta[r][i]))
+                ftr_psi.addObservedPoint(float(norm_temp_vdf[r][i]),float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]),float(temp_vz_tanPhi[r][i]))
                 
                 # This line below is the start of attempting to find the uncertainty value all along the fitting length .It might be easier to do it in bulk at the end
                 #mappedAngleIndex = concatenate( mappedAngleIndex , imin(toDegrees(asin(temp_Nx_temp_dd[r][i]))-abs(anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) )
@@ -446,17 +454,26 @@ for tr in trs:
             psiline = concatenate(psiline,result_psi[0])
             chiline = concatenate(chiline,result_chi[0])
             
-            temp_chiSquaredReduced_chi = abs(total( ( temp_vz_tanPhi[r] - (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) )**2 / (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) ) ) / len(temp_v_z[r])
-            temp_chiSquaredReduced_psi = abs(total( ( temp_vz_tanTheta[r] - (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) )**2 / (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) ) ) / len(temp_v_z[r])
+            #temp_chiSquaredReduced_chi = abs(total( ( temp_vz_tanPhi[r] - (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) )**2 / (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) ) ) / len(temp_v_z[r])
+            #temp_chiSquaredReduced_psi = abs(total( ( temp_vz_tanTheta[r] - (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) )**2 / (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) ) ) / len(temp_v_z[r])
+            temp_chiSquared_chi = abs(total( ( temp_vz_tanTheta[r] - (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) )**2 / (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) ) )
+            temp_chiSquared_psi = abs(total( ( temp_vz_tanPhi[r]   - (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) )**2 / (result_psi[0]*(temp_v_z[r]*temp_Ny_temp_dd[r]) + result_psi[1]) ) )
+            temp_chiSquaredReduced_chi = temp_chiSquared_chi / len(temp_v_z[r])
+            temp_chiSquaredReduced_psi = temp_chiSquared_psi / len(temp_v_z[r])
             chiSquaredReduced_chi = concatenate(chiSquaredReduced_chi,temp_chiSquaredReduced_chi)
             chiSquaredReduced_psi = concatenate(chiSquaredReduced_psi,temp_chiSquaredReduced_psi)
             
+            temp_rSquared_chi = 1 - (temp_chiSquared_chi / total(abs(temp_vz_tanTheta[r] - mean(temp_vz_tanTheta[r]))**2))
+            temp_rSquared_psi = 1 - (temp_chiSquared_psi / total(abs(temp_vz_tanPhi[r]   - mean(temp_vz_tanPhi[r]))**2))
+            rSquared_chi = concatenate(rSquared_chi,temp_rSquared_chi)
+            rSquared_psi = concatenate(rSquared_psi,temp_rSquared_psi)
+            
             epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
             if plotFitsAndPauseALot == True:
-                plot(6,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanPhi[r]  ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
-                plot(4,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanTheta[r],norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux')
-                plot(5,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle=tr_dds,title=str(mean(Ny_temp_dd)))
-                plot(7,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title=str(mean(Nx_temp_dd)))
+                plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
+                plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
+                plot(5,xx_x,(result_psi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title=str(mean(Nx_temp_dd)),symbolSize=0,lineWidth=2)
+                plot(7,xx_y,(result_chi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title=str(mean(Ny_temp_dd)),symbolSize=0,lineWidth=2)
                 sleep(3000)
         except:
             print 'oopsy, couldn\'t fit for some reason'
@@ -473,7 +490,7 @@ for tr in trs:
     
     
     output_file = '/home/kpaulson/Research/PSP/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
-    output_file = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_%s.cdf'%(tr)
+    output_file = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
     #output_file = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
     
     psiline.putProperty(QDataSet.NAME,'Psi')
@@ -485,11 +502,17 @@ for tr in trs:
     chiSquaredReduced_chi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Chi')
     chiSquaredReduced_psi.putProperty(QDataSet.NAME,'ChiSquared_psi')
     chiSquaredReduced_psi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Psi')
+    rSquared_chi.putProperty(QDataSet.NAME,'rSquared_chi')
+    rSquared_chi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Chi')
+    rSquared_psi.putProperty(QDataSet.NAME,'rSquared_psi')
+    rSquared_psi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Psi')
     
     formatDataSet(chiline,output_file)
     formatDataSet(psiline,output_file+'?append=T')
     formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
     formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
+    formatDataSet(rSquared_chi,output_file+'?append=T')
+    formatDataSet(rSquared_psi,output_file+'?append=T')
     
     
     
@@ -603,8 +626,8 @@ for tr in trs:
     #plot(5,epsilonEpoch,epsilon_psi,color='blue',ytitle='(&omega;!B&perp;!N/&omega;!B||!N)!U2!N - 1')
     plot(4,epsilonEpoch,anisotropy_chi,color='red',symbol='none')
     plot(5,epsilonEpoch,anisotropy_psi,color='blue',symbol='none',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
-    plot(6,epsilonEpoch,chiSquaredReduced_chi,color='red',symbol='none')
-    plot(7,epsilonEpoch,chiSquaredReduced_psi,color='blue',symbol='none',ytitle='&chi;!U2!N Reduced')
+    plot(6,epsilonEpoch,rSquared_chi,color='red',symbol='none')
+    plot(7,epsilonEpoch,rSquared_psi,color='blue',symbol='none',ytitle='R!U2!N of Fit')
     #plot(6,epsilonEpoch,anisotropy_chi,chiSquaredReduced_chi,symbolSize=4)
     #plot(7,epsilonEpoch,anisotropy_psi,chiSquaredReduced_psi,symbolSize=4)
     

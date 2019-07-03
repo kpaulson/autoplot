@@ -14,10 +14,11 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 
 
-tr = getParam('timerange','2018-11-01 11:00 to 16:00','Timerange over which to generate combined anisotropy measurement')
+tr = getParam('timerange','2018-11-01 to 2018-11-05','Timerange over which to generate combined anisotropy measurement')
 
 
-filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_$Y-$m-$d.cdf'
+filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_$Y-$m-$d_v0.2.cdf'
+filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_2019-04-05 18-30 to 18-40_v0.2.cdf'
 
 chi = getDataSet(filename+'?Anisotropy_chi',tr)
 chi_plus = getDataSet(filename+'?anisotropy_chi_deltaPlus',tr)
@@ -26,7 +27,8 @@ ChiSquared_chi = getDataSet(filename+'?ChiSquared_chi',tr)
 psi = getDataSet(filename+'?Anisotropy_psi',tr)
 psi_plus = getDataSet(filename+'?anisotropy_psi_deltaPlus',tr)
 psi_minus = getDataSet(filename+'?anisotropy_psi_deltaMinus',tr)
-ChiSquared_psi = getDataSet(filename+'?ChiSquared_psi',tr)
+rSquared_chi = getDataSet(filename+'?rSquared_chi',tr)
+rSquared_psi = getDataSet(filename+'?rSquared_psi',tr)
 
 epoch = getDataSet(filename+'?Epoch',tr)
 
@@ -57,8 +59,8 @@ plot(1,psi,color='blue')
 
 
 
-chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2)
-psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2)
+chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2) * (1./rSquared_chi)
+psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2) * (1./rSquared_psi)
 
 combined_delta_magnitude = sqrt(chi_deltaMagnitude**2 + psi_deltaMagnitude**2)
 
@@ -89,10 +91,15 @@ average_anisotropy[bothValid] = (inverse_normalized_chi_delta[bothValid]*chi[bot
 average_anisotropy[chiValidOnly] = chi[chiValidOnly]
 average_anisotropy[psiValidOnly] = psi[psiValidOnly]
 
-average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2)
+# This takes the uncertainty due to the difference between chi and psi as a chi-squared error, I don't think this is correct
+average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+# This takes a simpler approach of delta(x_bar) = (x_1 - x_2) /sqrt(2)   It is probably right
+#average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( abs(chi[bothValid]-psi[bothValid])/sqrt(2.) )
+
 average_anisotropy_uncertainty[chiValidOnly] = chi_deltaMagnitude[chiValidOnly]
 average_anisotropy_uncertainty[psiValidOnly] = psi_deltaMagnitude[psiValidOnly]
 
+average_anisotropy.putProperty(QDataSet.DEPEND_0,epoch)
 average_anisotropy.putProperty(QDataSet.DELTA_PLUS,average_anisotropy_uncertainty)
 average_anisotropy.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_uncertainty)
 average_anisotropy.putProperty(QDataSet.VALID_MIN,0)
@@ -100,3 +107,16 @@ average_anisotropy.putProperty(QDataSet.VALID_MAX,1E10)
 
 plot(2,average_anisotropy,ylog=True,yrange=[1E-1,1E1])
 
+r = where(valid(average_anisotropy))
+
+average_anisotropy_filtered = medianFilter(average_anisotropy[r],30)
+
+average_anisotropy_filtered.putProperty(QDataSet.DEPEND_0,epoch[r])
+average_anisotropy_filtered.putProperty(QDataSet.DELTA_PLUS,average_anisotropy_uncertainty[r])
+average_anisotropy_filtered.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_uncertainty[r])
+average_anisotropy_filtered.putProperty(QDataSet.VALID_MIN,0)
+average_anisotropy_filtered.putProperty(QDataSet.VALID_MAX,1E10)
+
+
+plot(3,average_anisotropy_filtered,ylog=True,yrange=[1E-1,1E1])
+plot(3,epoch,average_anisotropy_uncertainty)

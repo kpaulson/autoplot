@@ -19,6 +19,7 @@ tr = getParam('timerange','2018-11-01 to 2018-11-05','Timerange over which to ge
 
 filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_$Y-$m-$d_v0.2.cdf'
 filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_2019-04-05 18-30 to 18-40_v0.2.cdf'
+filename = 'C:/Users/krist/Downloads/SPC_Anisotropy_2018-11-01_v0.2.cdf'
 
 chi = getDataSet(filename+'?Anisotropy_chi',tr)
 chi_plus = getDataSet(filename+'?anisotropy_chi_deltaPlus',tr)

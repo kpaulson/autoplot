@@ -363,7 +363,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### SPIT OUT RESULTS
     ###
     
-    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization , Wave_Power) 
+    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization , Wave_Power , Power_compressional , Power_perp) 
 
 
 
@@ -421,12 +421,111 @@ def Hanningfft( ds , freq_min , freq_max , window , slide ):
 
 # ############################################################################################
 
-###
-### USED IN CONJUNCTION WITH Hanningfft TO CREATE SLIDING WINDOW FUNCTION
-###
+def HanningfftNoTrim( ds , freq_min , freq_max , window , slide ):
+    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        freq_max = Upper end of frequency range.
+        window = Length of window to be taken measured in number of data points.
+        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+        
+    Returns:
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    
+    ds_time = ds.property(QDataSet.DEPEND_0)
+    
+    processed_ds = hanning(ds,window)
+
+    for i in xrange( slide-1 ):
+        try:
+            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        except( java.lang.ArrayIndexOutOfBoundsException ):
+            pass
+    
+    if slide == 1:
+        window_time_size = diff(processed_ds.property(QDataSet.DEPEND_0))*float(slide) # WHAT IS GOING ON HERE?!
+    else:
+        window_time_size = diff(processed_ds.property(QDataSet.DEPEND_0))*float(slide)
+    window_time_size = convertUnitsTo(append(window_time_size,window_time_size[-1]),Units.seconds)   # Time width of hanning window in seconds
+
+    
+    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+    frequency_axis = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) )
+
+    for i in xrange( len(processed_ds[:,0]) ):
+        
+        second_cadence = window_time_size[i]/float(window)
+        temp_per_sec = 1./convertUnitsTo(second_cadence,Units.seconds)
+        
+        window_startTime = processed_ds.property(QDataSet.DEPEND_0)[i] - (window_time_size[i]/2.)
+        temp_ds_time = timegen( str( window_startTime ) , str(second_cadence) , window)
+    
+        processed_ds_fft = 2 * fft( processed_ds[i,:] )
+        TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/temp_per_sec) / 1.725
+        frequency_axis[i,:] = processed_ds_fft.property(QDataSet.DEPEND_0)*temp_per_sec
+
+    frequency_axis.putProperty( QDataSet.UNITS , Units.hertz )
+    time_axis = processed_ds.property(QDataSet.DEPEND_0)
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , time_axis )
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , frequency_axis )
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+    
+    
+    #TEMP_waveform_fft = trim(1,TEMP_waveform_fft,0,window/2)
+    TEMP_waveform_fft = TEMP_waveform_fft[:,1:window/2,:]
+    
+    # This is the attempt to split the result into the positive and negative frequencies, but it is not doing it correctly. Need to remap the negative frequency indices
+    #TEMP_waveform_fft_positives = TEMP_waveform_fft[:,1:window/2,:]
+    #TEMP_waveform_fft_negatives = TEMP_waveform_fft[:,(window+2)/2:,:]
+    #TEMP_negAxis = TEMP_waveform_fft_negatives.property(QDataSet.DEPEND_1)*-1
+#    #s = sort(TEMP_negAxis)
+    #TEMP_waveform_fft_negatives.putProperty(QDataSet.DEPEND_1,TEMP_negAxis)
+    #TEMP_waveform_fft = (TEMP_waveform_fft_positives+TEMP_waveform_fft_negatives)/2.
+    #TEMP_waveform_fft.putProperty(QDataSet.DEPEND_1,TEMP_negAxis)
+#
+#
+#    print TEMP_waveform_fft_positives
+#    print TEMP_waveform_fft_negatives
+    #plot(TEMP_waveform_fft_positives[:,:,0])
+    #plot(1,TEMP_waveform_fft_negatives[:,:,0])
+
+    return ( TEMP_waveform_fft )
+    
+#    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+#    #plot(2,time_axis,TEMP_waveform_fft.property(QDataSet.DEPEND_1))
+#    #stop
+#    waveform_fft = trim(1,TEMP_waveform_fft,dataset(str(freq_min)+'Hz'),dataset(str(freq_max)+'Hz'))
+#
+#    waveform_fft = None
+#    for i in xrange(time_axis.length()):
+#        waveform_fft = append(waveform_fft)
+#
+#    del ( TEMP_waveform_fft )
+#
+#    #uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+#    #waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+#    #waveform_fft = waveform_fft[uniqueness,:,:]
+#    #waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+#
+#    return ( waveform_fft )
+        
+
+# ############################################################################################ 
 
 def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    """Used in conjunction with Hanningfft to create the sliding window function
     
+    Parameters:
+        ds = The rank1 time-series input data.
+        ds_time = Timestamps for input data (not sure why I don't just use the associated timestamps)
+        processed_ds = Previously processed data that will be merged with this pass of sliding function
+        window = Length of window to be taken measured in number of data points.
+        leading_points = Number of points to skip forward in dataset (defined by window size and slide value)
+        
+    Returns:
+        result = Dataset advanced by slide parameter with window function applied merged into previously processed data."""
     
     ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
     
@@ -441,6 +540,7 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
     processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
     
     result = merge( processed_ds , processed_ds_too )
+    
     return( result )
 
 
@@ -451,8 +551,8 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
 # ############################################################################################
 
 
-scrollingPlots    = False  # True spits out polarization plots by scrolling through data 
-timerange         = '2018-11-03 18:45 to 19:30'
+scrollingPlots    = True  # True spits out polarization plots by scrolling through data 
+timerange         = '2018-10-01 through 2018-12-15'
 
 freq_min          = 0.2    # Minimum frequency kept for analysis
 freq_max          = 8.     # Maximum frequency kept for analysis (cutting out unwanted data helps speed things up)
@@ -465,6 +565,7 @@ trend_seconds     = 10     # Number of seconds over which to average magField to
 
 logyn             = 'T'    # Display the frequency axis logarithmically, 'T' or 'F'?
 output_dir        = '/home/kpaulson/Research/PSP/Wave_Polarization/'      # Local directory for image/file storage
+write_stuff       = True   # Write the results to a cdf file in addition to the plot
 
     
 
@@ -481,7 +582,8 @@ power_max         = 1E2
 
 
 if scrollingPlots == True:
-    dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',timerange)
+    #dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',timerange)
+    dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',timerange)
     monitor.started()
     monitor.setLabel('PSP Polarization')
     monitor.setTaskSize(len(dds))
@@ -496,7 +598,7 @@ if scrollingPlots == True:
                 tr = dds[ind]+' to '+dds[ind+1]
         
         
-                mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+                mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
                 mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
                 
                 #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
@@ -504,13 +606,14 @@ if scrollingPlots == True:
                 
                 mag_time = mag.property(QDataSet.DEPEND_0)
                 
-                pos = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+                pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
                 pos_time = pos.property(QDataSet.DEPEND_0)
                 
                 Bx = mag[:,0]
                 By = mag[:,1]
                 Bz = mag[:,2]
                 Btotal = magnitude(mag)
+                Btime = Btotal.property(QDataSet.DEPEND_0)
                 
                 
                 # ###
@@ -548,10 +651,15 @@ if scrollingPlots == True:
                 
                 monitor.setProgressMessage('Generating FFTs')
                 
-                Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
-                Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
-                Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
+#                Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
+#                Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
+#                Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
+                Bn_fft = HanningfftNoTrim( Bn , freq_min , freq_max , window , slide )
+                Bp_fft = HanningfftNoTrim( Bp , freq_min , freq_max , window , slide )
+                Bq_fft = HanningfftNoTrim( Bq , freq_min , freq_max , window , slide )
                 
+                fft_time = Bn_fft.property(QDataSet.DEPEND_0)
+                frequency_axis = Bn_fft.property(QDataSet.DEPEND_1)
             
                 # ###
                 # ### RUN POLARIZATION
@@ -559,7 +667,7 @@ if scrollingPlots == True:
                 
                 monitor.setProgressMessage('Running Polarization')
             
-                ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization , Wave_Power) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min )
+                ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization , Wave_Power , Power_par , Power_perp) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min )
                 
                 
                 # ###
@@ -683,7 +791,7 @@ if scrollingPlots == True:
                 # ### WRITE STUFF
                 # ###
                 
-                write_stuff = False
+                
                 if write_stuff == True:
                     
                     monitor.setProgressMessage('Writing to File')
@@ -692,7 +800,9 @@ if scrollingPlots == True:
                     fft_time.putProperty(QDataSet.NAME,'FFT_time')
                     frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
                     
-                    tempOutputFile = 'C:/Users/Kristoff/Desktop/TEMP_polarization'#.cdf'
+                    #tempOutputFile = 'C:/Users/Kristoff/Desktop/TEMP_polarization'#.cdf'
+                    tempOutputFile = output_dir+'PSP_Polarization_'+dds[ind][0:8]+'_'+dds[ind][-5:-3]+dds[ind][-2:]
+                    #tempOutputFile = output_dir+'PSP_Polarization_'+dds[ind][0:8]+'_'+dds[ind][-5:-3]+dds[ind][-2:]
                     b_wna = bundle(Bp, Bq, Bn)
                     b_wna.putProperty(QDataSet.NAME,'Bfield_wna')
                     b_wna.putProperty(QDataSet.TITLE,'Magnetic Field in wave-normal coordinates')

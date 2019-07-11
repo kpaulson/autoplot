@@ -166,7 +166,7 @@ for tr in trs:
     mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
     
     
-    spc_list = [spc_a,spc_b,spc_c,spc_d]
+    #spc_list = [spc_a,spc_b,spc_c,spc_d]
     
     spc_a = trim(spc_a,tr)
     spc_b = trim(spc_b,tr)
@@ -183,12 +183,8 @@ for tr in trs:
     #spc_c = putProperty(spc_c/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
     #spc_d = putProperty(spc_d/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
     spc_list = [spc_a,spc_b,spc_c,spc_d]
-    #spc_list = [spc_a/(mv_hi-mv_lo),spc_b/(mv_hi-mv_lo),spc_c/(mv_hi-mv_lo),spc_d/(mv_hi-mv_lo)]
-    i=0
-    #for l in spc_list:
-    #    plot(i,l)
-    #    i = i+1
-    #STOP
+    del(spc_a,spc_b,spc_c,spc_d)
+    
     totalFlux = sum(spc_list)
     #totalFlux = totalFlux/((mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo))
     
@@ -387,6 +383,8 @@ for tr in trs:
             if mod(ind,20) == 0:
                 plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
             
+            epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
+            
             v_z_dd = trim(v_z,tr_dds)
             vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
             vz_tanTheta_dd = trim(vz_tanTheta,tr_dds)
@@ -468,7 +466,6 @@ for tr in trs:
             rSquared_chi = concatenate(rSquared_chi,temp_rSquared_chi)
             rSquared_psi = concatenate(rSquared_psi,temp_rSquared_psi)
             
-            epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
             if plotFitsAndPauseALot == True:
                 plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
                 plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_totalFlux[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)

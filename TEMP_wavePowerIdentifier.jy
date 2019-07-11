@@ -1,0 +1,32 @@
+
+tr = '2018-10-25'
+
+polarization_file = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/PSP_Polarization_$Y$m$d_0000.cdf'
+
+power_perp   = getDataSet(polarization_file+'?Power_Perp',tr)
+coherency    = getDataSet(polarization_file+'?Coherency',tr)
+ellipticity  = getDataSet(polarization_file+'?Ellipticity',tr)
+waveNormal = getDataSet(polarization_file+'?Angle_Normal',tr)
+
+power_perp  = power_perp[:,10:]
+coherency   = coherency[:,10:]
+ellipticity = ellipticity[:,10:]
+
+min_coherency  = 0.8
+max_waveNormal = 20
+
+timeAxis_smoothpoints = 5
+frequencyAxis_smoothpoints = 5
+
+coherency_smoothedFrequency = smooth2d(coherency,5,20)
+coherency_smoothedFrequency = smooth2d(coherency,5,20)
+
+plot(0,waveNormal)
+plot(1,coherency_smoothedFrequency)
+
+subset_incoherent = where(le(coherency_smoothedFrequency,0.8))
+subset_badWave = where(le(coherency_smoothedFrequency,min_coherency).and(ge(waveNormal,max_waveNormal)))
+
+power_perp[subset_incoherent] = -1
+
+plot(2,power_perp)

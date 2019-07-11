@@ -1,0 +1,176 @@
+
+
+
+import java
+# ############################################################################################
+
+def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    """Used in conjunction with Hanningfft to create the sliding window function
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        ds_time = Timestamps for input data (not sure why I don't just use the associated timestamps)
+        processed_ds = Previously processed data that will be merged with this pass of sliding function
+        window = Length of window to be taken measured in number of data points.
+        leading_points = Number of points to skip forward in dataset (defined by window size and slide value)
+        
+    Returns:
+        result = Dataset advanced by slide parameter with window function applied merged into previously processed data."""
+    
+    ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    
+    trimmed_ds = trim(ds,int(leading_points),int(len(ds)))
+    trimmed_ds.putProperty( QDataSet.DEPEND_0 , trim(ds_time,int(leading_points),int(len(ds))) )
+    
+    processed_ds_too = hanning( trimmed_ds , window )
+    processed_ds_too.putProperty( QDataSet.DEPEND_1 , ds.property(QDataSet.DEPEND_1) )
+    
+    processed_ds_time = processed_ds.property( QDataSet.DEPEND_0 )
+    processed_ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
+    
+    result = merge( processed_ds , processed_ds_too )
+    
+    return( result )
+
+
+# ############################################################################################
+
+
+# ############################################################################################
+
+def Hanningfft( ds , freq_min , freq_max , window , slide ):
+    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        freq_max = Upper end of frequency range.
+        window = Length of window to be taken measured in number of data points.
+        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+        
+    Returns:
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    
+    ds_time = ds.property(QDataSet.DEPEND_0)
+    
+    processed_ds = hanning(ds,window)
+
+    for i in xrange( slide-1 ):
+        try:
+            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        except( java.lang.ArrayIndexOutOfBoundsException ):
+            pass
+    
+    if slide == 1:
+        window_time_size = diff(processed_ds.property(QDataSet.DEPEND_0))*float(slide) # WHAT IS GOING ON HERE?!
+    else:
+        window_time_size = diff(processed_ds.property(QDataSet.DEPEND_0))*float(slide)
+    window_time_size = convertUnitsTo(append(window_time_size,window_time_size[-1]),Units.seconds)   # Time width of hanning window in seconds
+
+    
+    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+    frequency_axis = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) )
+
+    for i in xrange( len(processed_ds[:,0]) ):
+        
+        second_cadence = window_time_size[i]/float(window)
+        temp_per_sec = 1./convertUnitsTo(second_cadence,Units.seconds)
+        
+        window_startTime = processed_ds.property(QDataSet.DEPEND_0)[i] - (window_time_size[i]/2.)
+        temp_ds_time = timegen( str( window_startTime ) , str(second_cadence) , window)
+    
+        processed_ds_fft = 2 * fft( processed_ds[i,:] )
+        TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/temp_per_sec) / 1.725
+        frequency_axis[i,:] = processed_ds_fft.property(QDataSet.DEPEND_0)*temp_per_sec
+
+    frequency_axis.putProperty( QDataSet.UNITS , Units.hertz )
+    time_axis = processed_ds.property(QDataSet.DEPEND_0)
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , time_axis )
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , frequency_axis )
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+    
+    
+    #TEMP_waveform_fft = trim(1,TEMP_waveform_fft,0,window/2)
+    TEMP_waveform_fft = TEMP_waveform_fft[:,1:window/2,:]
+    
+    # This is the attempt to split the result into the positive and negative frequencies, but it is not doing it correctly. Need to remap the negative frequency indices
+    #TEMP_waveform_fft_positives = TEMP_waveform_fft[:,1:window/2,:]
+    #TEMP_waveform_fft_negatives = TEMP_waveform_fft[:,(window+2)/2:,:]
+    #TEMP_negAxis = TEMP_waveform_fft_negatives.property(QDataSet.DEPEND_1)*-1
+#    #s = sort(TEMP_negAxis)
+    #TEMP_waveform_fft_negatives.putProperty(QDataSet.DEPEND_1,TEMP_negAxis)
+    #TEMP_waveform_fft = (TEMP_waveform_fft_positives+TEMP_waveform_fft_negatives)/2.
+    #TEMP_waveform_fft.putProperty(QDataSet.DEPEND_1,TEMP_negAxis)
+#
+#
+#    print TEMP_waveform_fft_positives
+#    print TEMP_waveform_fft_negatives
+    #plot(TEMP_waveform_fft_positives[:,:,0])
+    #plot(1,TEMP_waveform_fft_negatives[:,:,0])
+
+    plot(2,TEMP_waveform_fft[:,:,0]**2+TEMP_waveform_fft[:,:,1]**2,zlog=True,zrange=[1E-1,1E3],yrange=[-0.01,0.13])
+    
+    return ( TEMP_waveform_fft )
+    
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+    #plot(2,time_axis,TEMP_waveform_fft.property(QDataSet.DEPEND_1))
+    #stop
+    waveform_fft = trim(1,TEMP_waveform_fft,dataset(str(freq_min)+'Hz'),dataset(str(freq_max)+'Hz'))
+    
+    waveform_fft = None
+    for i in xrange(time_axis.length()):
+        waveform_fft = append(waveform_fft)
+    
+    del ( TEMP_waveform_fft )
+    
+    #uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+    #waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+    #waveform_fft = waveform_fft[uniqueness,:,:]
+    #waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+    
+    return ( waveform_fft )
+        
+
+# ############################################################################################ 
+
+
+tt1= linspace( '2000-01-01T00:00', '2000-01-02T00:00', 14400 )
+tt2= linspace( '2000-01-02T00:00', '2000-01-04T00:00', 40400 )
+tt= concatenate(tt1,tt2)
+tt.makeImmutable()  # Removing this changes result!!!! Fix this!!!!!
+#plot( tt )
+
+randomSeed(5334)
+
+wv= randn( tt.length() ) + sin( putProperty( convertUnitsTo( tt-tt[0], Units.seconds ),QDataSet.UNITS, Units.dimensionless)/10)
+wv= link( copy(tt), wv )
+#plot( 0, wv )
+spec= fftPower(wv,512,monitor)
+
+reset()
+
+from org.autoplot import AutoRangeUtil 
+plot( 0, spec ,zlog=True,zrange=[1E-1,1E3],yrange=[-0.01,0.13] )
+
+
+specTrim= trim( 1, spec, dataset('0.01Hz'),dataset('0.04Hz') )
+#print specTrim.property(QDataSet.QUBE)
+#print '***'
+#print AutoRangeUtil.simpleRange( specTrim )
+plot( 1, specTrim ,zlog=True,zrange=[1E-1,1E3],yrange=[-0.01,0.13] )
+
+print specTrim[10]
+#stop
+
+freq_min = 0.01
+freq_max = 0.04
+window = 512
+slide = 2
+specTrim2= Hanningfft( wv , freq_min , freq_max , window , slide )
+specTrim2_power = specTrim2[:,:,0]**2 + specTrim2[:,:,1]**2
+
+formatDataSet(specTrim2,'/tmp/TEMP_fft2.cdf')
+
+plot(3 , specTrim2_power ,zlog=True,zrange=[1E-1,1E3],yrange=[-0.01,0.13] )
+#plot(3 , specTrim2[:,:,1]**2 ,zlog=True,zrange=[1E-1,1E3],yrange=[-0.01,0.13] )

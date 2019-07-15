@@ -552,7 +552,7 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
 
 
 scrollingPlots    = True  # True spits out polarization plots by scrolling through data 
-timerange         = '2018-10-01 through 2018-12-15'
+timerange         = '2018-10-01 through 2019-06-15'
 
 freq_min          = 0.2    # Minimum frequency kept for analysis
 freq_max          = 8.     # Maximum frequency kept for analysis (cutting out unwanted data helps speed things up)
@@ -582,8 +582,8 @@ power_max         = 1E2
 
 
 if scrollingPlots == True:
-    #dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',timerange)
-    dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',timerange)
+    dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',timerange)
+    #dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',timerange)
     monitor.started()
     monitor.setLabel('PSP Polarization')
     monitor.setTaskSize(len(dds))

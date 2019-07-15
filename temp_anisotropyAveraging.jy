@@ -14,7 +14,7 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 
 
-tr = getParam('timerange','2018-11-01 to 2018-11-05','Timerange over which to generate combined anisotropy measurement')
+tr = getParam('timerange','2018-11-01 to 2018-11-02','Timerange over which to generate combined anisotropy measurement')
 
 
 filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_$Y-$m-$d_v0.2.cdf'

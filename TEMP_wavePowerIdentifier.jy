@@ -1,32 +1,87 @@
 
+
+
+
+
+
+
+
 tr = '2018-10-25'
+tr = '2018-11-01'
 
 polarization_file = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/PSP_Polarization_$Y$m$d_0000.cdf'
+polarization_file = 'C:/Users/krist/Downloads/PSP_Polarization_$Y$m$d_0000.cdf'
+
 
 power_perp   = getDataSet(polarization_file+'?Power_Perp',tr)
 coherency    = getDataSet(polarization_file+'?Coherency',tr)
 ellipticity  = getDataSet(polarization_file+'?Ellipticity',tr)
 waveNormal = getDataSet(polarization_file+'?Angle_Normal',tr)
 
-power_perp  = power_perp[:,10:]
-coherency   = coherency[:,10:]
-ellipticity = ellipticity[:,10:]
 
-min_coherency  = 0.8
-max_waveNormal = 20
+bottomTrimIndex     = 20
+min_coherency       = 0.8
+max_waveNormal      = 25
+maxLefthandedness   = -0.8
+minRighthandedness  = 0.8
 
-timeAxis_smoothpoints = 5
-frequencyAxis_smoothpoints = 5
 
-coherency_smoothedFrequency = smooth2d(coherency,5,20)
-coherency_smoothedFrequency = smooth2d(coherency,5,20)
+power_perp  = power_perp[:,bottomTrimIndex:]
+coherency   = coherency[:,bottomTrimIndex:]
+ellipticity = ellipticity[:,bottomTrimIndex:]
+waveNormal = waveNormal[:,bottomTrimIndex:]
 
-plot(0,waveNormal)
+
+timeAxis = power_perp.property(QDataSet.DEPEND_0)
+frequencyAxis = power_perp.property(QDataSet.DEPEND_1)
+
+
+timeAxis_smoothpoints = 2
+frequencyAxis_smoothpoints = 20
+
+coherency_smoothedFrequency  = smooth2d(coherency,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+waveNormal_smoothedFrequency = smooth2d(waveNormal,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+ellipticity_smoothedFrequency = smooth2d(ellipticity,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+
+plot(0,ellipticity)
 plot(1,coherency_smoothedFrequency)
 
-subset_incoherent = where(le(coherency_smoothedFrequency,0.8))
-subset_badWave = where(le(coherency_smoothedFrequency,min_coherency).and(ge(waveNormal,max_waveNormal)))
+subset_incoherent = where(le(coherency_smoothedFrequency,min_coherency))
+subset_abbynormal = where(ge(waveNormal_smoothedFrequency,max_waveNormal))
+subset_fill = where(eq(valid(coherency_smoothedFrequency),0))
+subset_badWave = where(le(coherency_smoothedFrequency,min_coherency).or(ge(waveNormal_smoothedFrequency,max_waveNormal)))
+#subset_badWave = where(le(coherency_smoothedFrequency,min_coherency).or(ge(waveNormal_smoothedFrequency,max_waveNormal)).or(eq(valid(coherency_smoothedFrequency),0)))
+#subset_badWave = where(le(coherency,min_coherency).or(ge(waveNormal,max_waveNormal)))
 
-power_perp[subset_incoherent] = -1
+power_perp[subset_incoherent] = 0
+power_perp[subset_abbynormal] = 0
+#power_perp[subset_badWave] = 0
 
-plot(2,power_perp)
+# This next pass to exclude points where coherency is fill should be rolled into the where statement above, but the or thing doesn't seem to work right.
+power_perp[subset_fill] = 0
+
+notLeftHanded  = where(ge(ellipticity_smoothedFrequency,maxLefthandedness))
+notRightHanded = where(le(ellipticity_smoothedFrequency,minRighthandedness))
+#ellipticity[notLeftHanded] = 0
+#plot(ellipticity)
+#stop
+
+power_perp_left = copy(power_perp)
+power_perp_left[notLeftHanded] = 0
+power_perp_right = copy(power_perp)
+power_perp_right[notRightHanded] = 0
+
+
+plot(2,power_perp,zlog=True)
+
+totalPower = total(power_perp,1)
+totalPowerLeft = total(power_perp_left,1)
+totalPowerRight = total(power_perp_right,1)
+bindle = bundle(totalPowerRight,totalPowerLeft,totalPower)
+plot(3,timeAxis,bindle,ylog=True)
+#plot(3,totalPowerLeft,ylog=True,color='blue')
+#plot(4,totalPowerRight,ylog=True,color='red')
+
+
+
+

@@ -14,20 +14,21 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 
 
-tr = getParam('timerange','2018-11-01 to 2018-11-02','Timerange over which to generate combined anisotropy measurement')
+tr = getParam('timerange','2018-11-12','Timerange over which to generate combined anisotropy measurement')
 
 
-filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_$Y-$m-$d_v0.2.cdf'
-filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_2019-04-05 18-30 to 18-40_v0.2.cdf'
-filename = 'C:/Users/krist/Downloads/SPC_Anisotropy_2018-11-01_v0.2.cdf'
+filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/v0.3/SPC_Anisotropy_$Y-$m-$d_v0.3.cdf'
+#filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_2019-04-05 18-30 to 18-40_v0.2.cdf'
+#filename = 'C:/Users/krist/Downloads/SPC_Anisotropy_2018-11-01_v0.2.cdf'
 
 chi = getDataSet(filename+'?Anisotropy_chi',tr)
 chi_plus = getDataSet(filename+'?anisotropy_chi_deltaPlus',tr)
 chi_minus = getDataSet(filename+'?anisotropy_chi_deltaMinus',tr)
-ChiSquared_chi = getDataSet(filename+'?ChiSquared_chi',tr)
 psi = getDataSet(filename+'?Anisotropy_psi',tr)
 psi_plus = getDataSet(filename+'?anisotropy_psi_deltaPlus',tr)
 psi_minus = getDataSet(filename+'?anisotropy_psi_deltaMinus',tr)
+ChiSquared_chi = getDataSet(filename+'?ChiSquared_chi',tr)
+ChiSquared_psi = getDataSet(filename+'?ChiSquared_psi',tr)
 rSquared_chi = getDataSet(filename+'?rSquared_chi',tr)
 rSquared_psi = getDataSet(filename+'?rSquared_psi',tr)
 
@@ -54,22 +55,29 @@ chi.putProperty(QDataSet.DELTA_MINUS,chi_minus)
 psi.putProperty(QDataSet.DELTA_PLUS,psi_plus)
 psi.putProperty(QDataSet.DELTA_MINUS,psi_minus)
 
-setLayoutOverplot(2)
-plot(0,chi,color='red')
-plot(1,psi,color='blue')
-
-
-
-chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2) * (1./rSquared_chi)
-psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2) * (1./rSquared_psi)
+##### Calculate total uncertainty for each measurement
+# This version used the rSquared value, but that uncertainty will decrease for higher slopes, preferentially choosing high anisotropies.
+#chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2) * (1./rSquared_chi)
+#psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2) * (1./rSquared_psi)
+# This version used the ChiSquared value
+#chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2) * (ChiSquared_chi)
+#psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2) * (ChiSquared_psi)
+# Maybe I shouldn't be using that, and instead should keep the ChiSquared separate just to weight the result....
+chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2)
+psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2)
+plot(0,chi_plus)
+plot(1,chi_deltaMagnitude)
+stop
 
 combined_delta_magnitude = sqrt(chi_deltaMagnitude**2 + psi_deltaMagnitude**2)
 
 #inverse_normalized_chi_delta = 1./( chi_deltaMagnitude / combined_delta_magnitude )
 #inverse_normalized_psi_delta = 1./( psi_deltaMagnitude / combined_delta_magnitude )
 
-inverse_normalized_chi_delta = 1./( chi_deltaMagnitude )
-inverse_normalized_psi_delta = 1./( psi_deltaMagnitude )
+inverse_chi_delta =  1./( chi_deltaMagnitude )
+inverse_psi_delta =  1./( psi_deltaMagnitude )
+inverse_normalized_chi_delta = sqrt(combined_delta_magnitude**2 + ChiSquared_chi**2 + ChiSquared_psi**2 ) * 1./( chi_deltaMagnitude )
+inverse_normalized_psi_delta = sqrt(combined_delta_magnitude**2 + ChiSquared_chi**2 + ChiSquared_psi**2 ) * 1./( psi_deltaMagnitude )
 
 #plot(2,inverse_normalized_psi_delta)
 
@@ -88,14 +96,23 @@ chiValidOnly = where(valid(chi).and(eq(valid(psi),0)))
 psiValidOnly = where(valid(psi).and(eq(valid(chi),0)))
 bothValid = where(valid(chi).and(valid(psi)))
 
-average_anisotropy[bothValid] = (inverse_normalized_chi_delta[bothValid]*chi[bothValid] + inverse_normalized_psi_delta[bothValid]*psi[bothValid]) / (inverse_normalized_chi_delta[bothValid] + inverse_normalized_psi_delta[bothValid])
+
+
+weight_chi = 1./sqrt(chi_deltaMagnitude**2 + ChiSquared_chi**2)
+weight_psi = 1./sqrt(chi_deltaMagnitude**2 + ChiSquared_psi**2)
+
+average_anisotropy[bothValid] = (inverse_normalized_chi_delta[bothValid]*(1./ChiSquared_chi[bothValid])*chi[bothValid] + inverse_normalized_psi_delta[bothValid]*(1./ChiSquared_psi[bothValid])*psi[bothValid]) / (inverse_normalized_chi_delta[bothValid]*(1./ChiSquared_chi[bothValid]) + inverse_normalized_psi_delta[bothValid]*(1./ChiSquared_psi[bothValid]))
+#average_anisotropy[bothValid] = (inverse_normalized_chi_delta[bothValid]*chi[bothValid] + inverse_normalized_psi_delta[bothValid]*psi[bothValid]) / (inverse_normalized_chi_delta[bothValid] + inverse_normalized_psi_delta[bothValid])
 average_anisotropy[chiValidOnly] = chi[chiValidOnly]
 average_anisotropy[psiValidOnly] = psi[psiValidOnly]
 
+combined_methodUncertainty = sqrt((chi_deltaMagnitude[bothValid]**2+psi_deltaMagnitude[bothValid]**2))
 # This takes the uncertainty due to the difference between chi and psi as a chi-squared error, I don't think this is correct
-average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+#average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+average_anisotropy_uncertainty[bothValid] = combined_methodUncertainty + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
 # This takes a simpler approach of delta(x_bar) = (x_1 - x_2) /sqrt(2)   It is probably right
 #average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( abs(chi[bothValid]-psi[bothValid])/sqrt(2.) )
+average_anisotropy_uncertainty[bothValid] = combined_methodUncertainty + ( abs(chi[bothValid]-psi[bothValid])/sqrt(2.) )
 
 average_anisotropy_uncertainty[chiValidOnly] = chi_deltaMagnitude[chiValidOnly]
 average_anisotropy_uncertainty[psiValidOnly] = psi_deltaMagnitude[psiValidOnly]
@@ -106,7 +123,8 @@ average_anisotropy.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_uncertain
 average_anisotropy.putProperty(QDataSet.VALID_MIN,0)
 average_anisotropy.putProperty(QDataSet.VALID_MAX,1E10)
 
-plot(2,average_anisotropy,ylog=True,yrange=[1E-1,1E1])
+#average_anisotropy = trim(average_anisotropy,tr)
+
 
 r = where(valid(average_anisotropy))
 
@@ -119,5 +137,58 @@ average_anisotropy_filtered.putProperty(QDataSet.VALID_MIN,0)
 average_anisotropy_filtered.putProperty(QDataSet.VALID_MAX,1E10)
 
 
-plot(3,average_anisotropy_filtered,ylog=True,yrange=[1E-1,1E1])
-plot(3,epoch,average_anisotropy_uncertainty)
+setLayoutOverplot(2)
+plot(0,chi,color='red')
+plot(1,psi,color='blue')
+plot(2,average_anisotropy,ylog=True,yrange=[1E-1,1E1])
+
+#plot(3,average_anisotropy_filtered,ylog=True,yrange=[1E-1,1E1])
+#plot(3,epoch,average_anisotropy_uncertainty)
+
+B_npq = getDataSet(filename+'?B_hat',tr)
+
+wp = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?wp_moment',tr)
+np = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment',tr)
+
+Tp = (wp*(9.79E0))**2  # Temperature in eV
+
+B_sc = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_sc',tr)
+
+Bmag = magnitude(B_sc)
+Bmag = synchronize(average_anisotropy,Bmag)
+
+B_parallel = Bmag*B_npq[:,2]
+(np,Tp) = synchronize(average_anisotropy,[np,Tp])
+
+## cgs.. off from SI by a constant factor of 1.0827310778 -> what the hell is this factor?
+#k    = 1.3807E-16
+#mu_0 = 1.
+#pressureParticle = (np)*k*(Tp*8.6174E-5)#nkT
+#pressureParticle = (np)*k*(Tp*13.606)#nkT
+#pressureMag = (Bmag*1E-5)**2/(2*mu_0)
+#beta_cgs = pressureParticle/pressureMag
+
+# SI
+k    = 1.3807E-23
+mu_0 = PI*4E-7
+pressureParticle = (np*1E6)*k*(Tp)#nkT
+pressureMag = (Bmag*1E-9)**2/(2*mu_0)
+pressureMag_parallel = (B_parallel*1E-9)**2/(2*mu_0)
+beta_SI = pressureParticle/pressureMag
+beta_parallel_SI = pressureParticle/pressureMag_parallel
+beta_parallel_SI.putProperty(QDataSet.VALID_MIN,1E-10)
+beta_parallel_SI.putProperty(QDataSet.VALID_MAX,1E10)
+
+## NRL Formulary.. same as SI
+#beta_NRL = (4.03E-11)*(np)*(Tp*8.6174E-5)*((Bmag*1E-5)**-2)
+
+average_anisotropy.putProperty(QDataSet.DELTA_PLUS,None)
+average_anisotropy.putProperty(QDataSet.DELTA_MINUS,None)
+
+#plot(3,beta_cgs/beta_SI)
+#plot(3,beta_SI)
+#plot(4,(B_parallel*1E-9)**2/(2*mu_0))
+plot(3,beta_parallel_SI,average_anisotropy,renderType='scatter',ylog=True,xlog=True,ytitle='T!B&perp;!N/T!B||!N',xtitle='&beta;!B||')
+#plot(3,((4.03E-11)*(np)*(Tp*8.6174E-5)*((Bmag*1E-5)**-2))/beta_SI)
+
+

@@ -3,17 +3,20 @@
 
 
 
+#timerange = '2018-10-25'
+#timerange = '2018-11-01 to 2018-11-05'
+timerange = getParam('timerange','2018-11-01','Timerange over which to isolate and total EMIC wave power')
 
-
-timerange = '2018-10-25'
-timerange = '2018-11-01 to 2018-11-05'
+outputDirectory = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/WavePower/'
+outputFile = outputDirectory+'PSP_wavePower_%s.cdf'%(timerange)
 
 polarization_file = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/PSP_Polarization_$Y$m$d_$(H,span=6)00.cdf'
 #polarization_file = 'C:/Users/krist/Downloads/PSP_Polarization_$Y$m$d_0000.cdf'
 
 scrollingPlots = True
+plotStuff = False
 
-
+writeStuff = True
 
 
 totalPowerLeft  = None
@@ -106,13 +109,24 @@ if scrollingPlots == True:
             totalPowerLeft  = append(totalPowerLeft,PowerLeft)
             totalPowerRight = append(totalPowerRight,PowerRight)
             totalpower_perp = append(totalpower_perp,power_perp)
+            
+if plotStuff == True:
+    setLayoutOverplot(2)
+    plot(0,totalPowerLeft,ylog=True,color='blue')
+    plot(1,totalPowerRight,ylog=True,color='red')
 
-setLayoutOverplot(2)
-plot(0,totalPowerLeft,ylog=True,color='blue')
-plot(1,totalPowerRight,ylog=True,color='red')
+    plot(2,totalpower_perp,zlog=True)
 
-plot(2,totalpower_perp,zlog=True)
-
+if writeStuff == True:
+    timeAxis.putProperty(QDataSet.NAME,'epoch')
+    totalPowerLeft.putProperty(QDataSet.NAME,'wavePower_LH')
+    totalPowerLeft.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity below %s (Left-handed)'%(maxLefthandedness))
+    totalPowerRight.putProperty(QDataSet.NAME,'wavePower_RH')
+    totalPowerRight.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity above %s (Right-handed)'%(minRighthandedness))
+    
+    formatDataSet(timeAxis,outputFile)
+    formatDataSet(totalPowerLeft,outputFile+'?append=T')
+    formatDataSet(totalPowerRight,outputFile+'?append=T')
 
 
 

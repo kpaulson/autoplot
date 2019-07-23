@@ -131,7 +131,7 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 ############################################################################
 
 timerange = getParam('timerange','2018-10-01 to 2019-05-01','Iteration Timerange')
-version = getParam('version','0.3','Version number to be appended to filenames')
+version = getParam('version','0.4','Version number to be appended to filenames')
 
 plotFitsAndPauseALot = True
 
@@ -389,6 +389,8 @@ for tr in trs:
         chiSquaredReduced_psi  = None
         rSquared_chi           = None
         rSquared_psi           = None
+        slopeError_chi           = None
+        slopeError_psi           = None
         
         if ge(fitSeconds,1.):
             dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(fitSeconds),tr)
@@ -405,8 +407,8 @@ for tr in trs:
             
             try:
                 tr_dds = dds[ind]+' to '+dds[ind+1]
-                if mod(ind,40) == 0:
-                    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
+                #if mod(ind,40) == 0:
+                #    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
                 
                 
                 v_z_dd = trim(v_z,tr_dds)
@@ -489,14 +491,20 @@ for tr in trs:
                 temp_chiSquared_chi = total( abs( temp_residualVariance_chi / temp_fitValues_chi ) )
                 temp_chiSquared_psi = total( abs( temp_residualVariance_psi / temp_fitValues_psi ) )
                 
-                temp_chiSquaredReduced_chi = temp_chiSquared_chi / len(temp_v_z[r][VDF_fitValues])
-                temp_chiSquaredReduced_psi = temp_chiSquared_psi / len(temp_v_z[r][VDF_fitValues])
+                temp_chiSquaredReduced_chi = temp_chiSquared_chi / (len(temp_v_z[r][VDF_fitValues]) - 2) # Should be (n-2) degrees of freedom
+                temp_chiSquaredReduced_psi = temp_chiSquared_psi / (len(temp_v_z[r][VDF_fitValues]) - 2)
                 
                 temp_totalVariance_chi = (temp_vz_tanTheta[r][VDF_fitValues] - mean(temp_vz_tanTheta[r][VDF_fitValues]))**2
                 temp_totalVariance_psi = (temp_vz_tanPhi[r][VDF_fitValues]   - mean(temp_vz_tanPhi[r][VDF_fitValues]))**2
                 
                 temp_rSquared_chi = 1 - ( total(temp_residualVariance_chi) / total(temp_totalVariance_chi) )
                 temp_rSquared_psi = 1 - ( total(temp_residualVariance_psi) / total(temp_totalVariance_psi) )
+                
+                temp_abscissaVariance_chi = ( (temp_v_z[r][VDF_fitValues]*temp_Nx_temp_dd[r][VDF_fitValues]) - mean((temp_v_z[r][VDF_fitValues]*temp_Nx_temp_dd[r][VDF_fitValues])) )**2
+                temp_abscissaVariance_psi = ( (temp_v_z[r][VDF_fitValues]*temp_Ny_temp_dd[r][VDF_fitValues]) - mean((temp_v_z[r][VDF_fitValues]*temp_Ny_temp_dd[r][VDF_fitValues])) )**2
+                
+                temp_slopeError_chi = sqrt( total(temp_residualVariance_chi) / total(temp_abscissaVariance_chi) ) / (len(temp_v_z[r][VDF_fitValues]) - 2)
+                temp_slopeError_psi = sqrt( total(temp_residualVariance_psi) / total(temp_abscissaVariance_psi) ) / (len(temp_v_z[r][VDF_fitValues]) - 2)
                 
                 
                 # Have to append everything at once since I was left with uneven dataset/epoch arrays
@@ -509,6 +517,9 @@ for tr in trs:
                 rSquared_chi = concatenate(rSquared_chi,temp_rSquared_chi)
                 rSquared_psi = concatenate(rSquared_psi,temp_rSquared_psi)
                 
+                slopeError_chi = concatenate(slopeError_chi,temp_slopeError_chi)
+                slopeError_psi = concatenate(slopeError_psi,temp_slopeError_psi)
+                
                 #epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
                 epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+datum(str(fitSeconds/2.)+' sec') )
                 #plot(4,epsilonEpoch))
@@ -519,8 +530,8 @@ for tr in trs:
                     plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
                     plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
                     plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
-                    plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
-                    plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
+                    plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
+                    plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
                     
                     #plot(8,sqrt(temp_residualVariance_chi),renderType='scatter',color='red')
                     #plot(9,sqrt(temp_residualVariance_psi),renderType='scatter',color='blue')
@@ -555,6 +566,10 @@ for tr in trs:
         rSquared_chi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Chi')
         rSquared_psi.putProperty(QDataSet.NAME,'rSquared_psi')
         rSquared_psi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Psi')
+        slopeError_chi.putProperty(QDataSet.NAME,'slopeError_chi')
+        slopeError_chi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Chi')
+        slopeError_psi.putProperty(QDataSet.NAME,'slopeError_psi')
+        slopeError_psi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Psi')
         
         output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
         
@@ -564,19 +579,24 @@ for tr in trs:
         formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
         formatDataSet(rSquared_chi,output_file+'?append=T')
         formatDataSet(rSquared_psi,output_file+'?append=T')
+        formatDataSet(slopeError_chi,output_file+'?append=T')
+        formatDataSet(slopeError_psi,output_file+'?append=T')
         
         
         
         (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
+        Btotal = synchronize(chiline,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself
         
         Bunit = bundle(Nx,Ny,Nz)
         Bunit.putProperty(QDataSet.NAME,'B_hat')
         Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))
         Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         formatDataSet(Bunit,output_file+'?append=T')
+        Btotal.putProperty(QDataSet.NAME,'B_total')
+        Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude'%(trend_seconds))
+        Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        formatDataSet(Btotal,output_file+'?append=T')
         
-        #epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
-        #epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz*Ny )
         epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
         epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz )
         epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')

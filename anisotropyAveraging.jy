@@ -13,11 +13,12 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 
 
-tr = getParam('timerange','2018-11-01','Timerange over which to generate combined anisotropy measurement')
+tr = getParam('timerange','2018-10-02','Timerange over which to generate combined anisotropy measurement')
 version_L0 = '0.4'
+version_L1 = '1.1'
 
 
-filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_L0_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
+filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
 #filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_2019-04-05 18-30 to 18-40_v0.2.cdf'
 #filename = 'C:/Users/krist/Downloads/SPC_Anisotropy_2018-11-01_v0.2.cdf'
 
@@ -149,13 +150,18 @@ average_anisotropy_uncertainty[psiValidOnly] = psi_deltaMagnitude[psiValidOnly]
 average_anisotropy_uncertainty_deltaPlus[psiValidOnly] = psi_plus[psiValidOnly]
 average_anisotropy_uncertainty_deltaMinus[psiValidOnly] = psi_minus[psiValidOnly]
 
+average_anisotropy_uncertainty_deltaPlus.putProperty(QDataSet.NAME,'anisotropy_deltaPlus')
+average_anisotropy_uncertainty_deltaPlus.putProperty(QDataSet.TITLE,'Upper range of uncertainty for combined anisotropy measurement')
+average_anisotropy_uncertainty_deltaMinus.putProperty(QDataSet.NAME,'anisotropy_deltaMinus')
+average_anisotropy_uncertainty_deltaMinus.putProperty(QDataSet.TITLE,'Lower range of uncertainty for combined anisotropy measurement')
+
 average_anisotropy.putProperty(QDataSet.DEPEND_0,epoch)
 average_anisotropy.putProperty(QDataSet.DELTA_PLUS,average_anisotropy_uncertainty_deltaPlus)
 average_anisotropy.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_uncertainty_deltaMinus)
 average_anisotropy.putProperty(QDataSet.VALID_MIN,0)
 average_anisotropy.putProperty(QDataSet.VALID_MAX,1E10)
 average_anisotropy.putProperty(QDataSet.NAME,'Anisotropy')
-average_anisotropy.putProperty(QDataSet.TITLE,'SPC Ion Anisotropy combining independent measurements in Vx/Vz and Vy/Vz planes from L0 v%S file'%(version_L0))
+average_anisotropy.putProperty(QDataSet.TITLE,'SPC Ion Anisotropy combining independent measurements in Vx/Vz and Vy/Vz planes from L0 v%s file'%(version_L0))
 
 #average_anisotropy = trim(average_anisotropy,tr)
 
@@ -179,7 +185,7 @@ plot(2,average_anisotropy,ylog=True,yrange=[1E-1,1E1],ytitle='T!B&perp;!N/T!B||!
 #plot(3,average_anisotropy_filtered,ylog=True,yrange=[1E-1,1E1])
 #plot(3,epoch,average_anisotropy_uncertainty)
 
-STOP
+#STOP
 
 B_npq = getDataSet(filename+'?B_hat',tr)
 Bmag = getDataSet(filename+'?B_total',tr)
@@ -194,7 +200,7 @@ Tp = (wp*(9.79E0))**2  # Temperature in K
 #Bmag = synchronize(average_anisotropy,Bmag)
 
 B_parallel = Bmag*B_npq[:,2]
-B_perp = Bmag*sqrt(B_npq[:,0]**2 + (B_npq[:,1]**2)
+B_perp = Bmag*sqrt(B_npq[:,0]**2 + (B_npq[:,1]**2))
 (np,Tp) = synchronize(average_anisotropy,[np,Tp])
 
 ## cgs.. off from SI by a constant factor of 1.0827310778 -> what the hell is this factor?
@@ -211,7 +217,7 @@ mu_0 = PI*4E-7
 pressureParticle = (np*1E6)*k*(Tp)#nkT
 pressureMag = (Bmag*1E-9)**2/(2*mu_0)
 pressureMag_parallel = (B_parallel*1E-9)**2/(2*mu_0)
-pressureMag_parallel = (B_perp*1E-9)**2/(2*mu_0)
+pressureMag_perp     = (B_perp*1E-9)**2/(2*mu_0)
 
 beta_SI = pressureParticle/pressureMag
 beta_SI.putProperty(QDataSet.VALID_MIN,1E-10)
@@ -260,12 +266,29 @@ plot(3,beta_parallel_SI,average_anisotropy,renderType='scatter',ylog=True,xlog=T
 
 plot(4,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True)
 
-version_L1 = '1.1'
-output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-output_anitostropyL1_file = output_anitostropyL1_directory+'SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1)
 
-formatDataSet(epoch,output_anitostropyL1_file)
-formatDataSet(average_anisotropy,output_anitostropyL1_file+'?append=T')
-formatDataSet(beta_SI,output_anitostropyL1_file+'?append=T')
-formatDataSet(beta_parallel_SI,output_anitostropyL1_file+'?append=T')
-formatDataSet(beta_perp_SI,output_anitostropyL1_file+'?append=T')
+
+###
+###
+###
+output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
+
+#formatDataSet(epoch,output_anitostropyL1_file)
+#print output_anitostropyL1_file
+#print B_npq
+#f = open(output_anitostropyL1_directory + output_anitostropyL1_file,"w+")
+#formatDataSet(B_npq,               f)
+#formatDataSet(Bmag,                output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+#formatDataSet(average_anisotropy,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+#formatDataSet(beta_SI,             output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+#formatDataSet(beta_parallel_SI,    output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+#formatDataSet(beta_perp_SI,        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+formatDataSet(B_npq,                                     output_anitostropyL1_directory + output_anitostropyL1_file)
+formatDataSet(Bmag,                                      output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+formatDataSet(average_anisotropy,                        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+formatDataSet(average_anisotropy_uncertainty_deltaPlus,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+formatDataSet(average_anisotropy_uncertainty_deltaMinus, output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+formatDataSet(beta_SI,                                   output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+formatDataSet(beta_parallel_SI,                          output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+formatDataSet(beta_perp_SI,                              output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')

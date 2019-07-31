@@ -135,7 +135,7 @@ version = getParam('version','0.4','Version number to be appended to filenames')
 
 plotFitsAndPauseALot = True
 
-output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/v%s/'%(version)
+output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/TEMPfits_fromMath_%s.cdf'%(dds_title[0]+'_to_'+dds_title[-1])
     
     
@@ -407,8 +407,8 @@ for tr in trs:
             
             try:
                 tr_dds = dds[ind]+' to '+dds[ind+1]
-                #if mod(ind,40) == 0:
-                #    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
+                if mod(ind,40) == 0:
+                    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
                 
                 
                 v_z_dd = trim(v_z,tr_dds)
@@ -549,6 +549,8 @@ for tr in trs:
         chiSquaredReduced_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         rSquared_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         rSquared_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        slopeError_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        slopeError_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         
         
         
@@ -593,7 +595,7 @@ for tr in trs:
         Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         formatDataSet(Bunit,output_file+'?append=T')
         Btotal.putProperty(QDataSet.NAME,'B_total')
-        Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude'%(trend_seconds))
+        Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
         Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         formatDataSet(Btotal,output_file+'?append=T')
         
@@ -700,12 +702,14 @@ for tr in trs:
         
         #plot(4,epsilonEpoch,epsilon_chi,color='red')
         #plot(5,epsilonEpoch,epsilon_psi,color='blue',ytitle='(&omega;!B&perp;!N/&omega;!B||!N)!U2!N - 1')
-        plot(4,epsilonEpoch,anisotropy_chi,color='red',symbol='none')
-        plot(5,epsilonEpoch,anisotropy_psi,color='blue',symbol='none',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
-        plot(6,epsilonEpoch,rSquared_chi,color='red',symbol='none')
-        plot(7,epsilonEpoch,rSquared_psi,color='blue',symbol='none',ytitle='R!U2!N of Fit')
-        #plot(6,epsilonEpoch,anisotropy_chi,chiSquaredReduced_chi,symbolSize=4)
-        #plot(7,epsilonEpoch,anisotropy_psi,chiSquaredReduced_psi,symbolSize=4)
+        
+        #plot(4,epsilonEpoch,anisotropy_chi,color='red',symbol='none')
+        #plot(5,epsilonEpoch,anisotropy_psi,color='blue',symbol='none',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+        plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi),symbol='none',ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+        
+        #plot(6,epsilonEpoch,rSquared_chi,color='red',symbol='none')
+        #plot(7,epsilonEpoch,rSquared_psi,color='blue',symbol='none',ytitle='R!U2!N of Fit')
+        plot(5,epsilonEpoch,bundle(slopeError_chi,slopeError_psi),symbol='none',ytitle='Slope Error of Fit')
         
         
         #plot(6,epsilonEpoch,anisotropy_chi_deltaPlus)

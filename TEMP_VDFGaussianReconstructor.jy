@@ -1,0 +1,34 @@
+tr = '2018-11-01'
+
+
+np_fit = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_fit',tr)
+wp_fit = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?wp_fit',tr)
+vp_fit_SC = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?vp_fit_SC',tr)
+vp_fit = magnitude(vp_fit_SC)
+spc_time = np_fit.property(QDataSet.DEPEND_0)
+
+#Gaussian:
+#    a*exp(-4*ln(2)*(x-b)**2/w**2)
+#    a*exp(-((x - b)**2 / (2*c**2)))
+#    w = 2*sqrt(2*ln(2))*c
+#integral:
+#    a*c*sqrt(2*PI) = np_fit
+# mu = expectedValue
+# sigma = variance
+
+c = wp_fit/(2.*sqrt(2*log(2)))
+a = np_fit/(c*sqrt(2*PI))
+b = vp_fit
+
+v_space = linspace(200,800,60)
+peak_p = dblarr(len(np_fit),len(v_space))
+v_index = 0
+for v in v_space:
+    
+    peak_p[:,v_index] = a*exp(-((v - b)**2 / (2*c**2)))
+    v_index+=1
+
+peak_p.putProperty(QDataSet.DEPEND_0,spc_time)
+peak_p.putProperty(QDataSet.DEPEND_1,v_space)
+
+plot(peak_p)

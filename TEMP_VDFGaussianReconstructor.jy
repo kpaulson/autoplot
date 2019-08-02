@@ -1,11 +1,24 @@
-tr = '2018-11-01'
 
 
-np_fit = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_fit',tr)
-wp_fit = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?wp_fit',tr)
-vp_fit_SC = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?vp_fit_SC',tr)
+tr = '2018-11-01 1:00 to 1:15'
+sweap_spc_file = 'http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+
+np_fit = getDataSet(sweap_spc_file+'?np_fit',tr)
+wp_fit = getDataSet(sweap_spc_file+'?wp_fit',tr)
+vp_fit_SC = getDataSet(sweap_spc_file+'?vp_fit_SC',tr)
 vp_fit = magnitude(vp_fit_SC)
 spc_time = np_fit.property(QDataSet.DEPEND_0)
+
+
+np1_fit = getDataSet(sweap_spc_file+'?np1_fit',tr)
+wp1_fit = getDataSet(sweap_spc_file+'?wp1_fit',tr)
+vp1_fit_SC = getDataSet(sweap_spc_file+'?vp1_fit_SC',tr)
+vp1_fit = magnitude(vp1_fit_SC)
+
+na_fit = getDataSet(sweap_spc_file+'?na_fit',tr)
+wa_fit = getDataSet(sweap_spc_file+'?wa_fit',tr)
+va_fit_SC = getDataSet(sweap_spc_file+'?va_fit_SC',tr)
+va_fit = magnitude(va_fit_SC)
 
 #Gaussian:
 #    a*exp(-4*ln(2)*(x-b)**2/w**2)
@@ -15,20 +28,158 @@ spc_time = np_fit.property(QDataSet.DEPEND_0)
 #    a*c*sqrt(2*PI) = np_fit
 # mu = expectedValue
 # sigma = variance
+#
+#  Gaussian parameters from Mike:
+# c = wp_fit       
+# a = np_fit / (cp*sqrt(PI))              
+# b = vp_fit
+# peak_p = ap*exp(-((v_z - bp)**2 / (cp**2)))
 
-c = wp_fit/(2.*sqrt(2*log(2)))
-a = np_fit/(c*sqrt(2*PI))
-b = vp_fit
+#cp = wp_fit/(2.*sqrt(2*log(2)))
+#ap = np_fit/(cp*sqrt(2*PI))
+#bp = vp_fit
+cp = wp_fit            
+ap = np_fit / (cp*sqrt(PI))         
+bp = vp_fit
 
-v_space = linspace(200,800,60)
-peak_p = dblarr(len(np_fit),len(v_space))
+#cp1 = wp1_fit/(2.*sqrt(2*log(2)))
+#ap1 = np1_fit/(cp1*sqrt(2*PI))
+#bp1 = vp1_fit
+cp1 = wp1_fit     
+ap1 = np1_fit / (cp1*sqrt(PI))                
+bp1 = vp1_fit
+
+#ca = wa_fit/(2.*sqrt(2*log(2)))
+#aa = na_fit/(ca*sqrt(2*PI))
+#ba = va_fit
+ca = wa_fit    
+aa = (na_fit/2.) / (ca*sqrt(PI))                 
+ba = va_fit * sqrt(2.)
+
+#v_space = linspace(200,800,60)
+#peak_p = dblarr(len(np_fit),len(v_space))
+#v_index = 0
+#for v in v_space:
+#
+#    peak_p[:,v_index] = a*exp(-((v - b)**2 / (2*c**2)))
+#    v_index+=1
+#
+#peak_p.putProperty(QDataSet.DEPEND_0,spc_time)
+#peak_p.putProperty(QDataSet.DEPEND_1,v_space)
+#peak_p.putProperty(QDataSet.VALID_MIN,1E-10)
+#peak_p.putProperty(QDataSet.VALID_MAX,1E10)
+#
+#plot(peak_p)
+
+
+
+
+###########
+
+plot_VDF = True
+if plot_VDF ==True:
+
+        m_p                  = 1.6726231E-24
+        m_a                  = m_p*4
+        q                    = 1.6022E-12
+        trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
+        minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
+        fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
+        
+        cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+        
+        try:
+            spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+            spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+            spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+            spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+            
+            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+        except:
+            noSPCData = None
+            raise java.io.FileNotFoundException
+        
+        spc_a = trim(spc_a,tr)
+        spc_b = trim(spc_b,tr)
+        spc_c = trim(spc_c,tr)
+        spc_d = trim(spc_d,tr)
+        
+        mv_lo = trim(mv_lo,tr)
+        mv_hi = trim(mv_hi,tr)
+        
+        spc_list = [spc_a,spc_b,spc_c,spc_d]
+        del(spc_a,spc_b,spc_c,spc_d)
+        
+        totalFlux = sum(spc_list)
+
+        v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+        windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
+        
+        v_z_a = sqrt( (2./m_a) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+        windowWidths_a = sqrt( (2./m_a) * q*(mv_hi-mv_lo)/2.) / 1.E5
+        
+        vdf = totalFlux/(v_z*windowWidths) * 1.66E3
+        vdf.putProperty(QDataSet.DEPEND_1,v_z)
+        del(windowWidths,mv_hi)
+        
+        #plot(1,vdf*1.66E3,ytitle='SPC VDF',zrange=[1E-1,1E1],zlog=True)
+        plot(1,vdf,ytitle='SPC VDF',zrange=[1E-1,1E1],zlog=True)
+#        stop
+        
+
+       
+#v_space = linspace(200,800,60)
+#peak_p = dblarr(len(np_fit),len(v_space))
+
+(ap,bp,cp) = synchronize(v_z,[ap,bp,cp])
+(ap1,bp1,cp1) = synchronize(v_z,[ap1,bp1,cp1])
+(aa,ba,ca) = synchronize(v_z,[aa,ba,ca])
+
+
+v_space = copy(v_z)
+v_space_time = v_space.property(QDataSet.DEPEND_0)
+peak_p  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+peak_p1 = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+peak_a  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
 v_index = 0
-for v in v_space:
+for v_index in xrange(len(v_space[0,:])):
     
-    peak_p[:,v_index] = a*exp(-((v - b)**2 / (2*c**2)))
-    v_index+=1
+    #peak_p[:,v_index]  = ap*exp(-((v_space[:,v_index] - bp)**2 / (2*cp**2)))
+    #peak_p1[:,v_index] = ap1*exp(-((v_space[:,v_index] - bp1)**2 / (2*cp1**2)))
+    #peak_a[:,v_index]  = aa*exp(-((v_space_a[:,v_index] - ba)**2 / (2*ca**2)))
+    
+    peak_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2)))
+    peak_p1[:,v_index] = ap1*exp(-((v_space[:,v_index]   - bp1)**2 / (cp1**2)))
+    peak_a[:,v_index]  = aa *exp(-((v_space[:,v_index] - ba )**2 / (ca**2)))
+    #v_index+=1
 
-peak_p.putProperty(QDataSet.DEPEND_0,spc_time)
+peak_p.putProperty(QDataSet.DEPEND_0,v_space_time)
 peak_p.putProperty(QDataSet.DEPEND_1,v_space)
+peak_p.putProperty(QDataSet.VALID_MIN,1E-10)
+peak_p.putProperty(QDataSet.VALID_MAX,1E10)
 
-plot(peak_p)
+peak_p1.putProperty(QDataSet.DEPEND_0,v_space_time)
+peak_p1.putProperty(QDataSet.DEPEND_1,v_space)
+peak_p1.putProperty(QDataSet.VALID_MIN,1E-10)
+peak_p1.putProperty(QDataSet.VALID_MAX,1E10)
+
+peak_a.putProperty(QDataSet.DEPEND_0,v_space_time)
+peak_a.putProperty(QDataSet.DEPEND_1,v_space)
+peak_a.putProperty(QDataSet.VALID_MIN,0)
+peak_a.putProperty(QDataSet.VALID_MAX,1E20)
+
+model_vdf = peak_p + peak_p1 + peak_a
+protons  = peak_p + peak_p1
+background = vdf-model_vdf
+
+#plot(0,model_vdf,ytitle='Model VDF',zrange=[1E-1,1E1],zlog=True) 
+#plot(0,peak_p,ytitle='peak_p') 
+plot(0,protons,ytitle='peak_p + peak_p1',zrange=[1E-1,1E1],zlog=True) 
+#plot(v_space)
+#plot(2,peak_a)        
+#plot(2,vdf/peak_p,ytitle='VDF/peak_p',zrange=[1E-1,1E1],zlog=True)
+plot(2,vdf/(model_vdf),ytitle='VDF/(peak_p + peak_p1)',zrange=[1E-1,1E1],zlog=True)
+#plot(3,vdf-peak_p,ytitle='vdf-peak_p')
+plot(3,vdf-(background+protons),ytitle='vdf-(peak_p + peak_p1)',zrange=[-5,5],zlog=False)
+#plot(3,vdf - model_vdf,ytitle='vdf-model_vdf',zrange=[-5,5],zlog=False)

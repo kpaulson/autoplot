@@ -148,6 +148,7 @@ trend_seconds        = getParam('Bfield_window' , 30 , 'Number of seconds over w
 minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
 #fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
 fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
         
@@ -158,7 +159,7 @@ cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_s
 ############################################################################
 
 import java
-    
+time_begin = TimeUtil.now()    
 
 plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
 if plotFitsAndPauseALot_yn == 'T':
@@ -186,6 +187,8 @@ anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
+    time_begin_tr = TimeUtil.now()   
+        
     try:
 
         #tr = '2018-11-03 18:33 to 18:39'
@@ -212,8 +215,9 @@ for tr in trs:
         except:
             noSPCData = None
             raise java.io.FileNotFoundException
-        
-        
+            
+        print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
+        time_last = TimeUtil.now()
         #spc_list = [spc_a,spc_b,spc_c,spc_d]
         
         spc_a = trim(spc_a,tr)
@@ -273,6 +277,8 @@ for tr in trs:
         #Are you measuring the slope near the peak in current or near the peak in the velocity distribution function? 
         #(the VDF goes like current divided by speed time window width in speed units)
         
+        print 'Calculating Flow Angles took:',TimeUtil.now()-time_last
+        time_last = TimeUtil.now()
         
         v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
@@ -285,6 +291,9 @@ for tr in trs:
         totalFlux.putProperty(QDataSet.DEPEND_1,mv_lo)
         peaks = reduceMax(totalFlux,1)
         r = where(eq(totalFlux,peaks))
+        
+        print 'Defining VDF took:',TimeUtil.now()-time_last
+        time_last = TimeUtil.now()
         
         # If we want to use the peaks as weights in fitting, import L3 data and build model distributions
         if separatePeaksWithL3Values == True:
@@ -355,6 +364,9 @@ for tr in trs:
             peak_a.putProperty(QDataSet.DEPEND_1,v_space)
             peak_a.putProperty(QDataSet.VALID_MIN,0)
             peak_a.putProperty(QDataSet.VALID_MAX,1E20)
+            
+            print 'Building Peaks took:',TimeUtil.now()-time_last
+            time_last = TimeUtil.now()
         
 
         
@@ -418,6 +430,8 @@ for tr in trs:
         ##########
         #####
         
+        print 'Downloading MAG Data took:',TimeUtil.now()-time_last
+        time_last = TimeUtil.now()
         
         inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
         chiline                = None
@@ -456,22 +470,25 @@ for tr in trs:
             dds= generateTimeRanges('$Y-$m-$d $H:$M:$S.$(milli,span=%s)'%int(fitSeconds*1E3),tr)
             dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$S.$(milli,span=%s)'%int(fitSeconds*1E3),tr)
         
+        time_fit_begin = TimeUtil.now()
         monitor.setTaskSize(len(dds)-1)
         for ind in xrange(len(dds)-1):
             monitor.setTaskProgress(ind)
             monitor.setLabel('Linear Fits') 
-            #mappedAngleIndex = None
+            
+            if ( monitor.cancelled ):
+                break
             
             try:
                 tr_dds = dds[ind]+' to '+dds[ind+1]
-                if mod(ind,40) == 0:
+                if mod(ind,modFits) == 0:
                     plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
                 
                 
                 v_z_dd = trim(v_z,tr_dds)
                 vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
                 vz_tanTheta_dd = trim(vz_tanTheta,tr_dds)
-                #vz_tanTheta_dd = trim(vz_tanTheta,'%s to %s'%())
+                
                 totalFlux_dd = trim(totalFlux,tr_dds)
                 vdf_dd = trim(vdf,tr_dds)
                 
@@ -493,6 +510,10 @@ for tr in trs:
                     temp_vdf         = concatenate(temp_vdf,vdf_dd[i,:])
                     temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
                     temp_Ny_temp_dd  = concatenate(temp_Ny_temp_dd,ones(len(v_z_dd[i,:]))*Ny_temp_dd[i])
+                
+                if mod(ind,modFits) == 0:    
+                    print 'Rewriting each fitting parameter into rank1 array took:',TimeUtil.now()-time_last
+                    time_last = TimeUtil.now()
                     
                 norm_temp_totalFlux = normalize(temp_totalFlux)
                 norm_temp_vdf = normalize(temp_vdf)
@@ -546,6 +567,9 @@ for tr in trs:
                         ftr_chi.addObservedPoint( int(float(temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
                         ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
                     
+                if mod(ind,modFits) == 0:    
+                    print 'Adding all points into fitting function took:',TimeUtil.now()-time_last
+                    time_last = TimeUtil.now()
                 
                 result_chi = ftr_chi.fit(f,inputGuessParams)
                 result_psi = ftr_psi.fit(f,inputGuessParams)
@@ -597,6 +621,12 @@ for tr in trs:
                 
                 slopeError_chi = concatenate(slopeError_chi,temp_slopeError_chi)
                 slopeError_psi = concatenate(slopeError_psi,temp_slopeError_psi)
+                
+                
+                if mod(ind,modFits) == 0:    
+                    print 'Calculating Uncertainties took:',TimeUtil.now()-time_last
+                    time_last = TimeUtil.now()
+                    print 'Total fitting function so far (%s %s) took:'%(str(int(100.*ind/(len(dds)-1.))),'%'),TimeUtil.now()-time_begin_tr
                 
                 if separatePeaksWithL3Values == True:
                     result_chi_p1 = ftr_chi_p1.fit(f,inputGuessParams)
@@ -673,6 +703,28 @@ for tr in trs:
         #########
         #########
         #########
+            
+        if ( monitor.cancelled ):
+            break
+        
+        print 'Total fitting section for day took:',TimeUtil.now()-time_fit_begin
+        time_last = TimeUtil.now()
+        
+        
+        ####### Set DEPEND_0 for datasets
+        
+        psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        chiSquaredReduced_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        chiSquaredReduced_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        rSquared_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        rSquared_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        slopeError_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        slopeError_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        
+        # ###
+        # ### WRITE STUFF
+        # ###
         
         #output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
         output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec.cdf'%(tr,version,str(fitSeconds))
@@ -689,17 +741,6 @@ for tr in trs:
         Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
         Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         formatDataSet(Btotal,output_file+'?append=T')
-        
-        #######
-        
-        psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        chiSquaredReduced_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        chiSquaredReduced_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        rSquared_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        rSquared_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        slopeError_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        slopeError_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         
         
         psiline.putProperty(QDataSet.NAME,'Psi')
@@ -833,9 +874,12 @@ for tr in trs:
         
         
         
+        print 'Writing Data to CDF took:',TimeUtil.now()-time_fit_begin
+        time_last = TimeUtil.now()
         
                 
         if separatePeaksWithL3Values == True:
+            continue
         
         
         # TODO: Add other peak writing stuff here (copy all from above but with p1 and alphas

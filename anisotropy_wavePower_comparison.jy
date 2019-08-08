@@ -1,0 +1,71 @@
+
+
+tr = '2018-10-31 to 2018-11-20'
+#tr = '2018-11-02'
+minWavePower = 2E-2
+
+
+
+
+
+anisotropyFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v1.1/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.cdf'
+
+anisotropy = getDataSet(anisotropyFile+'?Anisotropy',tr)
+betaParallel = getDataSet(anisotropyFile+'?Beta_parallel',tr)
+betaPerp = getDataSet(anisotropyFile+'?Beta_perp',tr)
+anisotropy_deltaPlus = getDataSet(anisotropyFile+'?anisotropy_deltaPlus',tr)
+anisotropy_deltaMinus = getDataSet(anisotropyFile+'?anisotropy_deltaMinus',tr)
+
+percentUncertainty = 30
+goodValues = where( lt(anisotropy_deltaPlus/anisotropy , (percentUncertainty/100.) ) )
+
+polarizationFile = 'file:/home/kpaulson/Research/PSP/Wave_Polarization/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
+
+wavePower_LH = getDataSet(polarizationFile+'?wavePower_LH',tr)
+wavePower_RH = getDataSet(polarizationFile+'?wavePower_RH',tr)
+
+
+(wavePower_LH,wavePower_RH) = synchronize(anisotropy[goodValues],[wavePower_LH,wavePower_RH])
+
+powerPresent_LH = where(gt(wavePower_LH,minWavePower))
+powerPresent_RH = where(gt(wavePower_RH,minWavePower))
+
+anisotropy_bin_min    = 1E-1
+anisotropy_bin_max    = 1E1
+anisotropy_bin_number = 100
+aa = logspace(anisotropy_bin_min,anisotropy_bin_max,anisotropy_bin_number)
+
+beta_bin_min    = 1E-3
+beta_bin_max    = 12E3
+beta_bin_number = 100
+bb = logspace(beta_bin_min,beta_bin_max,beta_bin_number)
+
+anisotropy_rebin_total = rebin( link(betaParallel[goodValues],anisotropy[goodValues],ones(len(goodValues))) , bb , aa ).property(QDataSet.WEIGHTS)
+anisotropy_rebin_LH = rebin( link(betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],ones(len(goodValues[powerPresent_LH]))) , bb , aa ).property(QDataSet.WEIGHTS)
+anisotropy_rebin_RH = rebin( link(betaParallel[goodValues][powerPresent_RH],anisotropy[goodValues][powerPresent_RH],ones(len(goodValues[powerPresent_RH]))) , bb , aa ).property(QDataSet.WEIGHTS)
+
+setLayoutOverplot(7)
+plot(0,betaParallel[goodValues],anisotropy[goodValues],renderType='scatter')
+plot(1,betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],renderType='scatter',color='light blue',symbolSize=3)
+#plot(2,betaParallel[goodValues][powerPresent_RH],anisotropy[goodValues][powerPresent_RH],renderType='scatter',ylog=True,color='red',symbolSize=3)
+
+plot(0,anisotropy_rebin_total)
+
+
+# ###
+# ### INSTABILITY THRESHOLDS
+# ###
+
+bb = logspace(1E-3,1E5,1000)
+#plot(7,bb)
+#bb = linspace(0.001,100,1000)
+
+instabilityMirror_Hellinger = 1 + ( (0.77) / ((bb+0.016)**(0.76)) )
+instabilityCyclotron_Hellinger = 1 + ( (0.43) / ((bb+0.0004)**(0.42)) )
+instabilityFirehoseOblique_Hellinger = 1 - ( (1.4) / ((bb-0.11)) )
+instabilityFirehoseParallel_Hellinger = 1 - ( (0.47) / ((bb-0.59)**(0.53)) )
+
+plot(3,bb,instabilityMirror_Hellinger,color='magenta')
+plot(4,bb,instabilityCyclotron_Hellinger,color='magenta')
+plot(5,bb,instabilityFirehoseParallel_Hellinger,color='magenta',xlog=True,xtitle='&beta;!B||!N',ytitle='T!B&perp;!N/T!B||!N',xrange=[1E-2,1E3],yrange=[1E-1,1E1],ylog=True)
+plot(6,bb,instabilityFirehoseOblique_Hellinger,color='magenta',xlog=True,xtitle='&beta;!B||!N',ytitle='T!B&perp;!N/T!B||!N',xrange=[1E-2,1E3],yrange=[1E-1,1E1],ylog=True)

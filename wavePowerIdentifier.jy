@@ -5,7 +5,7 @@
 
 #timerange = '2018-10-25'
 #timerange = '2018-11-01 to 2018-11-05'
-timerange = getParam('timerange','2018-11-01','Timerange over which to isolate and total EMIC wave power')
+timerange = getParam('timerange','2018-11-04','Timerange over which to isolate and total EMIC wave power')
 
 outputDirectory = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/WavePower/'
 outputFile = outputDirectory+'PSP_wavePower_%s.cdf'%(timerange)
@@ -14,7 +14,7 @@ polarization_file = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/PSP_Po
 #polarization_file = 'C:/Users/krist/Downloads/PSP_Polarization_$Y$m$d_0000.cdf'
 
 scrollingPlots = True
-plotStuff = False
+plotStuff = True
 
 writeStuff = True
 
@@ -36,7 +36,10 @@ if scrollingPlots == True:
         monitor.setProgressMessage('Downloading Data')
         
         if ind < len(dds)-1:
-            tr = dds[ind]+' to '+dds[ind+1]
+            if dds[ind][9:11] == 18:
+                tr = dds[ind]+' to '+str( datum(dds[ind]) + dataset('6hr') )
+            else:
+                tr = dds[ind]+' to '+dds[ind+1]
 
 
             power_perp   = getDataSet(polarization_file+'?Power_Perp',tr)

@@ -1,0 +1,118 @@
+
+
+
+# ###
+# ### DEFINE STUFF
+# ###
+
+tr = '2018-10-30 00:00 to 2018-10-31 21:00'
+#tr = '2018-11-11 15:00 to 2018-11-12 21:00'
+
+mag_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+
+spc_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+
+
+
+# ###
+# ### DOWNLOAD STUFF
+# ###
+
+psp_fld_mag_rtn = getDataSet(mag_file+'?psp_fld_mag_rtn',tr)
+mag_time = psp_fld_mag_rtn.property(QDataSet.DEPEND_0)
+
+DQF = getDataSet(spc_file+'?DQF',tr)
+spc_time = DQF.property(QDataSet.DEPEND_0)
+
+vp_moment_RTN = getDataSet(spc_file+'?vp_moment_RTN',tr)
+np_moment     = getDataSet(spc_file+'?np_moment',tr)
+wp_moment     = getDataSet(spc_file+'?wp_moment',tr)
+
+vp_fit_RTN = getDataSet(spc_file+'?vp_fit_RTN',tr)
+np_fit     = getDataSet(spc_file+'?np_fit',tr)
+wp_fit     = getDataSet(spc_file+'?wp_fit',tr)
+
+va_fit_RTN = getDataSet(spc_file+'?va_fit_RTN',tr)
+na_fit     = getDataSet(spc_file+'?na_fit',tr)
+wa_fit     = getDataSet(spc_file+'?wa_fit',tr)
+
+
+
+# ###
+# ### ANALYZE STUFF
+# ###
+
+# First trim it all down
+psp_fld_mag_rtn = trim(psp_fld_mag_rtn,tr)
+
+DQF = trim(DQF,tr)
+spc_time = DQF.property(QDataSet.DEPEND_0)
+
+vp_moment_RTN = trim(vp_moment_RTN,tr)
+np_moment     = trim(np_moment,tr)
+wp_moment     = trim(wp_moment,tr)
+
+vp_fit_RTN = trim(vp_fit_RTN,tr)
+np_fit     = trim(np_fit,tr)
+wp_fit     = trim(wp_fit,tr)
+
+va_fit_RTN = trim(va_fit_RTN,tr)
+na_fit     = trim(na_fit,tr)
+wa_fit     = trim(wa_fit,tr)
+
+# Then only keep the "good" values
+goodSPCValues = where(eq(DQF[:,0],0))
+spc_time = spc_time[goodSPCValues]
+
+vp_moment_RTN = vp_moment_RTN[goodSPCValues]
+np_moment     = np_moment[goodSPCValues]
+wp_moment     = wp_moment[goodSPCValues]
+
+vp_fit_RTN = vp_fit_RTN[goodSPCValues,:]
+np_fit     = np_fit[goodSPCValues]
+wp_fit     = wp_fit[goodSPCValues]
+
+va_fit_RTN = va_fit_RTN[goodSPCValues,:]
+na_fit     = na_fit[goodSPCValues]
+wa_fit     = wa_fit[goodSPCValues]
+
+alphaRatio = na_fit/np_fit
+
+
+# Now try to clean it up
+np_bundle = putProperty(bundle(np_moment,np_fit),QDataSet.DEPEND_0,spc_time)
+wp_bundle = putProperty(bundle(wp_moment,wp_fit),QDataSet.DEPEND_0,spc_time)
+
+
+# Let's even try to build a new time system
+start_time     = putProperty(spc_time,QDataSet.NAME,None)[0]
+end_time       = putProperty(spc_time,QDataSet.NAME,None)[-1]
+cadence        = '1sec'
+newTime_length = int((end_time-start_time)/dataset(cadence))
+newTime = timegen(str(start_time),cadence,newTime_length)
+
+spc_time_to_newTime_ratio = findex(spc_time,newTime)
+
+vp_moment_R    = interpolate(vp_moment_RTN[:,0], spc_time_to_newTime_ratio)
+vp_moment_T    = interpolate(vp_moment_RTN[:,1], spc_time_to_newTime_ratio)
+vp_moment_N    = interpolate(vp_moment_RTN[:,2], spc_time_to_newTime_ratio)
+vp_moment_RTN  = putProperty(bundle(vp_moment_R,vp_moment_T,vp_moment_N),QDataSet.DEPEND_0,newTime)
+np_bundle      = interpolate(np_bundle, spc_time_to_newTime_ratio)
+wp_bundle      = interpolate(wp_bundle, spc_time_to_newTime_ratio)
+alphaRatio     = interpolate(alphaRatio,spc_time_to_newTime_ratio)
+
+# ###
+# ### PLOT STUFF
+# ###
+
+#setLayoutOverplot(2)
+
+plot(0,psp_fld_mag_rtn,ytitle='B_RTN')
+plot(1,magnitude(psp_fld_mag_rtn),ytitle='B!BRTN!N',color='black')
+plot(2,vp_moment_RTN,ytitle='V!Bp!N RTN (%{UNITS})')
+plot(3,np_bundle,ylog=True,yrange=[0,600],ytitle='n!Bp!N (cm!U-3!N)')
+plot(4,alphaRatio,ylog=True,yrange=[2E-3,1E-1],ytitle='n!Ba!N/n!Bp!N')
+plot(5,wp_bundle,ylog=True,yrange=[12,200],ytitle='W!Bp!N (km/s)')
+
+
+

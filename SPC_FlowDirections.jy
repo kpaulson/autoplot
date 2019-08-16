@@ -7,6 +7,10 @@
 #    print dqf[:,j]
     
 tr = '2018-11-03 19:00 to 19:20'
+tr = '2019-03-15 to 2019-03-30'
+tr = '2019-03-22'
+tr = '2018-10-30 to 2018-11-04'# to 2018-11-15'
+#tr = '2019-03-17'
 #tr = '2019-04-14 00:00 to 13:00'
 #tr = '2018-11-03 19:19 to 19:20'
     
@@ -49,6 +53,28 @@ V.putProperty(QDataSet.VALID_MIN,None)
 U.putProperty(QDataSet.VALID_MAX,None)
 V.putProperty(QDataSet.VALID_MAX,None)
 
+
+fluxDifference_agyro = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
+W = (fluxDifference_agyro/totalFlux)/0.035
+
+W.putProperty(QDataSet.VALID_MIN,None)
+W.putProperty(QDataSet.VALID_MAX,None)
+#for j in xrange(len(W[0,:])):
+#    try:
+#        W[:,j] = medianFilter(W[:,j],3)
+#    except:
+#        continue
+        
+plot(5,abs(W))
+#plot(5,W)
+
+agyroLimit = 7
+badNoise = where(gt(abs(W),agyroLimit))
+
+
+totalFlux[badNoise] = 0
+
+
 #r0 = where(valid(U)) *(-1) + 1
 #U[r0] = -180
 #r0 = where(valid(V)) *(-1) + 1
@@ -83,16 +109,3 @@ mainFlowXsc = V[r]  # Mike's routine calls this elevation
 plot(3,mainFlowYsc,ytitle='Ysc Deflection')
 plot(4,mainFlowXsc,ytitle='Xsc Deflection')
 
-
-fluxDifference_agyro = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
-W = (fluxDifference_agyro/totalFlux)/0.035
-
-W.putProperty(QDataSet.VALID_MIN,None)
-W.putProperty(QDataSet.VALID_MAX,None)
-for j in xrange(len(W[0,:])):
-    try:
-        W[:,j] = medianFilter(W[:,j],3)
-    except:
-        continue
-        
-plot(5,W)

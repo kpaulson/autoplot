@@ -1,0 +1,4 @@
+numberOfPlots = len(dom.getPlots())
+
+for i in xrange(numberOfPlots):
+    dom.plots[i].controller.dasPlot.row.ptMaximum = 18

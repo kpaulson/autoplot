@@ -7,6 +7,19 @@
 #timerange = '2018-11-01 to 2018-11-05'
 timerange = getParam('timerange','2018-11-04','Timerange over which to isolate and total EMIC wave power')
 
+##############
+            
+bottomTrimIndex            = 20
+min_coherency              = 0.8
+max_waveNormal             = 25
+maxLefthandedness          = -0.8
+minRighthandedness         = 0.8
+timeAxis_smoothpoints      = 2
+frequencyAxis_smoothpoints = 20
+            
+##############
+
+
 outputDirectory = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/WavePower/'
 outputFile = outputDirectory+'PSP_wavePower_%s.cdf'%(timerange)
 
@@ -48,14 +61,6 @@ if scrollingPlots == True:
             waveNormal = getDataSet(polarization_file+'?Angle_Normal',tr)
             
             
-            bottomTrimIndex            = 20
-            min_coherency              = 0.8
-            max_waveNormal             = 25
-            maxLefthandedness          = -0.8
-            minRighthandedness         = 0.8
-            timeAxis_smoothpoints      = 2
-            frequencyAxis_smoothpoints = 20
-            
             
             power_perp  = power_perp[:,bottomTrimIndex:]
             coherency   = coherency[:,bottomTrimIndex:]
@@ -66,9 +71,6 @@ if scrollingPlots == True:
             timeAxis = power_perp.property(QDataSet.DEPEND_0)
             frequencyAxis = power_perp.property(QDataSet.DEPEND_1)
             
-            
-            timeAxis_smoothpoints = 2
-            frequencyAxis_smoothpoints = 20
             
             coherency_smoothedFrequency  = smooth2d(coherency,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
             waveNormal_smoothedFrequency = smooth2d(waveNormal,timeAxis_smoothpoints,frequencyAxis_smoothpoints)

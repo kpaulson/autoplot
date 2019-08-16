@@ -1,10 +1,11 @@
 #randomSeed(30)
 generatingTotalErrorMap = False
-generatingDeltaPlusMinusMaps = True
+generatingDeltaPlusMinusMaps = False
+RunningSingleCase = True
 
-length = 600000#0         # Number of points in each maxwellian distributions
+length = 600000#00         # Number of points in each maxwellian distribution
 numberOfPoints = 50000    # Number of points over which iteration is done (TODO: change this to time with timeUtil().Now)
-numberIterations = 10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
+numberIterations = 3#10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
 pauseAndPlotCounter = 20  # Number of points to run through before generating each plot
 
 angleMin = 0
@@ -22,10 +23,12 @@ outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.
 
 
 
-
-
-magSlopes = linspace(angleMin,angleMax,angleBinNumber)
-anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
+if RunningSingleCase == True:
+    angle = getParam('Bfield_angle',30,'Incident magnetic field angle relative to z_hat')
+    aniso = getParam('Anisotropy',4,'Input distribution anisotropy')
+else:
+    magSlopes = linspace(angleMin,angleMax,angleBinNumber)
+    anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
 
 
 from org.apache.commons.math.optimization.fitting import CurveFitter
@@ -336,6 +339,112 @@ elif generatingDeltaPlusMinusMaps == True:
     formatDataSet( deltaMinusLink  , outputMap+'?append=T' )
     formatDataSet( deltaPlusRebin  , outputMap+'?append=T' )
     formatDataSet( deltaMinusRebin , outputMap+'?append=T' )
+    
+    
+elif RunningSingleCase == True:
+    #monitor.setTaskSize(len(magSlopes)*len(anisotropyList)*numberIterations)
+    #for angle in magSlopes:
+        
+    slope = toRadians(angle)
+        
+    
+    clusterUncertainty               = None
+    temp_outputAnisotropiesMeasured  = None
+    iteration = 0
+    while iteration < numberIterations:
+        monitor.setTaskProgress(counter)
+        try:
+        
+            p1 = randomn(long(rand(1)[0]*1E6),length)
+            p2 = randomn(long(rand(1)[0]*1E6),length)*aniso
+            
+            Nz = cos(slope)
+            Nx = sin(slope)
+            
+            p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-8,8]),dataset([-8,8]))\
+            
+            peaks = None
+            peaks1 = None
+            peaks2 = None
+            for i in xrange(len(p1p2_hist)):
+                temp_slice_peak_dep0 = p1p2_hist[i,:][imax(slice0(p1p2_hist,i))]
+                temp_slice_peak_dep1 = p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))]
+                
+                peaks1 = concatenate(peaks1,temp_slice_peak_dep0)
+                peaks2 = concatenate(peaks2,temp_slice_peak_dep1)
+                
+            
+            
+                    
+            inputGuessParams = [0.5,0.5]
+            f = LinFit()
+            ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
+            peaks1 = normalize(peaks1)
+            
+            for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0))):
+                ftr_chi.addObservedPoint(float(peaks1[i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))
+                #ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))#,float(ones(len((peaks1)))[i]))
+                
+            result_chi = ftr_chi.fit(f,inputGuessParams)
+               
+            
+            
+            chiline = result_chi[0]
+            #print 'chiline:',chiline
+            #print result_chi[1] 
+            
+            
+            epsilon_chi =  - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+            
+            phi = atan(chiline)
+            #print 'ecc:',(tan((slope - phi)/slope))
+            
+            #print '1/epsilon:',1./sqrt(epsilon_chi+1)
+            print 'measured_anisotropy:',sqrt(epsilon_chi+1)
+            print 'input_anisotropy:',aniso
+            
+#                    anisotropyDifference = sqrt(epsilon_chi+1) - aniso
+#                    if ge(anisotropyDifference.value(),0):
+#                        deltaPlus_dep0 = concatenate(deltaPlus_dep0,angle)
+#                        deltaPlus_dep1 = concatenate(deltaPlus_dep1,sqrt(epsilon_chi+1))
+#                        deltaPlus = concatenate( deltaPlus , anisotropyDifference )
+#                        deltaPlus.putProperty(QDataSet.DEPEND_0,deltaPlus_dep0)
+#                        deltaPlus.putProperty(QDataSet.DEPEND_1,deltaPlus_dep1)
+#                    else:
+#                        deltaMinus_dep0 = concatenate(deltaMinus_dep0,angle)
+#                        deltaMinus_dep1 = concatenate(deltaMinus_dep1,sqrt(epsilon_chi+1))
+#                        deltaMinus = concatenate( deltaMinus , anisotropyDifference )
+#                        deltaMinus.putProperty(QDataSet.DEPEND_0,deltaMinus_dep0)
+#                        deltaMinus.putProperty(QDataSet.DEPEND_1,deltaMinus_dep1)
+        except:
+            continue
+        
+        
+
+        outputMagSlopes = concatenate(outputMagSlopes,angle)
+        outputAnisotropiesInput = concatenate(outputAnisotropiesInput,aniso)
+        outputAnisotropiesMeasured = concatenate(outputAnisotropiesMeasured,sqrt(epsilon_chi+1))
+        temp_outputAnisotropiesMeasured = concatenate(temp_outputAnisotropiesMeasured,sqrt(epsilon_chi+1))
+        temp_outputAnisotropiesMeasured.putProperty(QDataSet.VALID_MIN,0)
+        temp_outputAnisotropiesMeasured.putProperty(QDataSet.VALID_MAX,1E10)
+        
+        iteration   = iteration+1  
+        counter     = counter+1  
+        
+    r=where(valid(temp_outputAnisotropiesMeasured))
+    chiSquared = total((temp_outputAnisotropiesMeasured[r]-aniso)**2/aniso)/numberIterations
+    #chiSquaredMap = concatenate(chiSquaredMap,chiSquared)
+    #outputMagSlopesMap = concatenate(outputMagSlopesMap,angle)
+    #outputAnisotropiesInputMap = concatenate(outputAnisotropiesInputMap,aniso)
+    
+    
+    setLayoutOverplot(5)
+    plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E6])
+    plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=7,color='black')
+    
+    line = p1p2_hist.property(QDataSet.DEPEND_0)*tan(slope)
+    plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[-5,5],yrange=[-5,5],xtitle='Vz',ytitle='Vx',lineWidth=4)
+    plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0],color='blue',lineWidth=4)
     
 monitor.finished()
 

@@ -13,9 +13,22 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 
 
-tr = getParam('timerange','2018-10-02','Timerange over which to generate combined anisotropy measurement')
+tr = getParam('timerange','2018-11-02 to 2018-11-20','Timerange over which to generate combined anisotropy measurement')
 version_L0 = '0.4'
-version_L1 = '1.1'
+version_L1 = '1.1.1'
+
+writeStuff = getParam('writeFiles','F','Write out the L1 files with this version of the code?',['T','F'])
+if writeStuff == 'T':
+    writeStuff = True
+elif writeStuff == 'F':
+    writeStuff = False
+    
+# SI
+k    = 1.3807E-23
+mu_0 = PI*4E-7
+mp   = 1.6726E-27
+
+#######################
 
 
 filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
@@ -187,21 +200,49 @@ plot(2,average_anisotropy,ylog=True,yrange=[1E-1,1E1],ytitle='T!B&perp;!N/T!B||!
 
 #STOP
 
-B_npq = getDataSet(filename+'?B_hat',tr)
+N_xyz = getDataSet(filename+'?B_hat',tr)
 Bmag = getDataSet(filename+'?B_total',tr)
 
 wp = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?wp_moment',tr)
 np = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment',tr)
 
-Tp = (wp*(9.79E0))**2  # Temperature in K
+#reset()
+Tp = 0.5*((wp*1E3)**2)*(mp/k)#0.5*(mp/k)**2
+Tp2 = (wp*(9.79E0))**2  # Temperature in K along s/c z-direction
+
+#plot(0,Tp,Tp2)
+#stop
 
 #B_sc = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_sc',tr)
 #Bmag = magnitude(B_sc)
 #Bmag = synchronize(average_anisotropy,Bmag)
 
-B_parallel = Bmag*B_npq[:,2]
-B_perp = Bmag*sqrt(B_npq[:,0]**2 + (B_npq[:,1]**2))
 (np,Tp) = synchronize(average_anisotropy,[np,Tp])
+
+
+
+# ###
+# ### DEFINE T_PARALLEL/T_PERP
+# ###
+
+theta_Br = acos(N_xyz[:,2])
+#Tp_parallel = Tp / sqrt(1 + average_anisotropy**2)
+Tp_parallel = Tp / (N_xyz[:,2]**2 + average_anisotropy*(1 - N_xyz[:,2]**2) )
+#Tp_parallel = Tp / ( N_xyz[:,2] + average_anisotropy*sin(acos(N_xyz[:,2])) )
+Tp_perp = Tp_parallel * average_anisotropy
+#Tp_parallel = Tp/(cos^2 theta_BR + a*sin^2 theta_BR)  # Temperature in K
+
+# From Mike:
+#I get that the parallel and perpendicular components of the temperature, once you solve for T_R and anisotropy factor a, are as follows:
+
+#Tpar = T_R/(cos^2 theta_BR + a*sin^2 theta_BR)
+#Tperp =  a*Tpar
+
+
+
+# ###
+# ### CALCULATE BETA
+# ###
 
 ## cgs.. off from SI by a constant factor of 1.0827310778 -> what the hell is this factor?
 #k    = 1.3807E-16
@@ -212,12 +253,12 @@ B_perp = Bmag*sqrt(B_npq[:,0]**2 + (B_npq[:,1]**2))
 #beta_cgs = pressureParticle/pressureMag
 
 # SI
-k    = 1.3807E-23
-mu_0 = PI*4E-7
+#k    = 1.3807E-23
+#mu_0 = PI*4E-7
 pressureParticle = (np*1E6)*k*(Tp)#nkT
+pressureParticle_parallel = (np*1E6)*k*(Tp_parallel)#nkT
+pressureParticle_perp = (np*1E6)*k*(Tp_perp)#nkT
 pressureMag = (Bmag*1E-9)**2/(2*mu_0)
-pressureMag_parallel = (B_parallel*1E-9)**2/(2*mu_0)
-pressureMag_perp     = (B_perp*1E-9)**2/(2*mu_0)
 
 beta_SI = pressureParticle/pressureMag
 beta_SI.putProperty(QDataSet.VALID_MIN,1E-10)
@@ -226,14 +267,14 @@ beta_SI.putProperty(QDataSet.NAME,'Beta')
 beta_SI.putProperty(QDataSet.LABEL,'&beta;')
 beta_SI.putProperty(QDataSet.TITLE,'Ion Plasma Beta from SPC Moments')
 
-beta_parallel_SI = pressureParticle/pressureMag_parallel
+beta_parallel_SI = pressureParticle_parallel/pressureMag
 beta_parallel_SI.putProperty(QDataSet.VALID_MIN,1E-10)
 beta_parallel_SI.putProperty(QDataSet.VALID_MAX,1E10)
 beta_parallel_SI.putProperty(QDataSet.NAME,'Beta_parallel')
 beta_parallel_SI.putProperty(QDataSet.LABEL,'&beta;!B||')
 beta_parallel_SI.putProperty(QDataSet.TITLE,'Ion Plasma Parallel Beta from SPC Moments')
 
-beta_perp_SI = pressureParticle/pressureMag_perp
+beta_perp_SI = pressureParticle_perp/pressureMag
 beta_perp_SI.putProperty(QDataSet.VALID_MIN,1E-10)
 beta_perp_SI.putProperty(QDataSet.VALID_MAX,1E10)
 beta_perp_SI.putProperty(QDataSet.NAME,'Beta_perp')
@@ -248,10 +289,10 @@ beta_perp_SI.putProperty(QDataSet.TITLE,'Ion Plasma Perpendicular Beta from SPC 
 
 anisotropyMin = 0.1
 anisotropyMax = 10
-anisotropyBinNumber = 20
-betaMin = 0.1
+anisotropyBinNumber = 50
+betaMin = 0.0001
 betaMax = 10000
-betaBinNumber = 60
+betaBinNumber = 140
 
 aa = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
 bb = logspace(betaMin,betaMax,betaBinNumber)
@@ -259,36 +300,44 @@ bb = logspace(betaMin,betaMax,betaBinNumber)
 rebin_anisotropyVsBeta = rebin( link(beta_parallel_SI,average_anisotropy,ones(len(average_anisotropy))) , bb , aa )
 
 #plot(3,beta_cgs/beta_SI)
-#plot(3,beta_SI)
+plot(3,beta_SI)
+plot(4,beta_parallel_SI)
+plot(5,beta_perp_SI)
 #plot(4,(B_parallel*1E-9)**2/(2*mu_0))
-plot(3,beta_parallel_SI,average_anisotropy,renderType='scatter',ylog=True,xlog=True,ytitle='T!B&perp;!N/T!B||!N',xtitle='&beta;!B||')
+#plot(3,beta_parallel_SI,average_anisotropy,renderType='scatter',ylog=True,xlog=True,ytitle='T!B&perp;!N/T!B||!N',xtitle='&beta;!B||')
 #plot(3,((4.03E-11)*(np)*(Tp*8.6174E-5)*((Bmag*1E-5)**-2))/beta_SI)
 
-plot(4,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True)
+#average_anisotropy.putProperty(QDataSet.DELTA_MINUS,None)
+#average_anisotropy.putProperty(QDataSet.DELTA_PLUS,None)
+#plot(6,average_anisotropy,(beta_perp_SI/beta_parallel_SI))
+
+plot(6,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True)
 
 
 
 ###
 ###
 ###
-output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
 
-#formatDataSet(epoch,output_anitostropyL1_file)
-#print output_anitostropyL1_file
-#print B_npq
-#f = open(output_anitostropyL1_directory + output_anitostropyL1_file,"w+")
-#formatDataSet(B_npq,               f)
-#formatDataSet(Bmag,                output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-#formatDataSet(average_anisotropy,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-#formatDataSet(beta_SI,             output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-#formatDataSet(beta_parallel_SI,    output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-#formatDataSet(beta_perp_SI,        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-formatDataSet(B_npq,                                     output_anitostropyL1_directory + output_anitostropyL1_file)
-formatDataSet(Bmag,                                      output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-formatDataSet(average_anisotropy,                        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-formatDataSet(average_anisotropy_uncertainty_deltaPlus,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-formatDataSet(average_anisotropy_uncertainty_deltaMinus, output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-formatDataSet(beta_SI,                                   output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-formatDataSet(beta_parallel_SI,                          output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-formatDataSet(beta_perp_SI,                              output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+if writeStuff == True:
+    output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+    output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
+    
+    #formatDataSet(epoch,output_anitostropyL1_file)
+    #print output_anitostropyL1_file
+    #print B_npq
+    #f = open(output_anitostropyL1_directory + output_anitostropyL1_file,"w+")
+    #formatDataSet(B_npq,               f)
+    #formatDataSet(Bmag,                output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    #formatDataSet(average_anisotropy,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    #formatDataSet(beta_SI,             output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    #formatDataSet(beta_parallel_SI,    output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    #formatDataSet(beta_perp_SI,        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    formatDataSet(N_xyz,                                     output_anitostropyL1_directory + output_anitostropyL1_file)
+    formatDataSet(Bmag,                                      output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    formatDataSet(average_anisotropy,                        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    formatDataSet(average_anisotropy_uncertainty_deltaPlus,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    formatDataSet(average_anisotropy_uncertainty_deltaMinus, output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    formatDataSet(beta_SI,                                   output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    formatDataSet(beta_parallel_SI,                          output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    formatDataSet(beta_perp_SI,                              output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')

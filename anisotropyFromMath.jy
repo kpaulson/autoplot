@@ -137,7 +137,7 @@ plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
 
 output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
+#output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 
 m_p                  = 1.6726231E-24
@@ -477,6 +477,7 @@ for tr in trs:
             monitor.setLabel('Linear Fits') 
             
             if ( monitor.cancelled ):
+                print 'Canceling Process at (%s %s)'%(str(int(100.*ind/(len(dds)-1.))),'%')
                 break
             
             try:
@@ -705,6 +706,7 @@ for tr in trs:
         #########
             
         if ( monitor.cancelled ):
+            print 'Canceling Process for',timerange
             break
         
         print 'Total fitting section for day took:',TimeUtil.now()-time_fit_begin
@@ -726,8 +728,8 @@ for tr in trs:
         # ### WRITE STUFF
         # ###
         
-        #output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
-        output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec.cdf'%(tr,version,str(fitSeconds))
+        output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
+        #output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec.cdf'%(tr,version,str(fitSeconds))
         
         (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
         Btotal = synchronize(chiline,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself

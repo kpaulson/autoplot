@@ -1,9 +1,12 @@
+
+
+
 #randomSeed(30)
 generatingTotalErrorMap = False
 generatingDeltaPlusMinusMaps = False
 RunningSingleCase = True
 
-length = 600000#00         # Number of points in each maxwellian distribution
+length = 2000000#00         # Number of points in each maxwellian distribution
 numberOfPoints = 50000    # Number of points over which iteration is done (TODO: change this to time with timeUtil().Now)
 numberIterations = 3#10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
 pauseAndPlotCounter = 20  # Number of points to run through before generating each plot
@@ -24,8 +27,8 @@ outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.
 
 
 if RunningSingleCase == True:
-    angle = getParam('Bfield_angle',30,'Incident magnetic field angle relative to z_hat')
-    aniso = getParam('Anisotropy',4,'Input distribution anisotropy')
+    angle = getParam('Bfield_angle',25,'Incident magnetic field angle relative to z_hat')
+    aniso = getParam('Anisotropy',3,'Input distribution anisotropy')
 else:
     magSlopes = linspace(angleMin,angleMax,angleBinNumber)
     anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
@@ -205,7 +208,7 @@ elif generatingDeltaPlusMinusMaps == True:
             Nz = cos(slope)
             Nx = sin(slope)
             
-            p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-5,5]),dataset([-5,5]))\
+            p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-5,5]),dataset([-5,5]))
             
             peaks = None
             peaks1 = None
@@ -353,15 +356,100 @@ elif RunningSingleCase == True:
     iteration = 0
     while iteration < numberIterations:
         monitor.setTaskProgress(counter)
-        try:
+        #try:
+        if True:
+            
+            vz_min = 200 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+            vz_max = 740
+            vx_min = -500 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+            vx_max = 500
         
-            p1 = randomn(long(rand(1)[0]*1E6),length)
-            p2 = randomn(long(rand(1)[0]*1E6),length)*aniso
+            
+            thermalSpeed_parallel = 50 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+            velocity_parallel = 325
+            density_parallel = 220
+            
+            thermalSpeed_perp = thermalSpeed_parallel*aniso
+            velocity_perp = 130
+            density_perp = density_parallel
+            
+            aniso_beam = 0.5
+            
+            thermalSpeed_parallel_beam = 20 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+            velocity_parallel_beam = 360
+            density_parallel_beam = 220
+            
+            thermalSpeed_perp_beam = thermalSpeed_parallel_beam*aniso_beam
+            velocity_perp_beam = 2
+            density_perp_beam = density_parallel
+            
+            
+#            vz_axis = linspace(vz_min,vz_max,length)
+#            vx_axis = linspace(vx_min,vx_max,length)
+#
+#            c1 = thermalSpeed_parallel
+#            a1 = density_parallel / (c1*sqrt(PI))
+#            b1 = velocity_parallel
+#
+#            c2 = thermalSpeed_perp
+#            a2 = density_perp / (c2*sqrt(PI))
+#            b2 = velocity_perp
+#
+#            p1 = (a1 * exp( -((vz_axis - b1)**2) / (c1**2) ))+(rand(length)*0.1)
+#            p2 = (a2 * exp( -((vx_axis - b2)**2) / (c2**2) ))+(rand(length)*0.1)
+#            #p2 = ones(length)
+#
+#
+#            #distribution = dblarr(len(p1),len(p2))
+#            #for i in xrange(len(p1)):
+#            #    for j in xrange(len(p2)):
+#            #        distribution[i,j] = p1[i]*p2[j]
+#                    #distribution[i,j] = p1[int(i+i*cos(slope))]*p2[j]
+#                    #distribution[i,j] = (p1[i]*cos(slope)+p2[j]*sin(slope))*(p2[j]*cos(slope)+p1[i]*sin(slope))
+#            #plot(vz_axis,vx_axis,distribution+(rand(length,length)*0.2))
+#            #stop
+#
+#            p1_normal = randomn(long(rand(1)[0]*1E6),length)
+#            p2_normal = randomn(long(rand(1)[0]*1E6),length)*aniso
+#            #p1_normal = randomn(long(rand(1)[0]*1E6),length)*thermalSpeed_parallel + velocity_parallel
+#            #p2_normal = randomn(long(rand(1)[0]*1E6),length)*thermalSpeed_perp + velocity_perp
+#
+#            Nz = cos(slope)
+#            Nx = sin(slope)
+#
+#            p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[32,32],dataset([-5,5]),dataset([-5,5]))
+#            #p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[32,32],dataset([vz_min,vz_max]),dataset([vx_min,vx_max]))
+#
+#            p1p2_hist = rebin( link(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),ones(len(p1))) , linspace(vz_min,vz_max,30)   , linspace(vx_min,vx_max,30) ).property(QDataSet.WEIGHTS)
+#            p1p2_hist = rebin( link(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),ones(len(p1))) , linspace(-100,vz_max,3000)   , linspace(vx_min,vx_max,3000) ).property(QDataSet.WEIGHTS)
+#            #p1p2_normal_hist = rebin( link(p1_normal*cos(slope)-p2_normal*sin(slope),p2_normal*cos(slope)+p1_normal*sin(slope),ones(len(p1))) , linspace(-100,vz_max,3000)   , linspace(vx_min,vx_max,3000) ).property(QDataSet.WEIGHTS)
+#            p1p2_normal_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[300,300],dataset([-10,7]),dataset([-20,20]))
+#            plot(p1p2_normal_hist)
+#            #plot(p1p2_hist)
+#            #plot(vz_axis,p1)
+#            #plot(p1)
+#            #plot(p1_normal)
+#            #plot(vx_axis,p2)
+            
+            
+            #p1 = randomn(long(rand(1)[0]*1E6),length)
+            #p2 = randomn(long(rand(1)[0]*1E6),length)*aniso
+            p1 = randomn(long(rand(1)[0]*1E6),length)*thermalSpeed_parallel 
+            p2 = randomn(long(rand(1)[0]*1E6),length)*thermalSpeed_perp 
+            
+            p1_beam = randomn(long(rand(1)[0]*1E6),length)*thermalSpeed_parallel_beam 
+            p2_beam = randomn(long(rand(1)[0]*1E6),length)*thermalSpeed_perp_beam
             
             Nz = cos(slope)
             Nx = sin(slope)
             
-            p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-8,8]),dataset([-8,8]))\
+            p1p2_hist = histogram2d((p1*cos(slope)-p2*sin(slope))+velocity_parallel,(p2*cos(slope)+p1*sin(slope))+velocity_perp,[30,30],dataset([vz_min,vz_max]),dataset([vx_min,vx_max]))
+            p1p2_hist_beam = histogram2d((p1_beam*cos(slope)-p2_beam*sin(slope))+velocity_parallel_beam,(p2_beam*cos(slope)+p1_beam*sin(slope))+velocity_perp_beam,[30,30],dataset([vz_min,vz_max]),dataset([vx_min,vx_max]))
+            #p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-5,5]),dataset([-5,5]))
+            
+            p1p2_hist = p1p2_hist + (p1p2_hist_beam)*0.3
+            #plot(p1p2_hist+(p1p2_hist_beam)*0.6)
+            #stop
             
             peaks = None
             peaks1 = None
@@ -416,8 +504,9 @@ elif RunningSingleCase == True:
 #                        deltaMinus = concatenate( deltaMinus , anisotropyDifference )
 #                        deltaMinus.putProperty(QDataSet.DEPEND_0,deltaMinus_dep0)
 #                        deltaMinus.putProperty(QDataSet.DEPEND_1,deltaMinus_dep1)
-        except:
-            continue
+        #except:
+        #    iteration   = iteration+1  
+        #    continue
         
         
 
@@ -441,10 +530,15 @@ elif RunningSingleCase == True:
     setLayoutOverplot(5)
     plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E6])
     plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=7,color='black')
+    #plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,p1p2_hist[:,peaks2],renderType='colorScatter',symbolSize=7)
     
     line = p1p2_hist.property(QDataSet.DEPEND_0)*tan(slope)
-    plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[-5,5],yrange=[-5,5],xtitle='Vz',ytitle='Vx',lineWidth=4)
-    plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0],color='blue',lineWidth=4)
+    if RunningSingleCase == True:
+        line = p1p2_hist.property(QDataSet.DEPEND_0)*tan(slope)-((velocity_parallel*tan(slope))-velocity_perp)
+        
+    plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[vz_min,vz_max],yrange=[vx_min,vx_max],xtitle='Vz',ytitle='Vx',lineWidth=4)
+    plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0]+result_chi[1],color='blue',lineWidth=4)
+    plot(5,total(p1p2_hist,1))
     
 monitor.finished()
 

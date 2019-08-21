@@ -282,7 +282,7 @@ for tr in trs:
         
         v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
-        vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mie's L3 values.
+        vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
         del(windowWidths,mv_hi)
         

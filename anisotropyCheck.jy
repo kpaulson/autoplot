@@ -28,7 +28,35 @@ outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.
 
 if RunningSingleCase == True:
     angle = getParam('Bfield_angle',25,'Incident magnetic field angle relative to z_hat')
-    aniso = getParam('Anisotropy',3,'Input distribution anisotropy')
+    aniso = getParam('Anisotropy',2.3,'Input distribution anisotropy')
+    
+    
+    vz_min = 200   # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+    vz_max = 740
+    vx_min = -vz_max*cos(toRadians(28.5))  # Using the maximum measurable incoming flow direction of 28.5 degrees
+    vx_max = abs(vx_min)
+
+    factorBulk = 1.
+    thermalSpeed_parallel = 50 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+    velocity_parallel = 325
+    density_parallel = 220
+    
+    thermalSpeed_perp = thermalSpeed_parallel*aniso
+    velocity_perp = 130
+    density_perp = density_parallel
+    
+    
+    aniso_beam = 1.2
+    factorBeam = 0.4
+    
+    thermalSpeed_parallel_beam = 20 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+    velocity_parallel_beam = 460
+    density_parallel_beam = 220
+    
+    thermalSpeed_perp_beam = thermalSpeed_parallel_beam*aniso_beam
+    velocity_perp_beam = 2
+    density_perp_beam = density_parallel
+            
 else:
     magSlopes = linspace(angleMin,angleMax,angleBinNumber)
     anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
@@ -359,29 +387,6 @@ elif RunningSingleCase == True:
         #try:
         if True:
             
-            vz_min = 200 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
-            vz_max = 740
-            vx_min = -500 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
-            vx_max = 500
-        
-            
-            thermalSpeed_parallel = 50 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
-            velocity_parallel = 325
-            density_parallel = 220
-            
-            thermalSpeed_perp = thermalSpeed_parallel*aniso
-            velocity_perp = 130
-            density_perp = density_parallel
-            
-            aniso_beam = 0.5
-            
-            thermalSpeed_parallel_beam = 20 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
-            velocity_parallel_beam = 360
-            density_parallel_beam = 220
-            
-            thermalSpeed_perp_beam = thermalSpeed_parallel_beam*aniso_beam
-            velocity_perp_beam = 2
-            density_perp_beam = density_parallel
             
             
 #            vz_axis = linspace(vz_min,vz_max,length)
@@ -443,11 +448,11 @@ elif RunningSingleCase == True:
             Nz = cos(slope)
             Nx = sin(slope)
             
-            p1p2_hist = histogram2d((p1*cos(slope)-p2*sin(slope))+velocity_parallel,(p2*cos(slope)+p1*sin(slope))+velocity_perp,[30,30],dataset([vz_min,vz_max]),dataset([vx_min,vx_max]))
-            p1p2_hist_beam = histogram2d((p1_beam*cos(slope)-p2_beam*sin(slope))+velocity_parallel_beam,(p2_beam*cos(slope)+p1_beam*sin(slope))+velocity_perp_beam,[30,30],dataset([vz_min,vz_max]),dataset([vx_min,vx_max]))
+            p1p2_hist = histogram2d((p1*cos(slope)-p2*sin(slope))+velocity_parallel,(p2*cos(slope)+p1*sin(slope))+velocity_perp,[30,60],dataset([vz_min,vz_max]),dataset([vx_min,vx_max]))
+            p1p2_hist_beam = histogram2d((p1_beam*cos(slope)-p2_beam*sin(slope))+velocity_parallel_beam,(p2_beam*cos(slope)+p1_beam*sin(slope))+velocity_perp_beam,[30,60],dataset([vz_min,vz_max]),dataset([vx_min,vx_max]))
             #p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-5,5]),dataset([-5,5]))
             
-            p1p2_hist = p1p2_hist + (p1p2_hist_beam)*0.3
+            p1p2_hist = (p1p2_hist)*factorBulk + (p1p2_hist_beam)*factorBeam
             #plot(p1p2_hist+(p1p2_hist_beam)*0.6)
             #stop
             
@@ -483,6 +488,7 @@ elif RunningSingleCase == True:
             
             
             epsilon_chi =  - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+            #epsilon_chi =  + chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
             
             phi = atan(chiline)
             #print 'ecc:',(tan((slope - phi)/slope))

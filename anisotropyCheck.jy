@@ -3,10 +3,10 @@
 
 #randomSeed(30)
 generatingTotalErrorMap = False
-generatingDeltaPlusMinusMaps = True
-RunningSingleCase = False
+generatingDeltaPlusMinusMaps = False
+RunningSingleCase = True
 
-plotVzObservedVDF = False
+plotVzObservedVDF = True
 UseRealisticGaussians = True
 
 length = 500#0#00#000         # Number of points in each maxwellian distribution
@@ -53,7 +53,7 @@ if RunningSingleCase == True or UseRealisticGaussians == True:
     velocity_perp = 130
     density_perp = density_parallel
     
-    BackgroundNoiseFactor = 0.01#.1
+    BackgroundNoiseFactor = 0.1#.1
     
     aniso_beam = 1.2
     factorBeam = 0.4
@@ -786,7 +786,7 @@ elif RunningSingleCase == True:
     #outputAnisotropiesInputMap = concatenate(outputAnisotropiesInputMap,aniso)
     
     
-    setLayoutOverplot(5)
+    #setLayoutOverplot(5)
     plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E1])
     plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=7,color='black')
     #plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,p1p2_hist[:,peaks2],renderType='colorScatter',symbolSize=7)
@@ -795,14 +795,14 @@ elif RunningSingleCase == True:
     if RunningSingleCase == True:
         line = p1p2_hist.property(QDataSet.DEPEND_0)*tan(slope)-((velocity_parallel*tan(slope))-velocity_perp)
         
-    plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[vz_min,vz_max],yrange=[vx_min,vx_max],xtitle='Vz',ytitle='Vx',lineWidth=4)
+    plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[vz_min,vz_max],yrange=[vx_min,vx_max],xtitle='v!Bz',ytitle='v!Bx',lineWidth=4)
     plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0]+result_chi[1],color='blue',lineWidth=4)
     if plotVzObservedVDF == True:
         tempTotals = dblarr(len(p1p2_hist))
         for i in xrange(p1p2_hist[:,0].length()):
             #print p1p2_hist[i,0]
             tempTotals[i] = total(p1p2_hist[i,:])
-        plot(5,p1p2_hist.property(QDataSet.DEPEND_0),tempTotals)
+        plot(5,p1p2_hist.property(QDataSet.DEPEND_0),tempTotals,xtitle='v!Bz')
         #plot(5,total(p1p2_hist,1))
     
 monitor.finished()

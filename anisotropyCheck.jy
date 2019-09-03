@@ -237,7 +237,7 @@ elif generatingDeltaPlusMinusMaps == True:
             aniso = randAnisotropy[0]
             
             monitor.setTaskProgress(counter)
-            try:
+            try: 
                 vz_axis = linspace(vz_min,vz_max,length)
                 vx_axis = linspace(vx_min,vx_max,length)
     
@@ -468,7 +468,8 @@ elif generatingDeltaPlusMinusMaps == True:
                 
             plot(0,deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
             plot(1,deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
-        
+            #plot(1,anisotropyArray)
+            
             formatDataSet( deltaPlusLink   , temp_outputMap )
             formatDataSet( deltaMinusLink  , temp_outputMap+'?append=T' )
             formatDataSet( deltaPlusRebin  , temp_outputMap+'?append=T' )

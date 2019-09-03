@@ -131,10 +131,12 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 ############################################################################
 
 timerange = getParam('timerange','2018-10-01 to 2019-05-01','Iteration Timerange')
+timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.1','Version number to be appended to filenames')
 
 plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
+writeStuff = False
 
 output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
@@ -172,9 +174,15 @@ elif plotFitsAndPauseALot_yn == 'F':
 ##########
 #################
 anisotropy_deltaPlusMinusFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
+try:
+    anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
+    anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+except:
+    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/SPC Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
+    anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
+    anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+    
 
-anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
-anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
 anisotropy_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
@@ -197,7 +205,7 @@ for tr in trs:
         #tr = '2019-04-05 17:30 to 22:30'
         #tr = '2019-04-05 18:30 to 18:40'
         #tr = '2018-11-12'
-        #tr = '2018-11-04 04:40 to 06:20'
+        tr = '2018-11-04 04:58 to 06:20'
         #tr = '2019-04-01 08:00 to 08:15'
         #tr = '2018-10-30 16:10 to 20:40'
         
@@ -251,20 +259,18 @@ for tr in trs:
         U.putProperty(QDataSet.VALID_MAX,None)
         V.putProperty(QDataSet.VALID_MAX,None)
         
-        #r0 = where(valid(U)) *(-1) + 1
-        #U[r0] = -180
-        #r0 = where(valid(V)) *(-1) + 1
-        #V[r0] = -180
-        
-        for j in xrange(len(U[0,:])):
-            try:
-                U[:,j] = medianFilter(U[:,j],3)
-            except:
-                continue
-            try:
-                V[:,j] = medianFilter(V[:,j],3)
-            except:
-                continue
+
+        # This part is in there to match Mike's measurement of Bulk Flow Directions, 
+        # but we should pull it out for our fitting, right?
+#        for j in xrange(len(U[0,:])):
+#            try:
+#                U[:,j] = medianFilter(U[:,j],3)
+#            except:
+#                continue
+#            try:
+#                V[:,j] = medianFilter(V[:,j],3)
+#            except:
+#                continue
         
         U.putProperty(QDataSet.UNITS,Units.degrees)
         V.putProperty(QDataSet.UNITS,Units.degrees)
@@ -691,12 +697,26 @@ for tr in trs:
                     plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
                     plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
                     
+                    
+#                    psiline_temp = putProperty(copy(psiline),QDataSet.DEPEND_0,epsilonEpoch)
+#                    chiline_temp = putProperty(copy(chiline),QDataSet.DEPEND_0,epsilonEpoch)
+#
+#                    (Nx_temp,Ny_temp,Nz_temp) = synchronize(chiline_temp,[Nx,Ny,Nz])
+#                    Btotal_temp = synchronize(chiline_temp,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself
+#
+#                    epsilon_chi_temp = - chiline_temp / ( (chiline_temp*(1 - Nz_temp**2)) + Nz_temp ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
+#                    epsilon_psi_temp = - psiline_temp / ( (psiline_temp*(1 - Nz_temp**2)) + Nz_temp )
+#
+#                    anisotropy_chi_temp = sqrt(epsilon_chi_temp+1)
+#                    anisotropy_psi_temp = sqrt(epsilon_psi_temp+1)
+
                     #plot(8,sqrt(temp_residualVariance_chi),renderType='scatter',color='red')
                     #plot(9,sqrt(temp_residualVariance_psi),renderType='scatter',color='blue')
                     #plot(10,sqrt(temp_totalVariance_chi),renderType='scatter',color='red')
                     #plot(11,sqrt(temp_totalVariance_psi),renderType='scatter',color='blue')
                     
                     sleep(3000)
+                    continue
             except:
                 #print 'oopsy, couldn\'t fit for some reason'
                 continue
@@ -724,85 +744,20 @@ for tr in trs:
         slopeError_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         slopeError_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         
-        # ###
-        # ### WRITE STUFF
-        # ###
         
-        output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
-        #output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec.cdf'%(tr,version,str(fitSeconds))
+        
+        # ###
+        # ### FINAL CALCULATIONS
+        # ###
         
         (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
         Btotal = synchronize(chiline,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself
         
-        Bunit = bundle(Nx,Ny,Nz)
-        Bunit.putProperty(QDataSet.NAME,'B_hat')
-        Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))
-        Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        formatDataSet(Bunit,output_file)
-        Btotal.putProperty(QDataSet.NAME,'B_total')
-        Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
-        Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        formatDataSet(Btotal,output_file+'?append=T')
-        
-        
-        psiline.putProperty(QDataSet.NAME,'Psi')
-        psiline.putProperty(QDataSet.TITLE,'Linear fit of scan points over %s-second range in Vy/Vz space'%fitSeconds)
-        psiline.putProperty(QDataSet.DESCRIPTION,'Determined from slope between Vy and Vz*B_hat_y around peak of VDF')
-        chiline.putProperty(QDataSet.NAME,'Chi')
-        chiline.putProperty(QDataSet.TITLE,'Linear fit of scan points over %s-second range in Vx/Vz space'%fitSeconds)
-        chiline.putProperty(QDataSet.DESCRIPTION,'Determined from slope between Vx and Vz*B_hat_x around peak of VDF')
-        chiSquaredReduced_chi.putProperty(QDataSet.NAME,'ChiSquared_chi')
-        chiSquaredReduced_chi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Chi')
-        chiSquaredReduced_psi.putProperty(QDataSet.NAME,'ChiSquared_psi')
-        chiSquaredReduced_psi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Psi')
-        rSquared_chi.putProperty(QDataSet.NAME,'rSquared_chi')
-        rSquared_chi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Chi')
-        rSquared_psi.putProperty(QDataSet.NAME,'rSquared_psi')
-        rSquared_psi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Psi')
-        slopeError_chi.putProperty(QDataSet.NAME,'slopeError_chi')
-        slopeError_chi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Chi')
-        slopeError_psi.putProperty(QDataSet.NAME,'slopeError_psi')
-        slopeError_psi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Psi')
-        
-        
-        formatDataSet(chiline,output_file+'?append=T')
-        formatDataSet(psiline,output_file+'?append=T')
-        formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
-        formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
-        formatDataSet(rSquared_chi,output_file+'?append=T')
-        formatDataSet(rSquared_psi,output_file+'?append=T')
-        formatDataSet(slopeError_chi,output_file+'?append=T')
-        formatDataSet(slopeError_psi,output_file+'?append=T')
-        
-        ######
-        
-#        (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
-#        Btotal = synchronize(chiline,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself
-#
-#        Bunit = bundle(Nx,Ny,Nz)
-#        Bunit.putProperty(QDataSet.NAME,'B_hat')
-#        Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))
-#        Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-#        formatDataSet(Bunit,output_file+'?append=T')
-#        Btotal.putProperty(QDataSet.NAME,'B_total')
-#        Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
-#        Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-#        formatDataSet(Btotal,output_file+'?append=T')
-        
         epsilon_chi = - chiline / ( (chiline*(1 - Nz**2)) + Nz ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
         epsilon_psi = - psiline / ( (psiline*(1 - Nz**2)) + Nz )
-        epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')
-        epsilon_psi.putProperty(QDataSet.NAME,'Epsilon_psi')
-        formatDataSet(epsilon_chi,output_file+'?append=T')
-        formatDataSet(epsilon_psi,output_file+'?append=T')
-        
+    
         anisotropy_chi = sqrt(epsilon_chi+1)
         anisotropy_psi = sqrt(epsilon_psi+1)
-        anisotropy_chi.putProperty(QDataSet.NAME,'Anisotropy_chi')
-        anisotropy_chi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vx/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
-        anisotropy_psi.putProperty(QDataSet.NAME,'Anisotropy_psi')
-        anisotropy_psi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vy/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
-        
         
         
         
@@ -844,40 +799,124 @@ for tr in trs:
         anisotropy_chi_deltaMinus.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         anisotropy_psi_deltaPlus.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         anisotropy_psi_deltaMinus.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-        
+            
         anisotropy_chi_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
         anisotropy_chi_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
-        anisotropy_chi_deltaPlus.putProperty(QDataSet.NAME, 'anisotropy_chi_deltaPlus')
-        anisotropy_chi_deltaPlus.putProperty(QDataSet.TITLE, 'DELTA_PLUS values for anisotropy_chi determined from ideal model (ie best we can do even assuming perfect data input)')
         anisotropy_chi_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
         anisotropy_chi_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
-        anisotropy_chi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_chi_deltaMinus')
-        anisotropy_chi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_chi determined from ideal model (ie best we can do even assuming perfect data input)')
         anisotropy_psi_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
         anisotropy_psi_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
-        anisotropy_psi_deltaPlus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaPlus')
-        anisotropy_psi_deltaPlus.putProperty(QDataSet.TITLE, 'DELTA_PLUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
         anisotropy_psi_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
         anisotropy_psi_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
-        anisotropy_psi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaMinus')
-        anisotropy_psi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
         
         anisotropy_chi.putProperty(QDataSet.DELTA_PLUS, anisotropy_chi_deltaPlus)
         anisotropy_chi.putProperty(QDataSet.DELTA_MINUS,anisotropy_chi_deltaMinus)
         anisotropy_psi.putProperty(QDataSet.DELTA_PLUS, anisotropy_psi_deltaPlus)
         anisotropy_psi.putProperty(QDataSet.DELTA_MINUS,anisotropy_psi_deltaMinus)
-        formatDataSet(anisotropy_chi,output_file+'?append=T')
-        formatDataSet(anisotropy_psi,output_file+'?append=T')
+            
+            
+        Bunit = bundle(Nx,Ny,Nz)
+        Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         
-        formatDataSet(anisotropy_chi_deltaPlus,output_file+'?append=T')
-        formatDataSet(anisotropy_chi_deltaMinus,output_file+'?append=T')
-        formatDataSet(anisotropy_psi_deltaPlus,output_file+'?append=T')
-        formatDataSet(anisotropy_psi_deltaMinus,output_file+'?append=T')
+        # ###
+        # ### WRITE STUFF
+        # ###
+        
+        if writeStuff == True:
+            output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
+            #output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec.cdf'%(tr,version,str(fitSeconds))
+            
+            Bunit.putProperty(QDataSet.NAME,'B_hat')
+            Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))
+            Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+            formatDataSet(Bunit,output_file)
+            Btotal.putProperty(QDataSet.NAME,'B_total')
+            Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
+            Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+            formatDataSet(Btotal,output_file+'?append=T')
+            
+            
+            psiline.putProperty(QDataSet.NAME,'Psi')
+            psiline.putProperty(QDataSet.TITLE,'Linear fit of scan points over %s-second range in Vy/Vz space'%fitSeconds)
+            psiline.putProperty(QDataSet.DESCRIPTION,'Determined from slope between Vy and Vz*B_hat_y around peak of VDF')
+            chiline.putProperty(QDataSet.NAME,'Chi')
+            chiline.putProperty(QDataSet.TITLE,'Linear fit of scan points over %s-second range in Vx/Vz space'%fitSeconds)
+            chiline.putProperty(QDataSet.DESCRIPTION,'Determined from slope between Vx and Vz*B_hat_x around peak of VDF')
+            chiSquaredReduced_chi.putProperty(QDataSet.NAME,'ChiSquared_chi')
+            chiSquaredReduced_chi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Chi')
+            chiSquaredReduced_psi.putProperty(QDataSet.NAME,'ChiSquared_psi')
+            chiSquaredReduced_psi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Psi')
+            rSquared_chi.putProperty(QDataSet.NAME,'rSquared_chi')
+            rSquared_chi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Chi')
+            rSquared_psi.putProperty(QDataSet.NAME,'rSquared_psi')
+            rSquared_psi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Psi')
+            slopeError_chi.putProperty(QDataSet.NAME,'slopeError_chi')
+            slopeError_chi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Chi')
+            slopeError_psi.putProperty(QDataSet.NAME,'slopeError_psi')
+            slopeError_psi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Psi')
+            
+            
+            formatDataSet(chiline,output_file+'?append=T')
+            formatDataSet(psiline,output_file+'?append=T')
+            formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
+            formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
+            formatDataSet(rSquared_chi,output_file+'?append=T')
+            formatDataSet(rSquared_psi,output_file+'?append=T')
+            formatDataSet(slopeError_chi,output_file+'?append=T')
+            formatDataSet(slopeError_psi,output_file+'?append=T')
+            
+            ######
+            
+    #        (Nx,Ny,Nz) = synchronize(chiline,[Nx,Ny,Nz])
+    #        Btotal = synchronize(chiline,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself
+    #
+    #        Bunit = bundle(Nx,Ny,Nz)
+    #        Bunit.putProperty(QDataSet.NAME,'B_hat')
+    #        Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))
+    #        Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    #        formatDataSet(Bunit,output_file+'?append=T')
+    #        Btotal.putProperty(QDataSet.NAME,'B_total')
+    #        Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
+    #        Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    #        formatDataSet(Btotal,output_file+'?append=T')
+            
+            epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')
+            epsilon_psi.putProperty(QDataSet.NAME,'Epsilon_psi')
+            formatDataSet(epsilon_chi,output_file+'?append=T')
+            formatDataSet(epsilon_psi,output_file+'?append=T')
+            
+            anisotropy_chi.putProperty(QDataSet.NAME,'Anisotropy_chi')
+            anisotropy_chi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vx/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
+            anisotropy_psi.putProperty(QDataSet.NAME,'Anisotropy_psi')
+            anisotropy_psi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vy/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
+            
+            
+            
+            
+            anisotropy_chi_deltaPlus.putProperty(QDataSet.NAME, 'anisotropy_chi_deltaPlus')
+            anisotropy_chi_deltaPlus.putProperty(QDataSet.TITLE, 'DELTA_PLUS values for anisotropy_chi determined from ideal model (ie best we can do even assuming perfect data input)')
+            
+            anisotropy_chi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_chi_deltaMinus')
+            anisotropy_chi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_chi determined from ideal model (ie best we can do even assuming perfect data input)')
+            
+            anisotropy_psi_deltaPlus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaPlus')
+            anisotropy_psi_deltaPlus.putProperty(QDataSet.TITLE, 'DELTA_PLUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
+            
+            anisotropy_psi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaMinus')
+            anisotropy_psi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
+            
+            formatDataSet(anisotropy_chi,output_file+'?append=T')
+            formatDataSet(anisotropy_psi,output_file+'?append=T')
+            
+            formatDataSet(anisotropy_chi_deltaPlus,output_file+'?append=T')
+            formatDataSet(anisotropy_chi_deltaMinus,output_file+'?append=T')
+            formatDataSet(anisotropy_psi_deltaPlus,output_file+'?append=T')
+            formatDataSet(anisotropy_psi_deltaMinus,output_file+'?append=T')
         
         
         
-        print 'Writing Data to CDF took:',TimeUtil.now()-time_fit_begin
-        time_last = TimeUtil.now()
+            print 'Writing Data to CDF took:',TimeUtil.now()-time_fit_begin
+            time_last = TimeUtil.now()
         
                 
         if separatePeaksWithL3Values == True:
@@ -902,6 +941,7 @@ for tr in trs:
         
         
         #plot(6,epsilonEpoch,anisotropy_chi_deltaPlus)
+        plot(6,Bunit)
         
         
         

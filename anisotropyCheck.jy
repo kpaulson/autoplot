@@ -6,7 +6,7 @@ generatingTotalErrorMap = False
 generatingDeltaPlusMinusMaps = True
 RunningSingleCase = False
 
-plotVzObservedVDF = False
+plotVzObservedVDF = True
 UseRealisticGaussians = True
 
 length = 500#0#00#000         # Number of points in each maxwellian distribution

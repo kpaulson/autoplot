@@ -11,31 +11,31 @@ UseRealisticGaussians = True
 
 length = 500#0#00#000         # Number of points in each maxwellian distribution
 numberOfPoints = 50000    # Number of points over which iteration is done (TODO: change this to time with timeUtil().Now)
-numberIterations = 3#10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
-pauseAndPlotCounter = 2#0  # Number of points to run through before generating each plot
+numberIterations = 10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
+pauseAndPlotCounter = 20  # Number of points to run through before generating each plot
 
-angleMin = 0
+angleMin = -90
 angleMax = 90
-angleBinNumber = 40       # Number of bins in incident mag angle space
+angleBinNumber = 90       # Number of bins in incident mag angle space
 
-anisotropyMin = 0.01
+anisotropyMin = 0.03
 anisotropyMax = 30
-anisotropyBinNumber = 30  # Number of bins in anisotropy space
+anisotropyBinNumber = 50  # Number of bins in anisotropy space
 
-timeToStopProcessing = '2019-08-30 19:30'   # Time in UT until which the process will run and aggregate data before writing the result (EDT = UT-4)
+timeToStopProcessing = '2019-09-04 19:30'   # Time in UT until which the process will run and aggregate data before writing the result (EDT = UT-4)
 
 # Mac
-#temp_outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
-#outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+temp_outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
+outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
 
 # PC
-temp_outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
-outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/Anisotropy_DELTA_PLUS-MINUS.cdf'
+#temp_outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
+#outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/Anisotropy_DELTA_PLUS-MINUS.cdf'
 
 
 
 if RunningSingleCase == True or UseRealisticGaussians == True:
-    angle = getParam('Bfield_angle',20,'Incident magnetic field angle relative to z_hat')
+    angle = getParam('Bfield_angle',-20,'Incident magnetic field angle relative to z_hat')
     aniso = getParam('Anisotropy',2.3,'Input distribution anisotropy')
     
     
@@ -53,7 +53,7 @@ if RunningSingleCase == True or UseRealisticGaussians == True:
     velocity_perp = 130
     density_perp = density_parallel
     
-    BackgroundNoiseFactor = 0.01#.1
+    BackgroundNoiseFactor = 0.3#.1
     
     aniso_beam = 1.2
     factorBeam = 0.4

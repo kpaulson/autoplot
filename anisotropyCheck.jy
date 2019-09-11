@@ -9,6 +9,8 @@ RunningSingleCase = True
 plotVzObservedVDF = True
 UseRealisticGaussians = True
 
+goodPeakFactor = 0.5     # Fraction of values normalized to peak that should be considered in fitting
+
 length = 500#0#00#000         # Number of points in each maxwellian distribution
 numberOfPoints = 50000    # Number of points over which iteration is done (TODO: change this to time with timeUtil().Now)
 numberIterations = 3#10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
@@ -35,8 +37,8 @@ outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/Anis
 
 
 if RunningSingleCase == True or UseRealisticGaussians == True:
-    angle = getParam('Bfield_angle',20,'Incident magnetic field angle relative to z_hat')
-    aniso = getParam('Anisotropy',2.3,'Input distribution anisotropy')
+    angle = getParam('Bfield_angle',-15,'Incident magnetic field angle relative to z_hat')
+    aniso = getParam('Anisotropy',20,'Input distribution anisotropy')
     
     
     vz_min = 200   # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
@@ -724,7 +726,7 @@ elif RunningSingleCase == True:
             ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
             peaks1 = normalize(peaks1)
             
-            goodData = where(ge(peaks1,0.3*max(peaks1)))
+            goodData = where(ge(peaks1,goodPeakFactor*max(peaks1)))
             
             for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0)[goodData])):
                 print float(peaks1[goodData][i])
@@ -787,7 +789,8 @@ elif RunningSingleCase == True:
     
     
     #setLayoutOverplot(5)
-    plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E1])
+    #plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E1],title='measured_anisotropy: %s   input_anisotropy: %s'%(sqrt(epsilon_chi+1),aniso))
+    plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E1],title='measured_anisotropy: %s, %s, %s!cinput_anisotropy: %s'%(round(outputAnisotropiesMeasured[0],1),round(outputAnisotropiesMeasured[1],1),round(outputAnisotropiesMeasured[2],1),aniso))
     plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=7,color='black')
     #plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,p1p2_hist[:,peaks2],renderType='colorScatter',symbolSize=7)
     

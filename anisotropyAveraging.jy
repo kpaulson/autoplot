@@ -37,7 +37,7 @@ try:
     
     chi = getDataSet(filename+'?Anisotropy_chi',tr)
 except:
-    filename = 'file:/C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/L0/Daily Files v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
+    filename = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
     chi = getDataSet(filename+'?Anisotropy_chi',tr)
     
 chi_plus = getDataSet(filename+'?anisotropy_chi_deltaPlus',tr)
@@ -95,7 +95,7 @@ try:
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
 except:
-    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/SPC Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
+    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
     
@@ -402,7 +402,7 @@ plot(6,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True)
 
 if writeStuff == True:
     #output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-    output_anitostropyL1_directory = 'file:/C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+    output_anitostropyL1_directory = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
     output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
     
     #formatDataSet(epoch,output_anitostropyL1_file)

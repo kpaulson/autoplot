@@ -134,11 +134,12 @@ timerange = getParam('timerange','2018-10-01 to 2019-05-01','Iteration Timerange
 timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.1','Version number to be appended to filenames')
 
-plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
-writeStuff = False
+writeStuff = True
+useVDFFluxForWeights = False
 
 output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+output_folder = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 
@@ -178,11 +179,11 @@ try:
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
 except:
-    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/SPC Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
+    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
     
-
+plot(anisotropy_deltaPlus)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
 anisotropy_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
@@ -195,7 +196,10 @@ anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
-    time_begin_tr = TimeUtil.now()   
+    time_begin_tr = TimeUtil.now()     
+    
+    if lt(datumRange(timerange).width(), datumRange(tr).width()):
+        tr = timerange
         
     try:
 
@@ -205,9 +209,10 @@ for tr in trs:
         #tr = '2019-04-05 17:30 to 22:30'
         #tr = '2019-04-05 18:30 to 18:40'
         #tr = '2018-11-12'
-        tr = '2018-11-04 04:58 to 06:20'
+        #tr = '2018-11-04 04:58 to 06:20'
         #tr = '2019-04-01 08:00 to 08:15'
         #tr = '2018-10-30 16:10 to 20:40'
+        #tr = '2018-11-02 1:19 to 1:58'
         
         monitor.setProgressMessage(tr)
         
@@ -295,8 +300,10 @@ for tr in trs:
         #totalFlux = totalFlux / (mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo)
         #totalFlux = totalFlux/( (mv_hi-mv_lo))
         totalFlux.putProperty(QDataSet.DEPEND_1,mv_lo)
-        peaks = reduceMax(totalFlux,1)
-        r = where(eq(totalFlux,peaks))
+        #peaks = reduceMax(totalFlux,1)
+        #r = where(eq(totalFlux,peaks))
+        peaks = reduceMax(vdf,1)
+        r = where(eq(vdf,peaks))
         
         print 'Defining VDF took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
@@ -388,6 +395,8 @@ for tr in trs:
         
         #plot(0,totalFlux)
         plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='vdf')
+        plot(1,v_z[r])
+        #stop
         
         
         from org.apache.commons.math.optimization.fitting import CurveFitter
@@ -482,6 +491,7 @@ for tr in trs:
             monitor.setTaskProgress(ind)
             monitor.setLabel('Linear Fits') 
             
+            
             if ( monitor.cancelled ):
                 print 'Canceling Process at (%s %s)'%(str(int(100.*ind/(len(dds)-1.))),'%')
                 break
@@ -491,6 +501,15 @@ for tr in trs:
                 if mod(ind,modFits) == 0:
                     plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
                 
+                # Manual way to Create Event
+#                event = dblarr(1,4)
+#                event[0,0] = dataset(datumRange(tr_dds).min())
+#                event[0,1] = dataset(datumRange(tr_dds).max())
+#                event[0,2] = dataset(0x666600FF)
+#                event[0,3] = dataset('event')
+
+                # Correct way to Create Event
+                event = createEvents(datumRange(tr_dds),Color(0x666600FF))
                 
                 v_z_dd = trim(v_z,tr_dds)
                 vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
@@ -501,6 +520,7 @@ for tr in trs:
                 
                 Nx_temp_dd = trim(Nx_temp,tr_dds)
                 Ny_temp_dd = trim(Ny_temp,tr_dds)
+                Nz_temp_dd = mean(trim(Nz_temp,tr_dds))
                 
                 temp_v_z = None
                 temp_vz_tanTheta = None
@@ -562,17 +582,20 @@ for tr in trs:
                     #ftr_psi.addObservedPoint( int(float(norm_temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
                     
                     if separatePeaksWithL3Values == True:
-                        ftr_chi.addObservedPoint( int(float(temp_peak_p[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
-                        ftr_psi.addObservedPoint( int(float(temp_peak_p[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
-                        ftr_chi_p1.addObservedPoint( int(float(temp_peak_p1[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
-                        ftr_psi_p1.addObservedPoint( int(float(temp_peak_p1[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
-                        ftr_chi_a.addObservedPoint( int(float(temp_peak_a[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
-                        ftr_psi_a.addObservedPoint( int(float(temp_peak_a[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+                        ftr_chi.addObservedPoint( int(float(temp_peak_p[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                        ftr_psi.addObservedPoint( int(float(temp_peak_p[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+                        ftr_chi_p1.addObservedPoint( int(float(temp_peak_p1[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                        ftr_psi_p1.addObservedPoint( int(float(temp_peak_p1[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+                        ftr_chi_a.addObservedPoint( int(float(temp_peak_a[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                        ftr_psi_a.addObservedPoint( int(float(temp_peak_a[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
                     
                     elif separatePeaksWithL3Values == False:
                         # This weighting uses the original vdf where we ignore any points below half of the normalized peak
-                        ftr_chi.addObservedPoint( int(float(temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
-                        ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+                        if useVDFFluxForWeights == False: #In this case, set all values above the above-listed noise floor to one so they have the same weights
+                            temp_vdf[r][i] = 1.
+                        ftr_chi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                        ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+
                     
                 if mod(ind,modFits) == 0:    
                     print 'Adding all points into fitting function took:',TimeUtil.now()-time_last
@@ -691,12 +714,47 @@ for tr in trs:
                 
                 
                 if plotFitsAndPauseALot == True:
-                    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
+                    
+                    temp_epsilon_chi = - result_chi[0] / ( (result_chi[0]*(1 - Nz_temp_dd**2)) + Nz_temp_dd )
+                    temp_epsilon_psi = - result_psi[0] / ( (result_psi[0]*(1 - Nz_temp_dd**2)) + Nz_temp_dd )
+                    plot_anisotropy_chi = sqrt(temp_epsilon_chi+1)
+                    plot_anisotropy_psi = sqrt(temp_epsilon_psi+1)
+                    
+                    
+                    # The asin() is wrong, since I don't want the total orthogonality angle, just the angle between (Nx,Ny) and Nz
+                    #mappedAngleIndex_chi = imin(abs(toDegrees(asin(Nx[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                    #mappedAngleIndex_psi = imin(abs(toDegrees(asin(Ny[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                    
+                    # This atan() sould account for the above issue
+                    mappedAngleIndex_chi = imin(abs(toDegrees(atan(mean(Nx_temp_dd)/Nz_temp_dd))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                    mappedAngleIndex_psi = imin(abs(toDegrees(atan(mean(Ny_temp_dd)/Nz_temp_dd))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                    
+                    mappedAnisotropyIndex_chi = imin(abs(plot_anisotropy_chi-anisotropy_deltaPlus.property(QDataSet.DEPEND_1))) 
+                    mappedAnisotropyIndex_psi = imin(abs(plot_anisotropy_psi-anisotropy_deltaPlus.property(QDataSet.DEPEND_1))) 
+                    
+                    if mappedAngleIndex_chi != -1 and mappedAnisotropyIndex_chi != -1 :
+                        anisotropy_chi_deltaPlus  = anisotropy_deltaPlus[ mappedAngleIndex_chi,mappedAnisotropyIndex_chi]
+                        anisotropy_chi_deltaMinus = anisotropy_deltaMinus[mappedAngleIndex_chi,mappedAnisotropyIndex_chi]
+                    else:
+                        anisotropy_chi_deltaPlus  = -1
+                        anisotropy_chi_deltaMinus = -1
+                        
+                    if mappedAngleIndex_psi != -1 and mappedAnisotropyIndex_psi != -1 :
+                        anisotropy_psi_deltaPlus  = anisotropy_deltaPlus[ mappedAngleIndex_psi,mappedAnisotropyIndex_psi]
+                        anisotropy_psi_deltaMinus = anisotropy_deltaMinus[mappedAngleIndex_psi,mappedAnisotropyIndex_psi]
+                    else:
+                        anisotropy_psi_deltaPlus  = -1
+                        anisotropy_psi_deltaMinus = -1
+                    
+                    #plot(3,dataset([datumRange(tr_dds).min(),datumRange(tr_dds).max(),'xff00ff','event']),renderType='eventsBar',color='magenta')
+                    plot(3,event,renderType='eventsBar')
                     plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
                     plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
-                    plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
-                    plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
-                    
+                    #plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
+                    #plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
+                    plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N*B!Bx!N!C!C'+tr_dds,title='Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4))+'     Anisotropy!B&Chi;!N = '+str(round(plot_anisotropy_chi,3))+' &plusmn; ['+str(round(anisotropy_chi_deltaPlus,3))+','+str(round(anisotropy_chi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!Bx')
+                    plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N*B!By!N!C!C'+tr_dds,title='Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4))+'     Anisotropy!B&Psi;!N = '+str(round(plot_anisotropy_psi,3))+' &plusmn; ['+str(round(anisotropy_psi_deltaPlus,3))+','+str(round(anisotropy_psi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!By')
+                    #plot(8,trim(Nz_temp,tr_dds),title=Nz_temp_dd)
                     
 #                    psiline_temp = putProperty(copy(psiline),QDataSet.DEPEND_0,epsilonEpoch)
 #                    chiline_temp = putProperty(copy(chiline),QDataSet.DEPEND_0,epsilonEpoch)
@@ -715,7 +773,7 @@ for tr in trs:
                     #plot(10,sqrt(temp_totalVariance_chi),renderType='scatter',color='red')
                     #plot(11,sqrt(temp_totalVariance_psi),renderType='scatter',color='blue')
                     
-                    sleep(3000)
+                    sleep(5000)
                     continue
             except:
                 #print 'oopsy, couldn\'t fit for some reason'
@@ -908,9 +966,9 @@ for tr in trs:
             formatDataSet(anisotropy_chi,output_file+'?append=T')
             formatDataSet(anisotropy_psi,output_file+'?append=T')
             
-            formatDataSet(anisotropy_chi_deltaPlus,output_file+'?append=T')
+            formatDataSet(anisotropy_chi_deltaPlus, output_file+'?append=T')
             formatDataSet(anisotropy_chi_deltaMinus,output_file+'?append=T')
-            formatDataSet(anisotropy_psi_deltaPlus,output_file+'?append=T')
+            formatDataSet(anisotropy_psi_deltaPlus, output_file+'?append=T')
             formatDataSet(anisotropy_psi_deltaMinus,output_file+'?append=T')
         
         
@@ -941,7 +999,7 @@ for tr in trs:
         
         
         #plot(6,epsilonEpoch,anisotropy_chi_deltaPlus)
-        plot(6,Bunit)
+        plot(6,epsilonEpoch,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))))
         
         
         

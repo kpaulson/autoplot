@@ -3,8 +3,8 @@
 
 #randomSeed(30)
 generatingTotalErrorMap = False
-generatingDeltaPlusMinusMaps = False
-RunningSingleCase = True
+generatingDeltaPlusMinusMaps = True
+RunningSingleCase = False
 
 plotVzObservedVDF = True
 UseRealisticGaussians = True
@@ -13,26 +13,26 @@ goodPeakFactor = 0.5     # Fraction of values normalized to peak that should be 
 
 length = 500#0#00#000         # Number of points in each maxwellian distribution
 numberOfPoints = 50000    # Number of points over which iteration is done (TODO: change this to time with timeUtil().Now)
-numberIterations = 3#10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
-pauseAndPlotCounter = 2#0  # Number of points to run through before generating each plot
+numberIterations = 10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
+pauseAndPlotCounter = 20  # Number of points to run through before generating each plot
 
-angleMin = 0
+angleMin = -90
 angleMax = 90
-angleBinNumber = 40       # Number of bins in incident mag angle space
+angleBinNumber = 90       # Number of bins in incident mag angle space
 
-anisotropyMin = 0.01
+anisotropyMin = 0.03
 anisotropyMax = 30
-anisotropyBinNumber = 30  # Number of bins in anisotropy space
+anisotropyBinNumber = 50  # Number of bins in anisotropy space
 
-timeToStopProcessing = '2019-08-30 19:30'   # Time in UT until which the process will run and aggregate data before writing the result (EDT = UT-4)
+timeToStopProcessing = '2019-09-04 19:30'   # Time in UT until which the process will run and aggregate data before writing the result (EDT = UT-4)
 
 # Mac
-#temp_outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
-#outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+temp_outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
+outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
 
 # PC
-temp_outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
-outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/Anisotropy_DELTA_PLUS-MINUS.cdf'
+#temp_outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
+#outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/Anisotropy_DELTA_PLUS-MINUS.cdf'
 
 
 
@@ -55,7 +55,7 @@ if RunningSingleCase == True or UseRealisticGaussians == True:
     velocity_perp = 130
     density_perp = density_parallel
     
-    BackgroundNoiseFactor = 0.1#.1
+    BackgroundNoiseFactor = 0.3#.1
     
     aniso_beam = 1.2
     factorBeam = 0.4
@@ -239,7 +239,7 @@ elif generatingDeltaPlusMinusMaps == True:
             aniso = randAnisotropy[0]
             
             monitor.setTaskProgress(counter)
-            try:
+            try: 
                 vz_axis = linspace(vz_min,vz_max,length)
                 vx_axis = linspace(vx_min,vx_max,length)
     
@@ -470,7 +470,8 @@ elif generatingDeltaPlusMinusMaps == True:
                 
             plot(0,deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
             plot(1,deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
-        
+            #plot(1,anisotropyArray)
+            
             formatDataSet( deltaPlusLink   , temp_outputMap )
             formatDataSet( deltaMinusLink  , temp_outputMap+'?append=T' )
             formatDataSet( deltaPlusRebin  , temp_outputMap+'?append=T' )
@@ -788,7 +789,7 @@ elif RunningSingleCase == True:
     #outputAnisotropiesInputMap = concatenate(outputAnisotropiesInputMap,aniso)
     
     
-    #setLayoutOverplot(5)
+    setLayoutOverplot(5)
     #plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E1],title='measured_anisotropy: %s   input_anisotropy: %s'%(sqrt(epsilon_chi+1),aniso))
     plot(0,p1p2_hist,colorTable='apl_rainbow_white0',zlog=True,zrange=[1E-2,1E1],title='measured_anisotropy: %s, %s, %s!cinput_anisotropy: %s'%(round(outputAnisotropiesMeasured[0],1),round(outputAnisotropiesMeasured[1],1),round(outputAnisotropiesMeasured[2],1),aniso))
     plot(1,p1p2_hist.property(QDataSet.DEPEND_0),peaks2,renderType='scatter',symbolSize=7,color='black')
@@ -798,14 +799,14 @@ elif RunningSingleCase == True:
     if RunningSingleCase == True:
         line = p1p2_hist.property(QDataSet.DEPEND_0)*tan(slope)-((velocity_parallel*tan(slope))-velocity_perp)
         
-    plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[vz_min,vz_max],yrange=[vx_min,vx_max],xtitle='v!Bz',ytitle='v!Bx',lineWidth=4)
+    plot(2,p1p2_hist.property(QDataSet.DEPEND_0),line,color='red',xrange=[vz_min,vz_max],yrange=[vx_min,vx_max],xtitle='Vz',ytitle='Vx',lineWidth=4)
     plot(3,p1p2_hist.property(QDataSet.DEPEND_0),p1p2_hist.property(QDataSet.DEPEND_0)*result_chi[0]+result_chi[1],color='blue',lineWidth=4)
     if plotVzObservedVDF == True:
         tempTotals = dblarr(len(p1p2_hist))
         for i in xrange(p1p2_hist[:,0].length()):
             #print p1p2_hist[i,0]
             tempTotals[i] = total(p1p2_hist[i,:])
-        plot(5,p1p2_hist.property(QDataSet.DEPEND_0),tempTotals,xtitle='v!Bz')
+        plot(5,p1p2_hist.property(QDataSet.DEPEND_0),tempTotals)
         #plot(5,total(p1p2_hist,1))
     
 monitor.finished()

@@ -1,10 +1,11 @@
 
 
-
 # Timerange
-tr_dd = '2018-10-31'
-fitSeconds = 30
-pauseAndPlotIndex = 50
+tr_dd = getParam('timerange','2018-11-01','Iteration Timerange')
+fitSeconds = getParam('fitSeconds',60,'Width of window in seconds over which to compare Br/B and Tp')
+pauseAndPlotIndex = 500
+
+outputDirectory = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/Jia/'
 
 # SI Constants
 k    = 1.3807E-23
@@ -63,10 +64,12 @@ for tr_fit_time in tr_fit_times:
     mag_r_fit = trim(mag_r,tr_fit_timerange)
     mag_total_fit = trim(mag_total,tr_fit_timerange)
     BrB2_ratio = (mag_r_fit/mag_total_fit)**2
+    BrB2_ratio.putProperty(QDataSet.NAME,'B!Br!N/|B|')
 
     wp_fit = synchronize(mag_total_fit,wp)
     Tp = 0.5*((wp_fit*1E3)**2)*(mp/k)
-    
+    Tp.putProperty(QDataSet.NAME,'Tp')
+    Tp.putProperty(QDataSet.UNITS,Units.kelvin)
     
     
     f = LinFit()
@@ -96,4 +99,12 @@ for tr_fit_time in tr_fit_times:
     anisotropyJia = concatenate(anisotropyJia,anisotropy)
     TperpJia      = concatenate(TperpJia,result_BrB2_Tp[1])
     ind = ind+1
+    
+anisotropyJia.putProperty(QDataSet.NAME,'Anisotropy!BJia!N')
+anisotropyJia.putProperty(QDataSet.SCALE_TYPE,'log')
+anisotropyJia.putProperty(QDataSet.TYPICAL_MAX,10)
+anisotropyJia.putProperty(QDataSet.TYPICAL_MIN,0.1)
+    
 plot(2, dataset(tr_fit_times) , anisotropyJia) 
+
+formatDataSet(putProperty(anisotropyJia,QDataSet.DEPEND_0,dataset(tr_fit_times)),outputDirectory+'AnisotropyJia_%s_%s.txt'%(tr_dd,fitSeconds))

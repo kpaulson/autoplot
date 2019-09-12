@@ -130,13 +130,13 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 ############################################################################
 ############################################################################
 
-timerange = getParam('timerange','2018-11-01','Iteration Timerange')
+timerange = getParam('timerange','2019-08-17','Iteration Timerange')
 version = getParam('version','0.4.1','Version number to be appended to filenames')
 
 plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
 
-output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+#output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 
@@ -172,9 +172,14 @@ elif plotFitsAndPauseALot_yn == 'F':
 ##########
 #################
 anisotropy_deltaPlusMinusFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
-
-anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
-anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+try:
+    anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
+    anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+except:
+    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+    anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
+    anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+    
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
 anisotropy_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
@@ -296,5 +301,7 @@ for tr in trs:
         time_last = TimeUtil.now()
         
         plot(vdf)
+        plot(1,U)
+        plot(2,V)
     except:
         continue

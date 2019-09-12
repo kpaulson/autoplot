@@ -131,14 +131,14 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 ############################################################################
 
 timerange = getParam('timerange','2018-10-01 to 2019-05-01','Iteration Timerange')
-timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
+#timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.1','Version number to be appended to filenames')
 
 separatePeaksWithL3Values = False
 writeStuff = True
-useVDFFluxForWeights = False
+useVDFFluxForWeights = True
 
-output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+#output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 output_folder = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
@@ -174,7 +174,7 @@ elif plotFitsAndPauseALot_yn == 'F':
 #####
 ##########
 #################
-anisotropy_deltaPlusMinusFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
+#anisotropy_deltaPlusMinusFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
 try:
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
@@ -183,7 +183,7 @@ except:
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
     
-plot(anisotropy_deltaPlus)
+#plot(anisotropy_deltaPlus)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
 anisotropy_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
@@ -394,7 +394,7 @@ for tr in trs:
         setLayoutOverplot(4) 
         
         #plot(0,totalFlux)
-        plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='vdf')
+        plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='vdf',zlog=True)
         plot(1,v_z[r])
         #stop
         

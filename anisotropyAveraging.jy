@@ -1,3 +1,33 @@
+################################
+#                              #
+#     Anisotropy Averaging     #
+#                              #
+#       Kristoff Paulson       #
+#                              #
+################################
+
+'''This code combines the two independent measurements of the anisotropy from the anisotropyFromMath.jy
+   script into a single variable. This is done through a weighted average where the weights are given by
+   the systematic error values determined via anisotropyCheck.jy.
+   Further fitting errors are propagated through to the final product
+   
+   input:
+       L0 cdf created by anisotropyFromMath.jy
+   output:
+       L1 cdf containing the variables:
+           N_xyz,                                        Unit vector of background magnetic field direction in spacecraft coordinates
+           Bmag,                                         Total magnetic field strength
+           average_anisotropy,                           Combined anisotropy product
+           average_anisotropy_uncertainty_deltaPlus,     Upper uncertainty range of average_anisotropy
+           average_anisotropy_uncertainty_deltaMinus,    Lower uncertainty range of average_anisotropy
+           beta_SI,                                      Plasma Beta
+           beta_parallel_SI,                             Parallel plasma Beta
+           beta_perp_SI,                                 Perpendicular plasma Beta
+
+'''
+
+
+
 
 ########################
 
@@ -14,7 +44,7 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 
 tr = getParam('timerange','2018-11-02 to 2018-11-20','Timerange over which to generate combined anisotropy measurement')
-version_L0 = '0.4'
+version_L0 = '0.4.1'
 version_L1 = '1.1.2'
 
 writeStuff = getParam('writeFiles','T','Write out the L1 files with this version of the code?',['T','F'])
@@ -280,8 +310,8 @@ average_anisotropy_filtered.putProperty(QDataSet.VALID_MAX,1E10)
 
 
 #setLayoutOverplot(2)
-plot(0,chi,color='red',legendLabel='&Chi;',ytitle='T!B&perp;!N/T!B||!N')
-plot(1,psi,color='blue',legendLabel='&Psi;',ytitle='T!B&perp;!N/T!B||!N')
+plot(0,chi,color='red',legendLabel='&Chi;',ytitle='T!B&perp;!N/T!B||!N',ylog=True,yrange=[1E-1,1E1])
+plot(1,psi,color='blue',legendLabel='&Psi;',ytitle='T!B&perp;!N/T!B||!N',ylog=True,yrange=[1E-1,1E1])
 plot(2,average_anisotropy,ylog=True,yrange=[1E-1,1E1],ytitle='T!B&perp;!N/T!B||!N')
 
 #plot(3,average_anisotropy_filtered,ylog=True,yrange=[1E-1,1E1])
@@ -400,7 +430,7 @@ plot(5,beta_perp_SI)
 #average_anisotropy.putProperty(QDataSet.DELTA_PLUS,None)
 #plot(6,average_anisotropy,(beta_perp_SI/beta_parallel_SI))
 
-plot(6,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True)
+plot(6,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True,ylog=True,yrange=[1E-1,1E1])
 
 
 

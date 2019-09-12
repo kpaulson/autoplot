@@ -13,22 +13,24 @@ goodPeakFactor = 0.5     # Fraction of values normalized to peak that should be 
 
 length = 500#0#00#000         # Number of points in each maxwellian distribution
 numberOfPoints = 50000    # Number of points over which iteration is done (TODO: change this to time with timeUtil().Now)
-numberIterations = 10     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
-pauseAndPlotCounter = 20  # Number of points to run through before generating each plot
+numberIterations = 4     # Number of times to iterate each set slope and anisotropy measurement in TotalErrorMap
+pauseAndPlotCounter = 5  # Number of points to run through before generating each plot
 
 angleMin = -90
 angleMax = 90
 angleBinNumber = 90       # Number of bins in incident mag angle space
 
 anisotropyMin = 0.03
-anisotropyMax = 30
+anisotropyMax = 15
 anisotropyBinNumber = 50  # Number of bins in anisotropy space
 
-timeToStopProcessing = '2019-09-04 19:30'   # Time in UT until which the process will run and aggregate data before writing the result (EDT = UT-4)
+timeToStopProcessing = '2019-10-06 19:30'   # Time in UT until which the process will run and aggregate data before writing the result (EDT = UT-4)
 
 # Mac
 temp_outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
-outputMap = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+#outputMap      = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+temp_outputMap_googleDrive = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
+outputMap      = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
 
 # PC
 #temp_outputMap = 'C:/Users/kpaulson/Google Drive/SPC Anisotropy/Anisotropy_Files/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
@@ -43,13 +45,17 @@ if RunningSingleCase == True or UseRealisticGaussians == True:
     
     vz_min = 200   # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
     vz_max = 740
-    vx_min = -vz_max*cos(toRadians(28.5))  # Using the maximum measurable incoming flow direction of 28.5 degrees
+    # Nt sure if this is the right way to think about it... let's just increase this arbitrarily to 1000
+    #vx_min = -vz_max*cos(toRadians(28.5))  # Using the maximum measurable incoming flow direction of 28.5 degrees
+    #vx_max = abs(vx_min)
+    vx_min = -1000
     vx_max = abs(vx_min)
 
     factorBulk = 1.
-    thermalSpeed_parallel = 50 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
+    thermalSpeed_parallel = 50 # Taken from bin averages around 2018-11-01 7:52 UT (time arbitrarily chosen)
     velocity_parallel = 325
-    density_parallel = 220
+    density_parallel = 220 # This is the total density of the entire distribution, not the density of the observed v_z component. This causes trouble for extremely anisotropic distributions.
+    density_parallel = 500
     
     thermalSpeed_perp = thermalSpeed_parallel*aniso
     velocity_perp = 130
@@ -230,252 +236,273 @@ elif generatingDeltaPlusMinusMaps == True:
     #while counter <= numberOfPoints:
     #while lt(TimeUtil.now(),TimeUtil.parseTime('2019-06-25 13:00')):
     while lt(TimeUtil.now(),datum(timeToStopProcessing)):
-        if UseRealisticGaussians == True:
-            randAngle = (angleMin + (angleMax-angleMin) * rand(1))
-            randAnisotropy = 10.**(log10(anisotropyMin) + (log10(anisotropyMax)-log10(anisotropyMin)) * rand(1))
-            #randAnisotropy[0]
+        for slopeBin in magSlopes:
+            angleMinBin = slopeBin
+            angleMaxBin = slopeBin+((angleMax-angleMin)/angleBinNumber)
             
-            slope = toRadians(randAngle)[0]
-            aniso = randAnisotropy[0]
+            for anisotropyBin in anisotropyList:
+                anisotropyMinBin = anisotropyBin
+                anisotropyMaxBin = anisotropyBin+((log10(anisotropyMax)-log10(anisotropyMin))/anisotropyBinNumber)
+                
+                if UseRealisticGaussians == True:
+                    # Originally was generating a random point over the whole map
+                    #randAngle = (angleMin + (angleMax-angleMin) * rand(1))
+                    #randAnisotropy = 10.**(log10(anisotropyMin) + (log10(anisotropyMax)-log10(anisotropyMin)) * rand(1))
+                    
+                    # Now generating a random point within each bin and progressing through them over and over
+                    randAngle = (angleMinBin + (angleMaxBin-angleMinBin) * rand(1))
+                    randAnisotropy = 10.**(log10(anisotropyMinBin) + (log10(anisotropyMaxBin)-log10(anisotropyMinBin)) * rand(1))
+                    
+                    
+                    slope = toRadians(randAngle)[0]
+                    aniso = randAnisotropy[0]
+                    
+                    monitor.setTaskProgress(counter)
+                    try: 
+                        vz_axis = linspace(vz_min,vz_max,length)
+                        vx_axis = linspace(vx_min,vx_max,length)
             
-            monitor.setTaskProgress(counter)
-            try: 
-                vz_axis = linspace(vz_min,vz_max,length)
-                vx_axis = linspace(vx_min,vx_max,length)
-    
-                c1 = thermalSpeed_parallel
-                a1 = density_parallel / (c1*sqrt(PI))
-                b1 = 0#velocity_parallel
-    
-                thermalSpeed_perp = thermalSpeed_parallel*aniso
-                c2 = thermalSpeed_perp
-                a2 = density_perp / (c2*sqrt(PI))
-                b2 = 0#velocity_perp
-                
-                #These are realistic individually, but need to be centered on same peak if the histogram is to work
-                #p1_curve = (a1 * exp( -((vz_axis - b1)**2) / (c1**2) ))#+(rand(length)*0.1)
-                #p2_curve = (a2 * exp( -((vx_axis - b2)**2) / (c2**2) ))#+(rand(length)*0.1)
-    
-                p1_axis = linspace(-800,800,length)
-                p2_axis = linspace(-800,800,length)
-                p1_curve = (a1 * exp( -((p1_axis - b1)**2) / (c1**2) ))#+(rand(length)*0.1)
-                p2_curve = (a2 * exp( -((p2_axis - b2)**2) / (c2**2) ))#+(rand(length)*0.1)
-                
-                mapNormal = dblarr(p1_curve.length(),p2_curve.length())
-                mapNormal_Depend0 = dblarr(p1_curve.length(),p2_curve.length())
-                mapNormal_Depend1 = dblarr(p1_curve.length(),p2_curve.length())
-                for i in xrange(p1_curve.length()):
-                    mapNormal[i,:] = p1_curve[i]*p2_curve
-                    for j in xrange(p2_curve.length()):
-                        #mapNormal_Depend0[i,j] = (i-(p1_curve.length()/2.))*cos(slope) - (j-(p2_curve.length()/2.))*sin(slope)
-                        #mapNormal_Depend1[i,j] = (i-(p1_curve.length()/2.))*sin(slope) + (j-(p2_curve.length()/2.))*cos(slope)
-                        mapNormal_Depend0[i,j] = p1_axis[i]*cos(slope) - p2_axis[j]*sin(slope)
-                        mapNormal_Depend1[i,j] = p1_axis[i]*sin(slope) + p2_axis[j]*cos(slope)
-    
-                
-                mapNormal_rebin  = rebin( link(mapNormal_Depend0+velocity_parallel,mapNormal_Depend1+velocity_perp,mapNormal) , linspace(vz_min,vz_max,30) , linspace(vx_min,vx_max,250) )
-                backgroundNoise = rand(mapNormal_rebin[:,0].length(),mapNormal_rebin[0,:].length())*BackgroundNoiseFactor
-                mapNormal_rebin = mapNormal_rebin+backgroundNoise
-                
-                #plot(1,mapNormal_rebin)
-                p1p2_hist = copy(mapNormal_rebin)
-                
-                p1p2_hist.putProperty(QDataSet.VALID_MIN,0)
-                #print p1p2_hist[28,10]
-                invalidPoints = where(eq(valid(p1p2_hist),0))
-                validPoints = where(valid(p1p2_hist))
-                p1p2_hist[invalidPoints] = 0#1E-30
-    
-        
-                Nz = cos(slope)
-                Nx = sin(slope)
-    
-                
-                #
-                # Peak Identification part:
-                #
-                
-                peaks = None
-                peaks1 = None
-                peaks2 = None
-                for i in xrange(len(p1p2_hist)):
-                    temp_slice_peak_dep0 = p1p2_hist[i,:][imax(slice0(p1p2_hist,i))]
-                    temp_slice_peak_dep1 = p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))]
-                    
-                    peaks1 = concatenate(peaks1,temp_slice_peak_dep0)
-                    peaks2 = concatenate(peaks2,temp_slice_peak_dep1)
-                    
-                
-                
+                        c1 = thermalSpeed_parallel
+                        a1 = density_parallel / (c1*sqrt(PI))
+                        b1 = 0#velocity_parallel
+            
+                        thermalSpeed_perp = thermalSpeed_parallel*aniso
+                        c2 = thermalSpeed_perp
+                        a2 = density_perp / (c2*sqrt(PI))
+                        b2 = 0#velocity_perp
                         
-                inputGuessParams = [0.5,0.5]
-                f = LinFit()
-                ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
-                peaks1 = normalize(peaks1)
-                
-                goodData = where(ge(peaks1,0.3*max(peaks1)))
-                
-                for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0)[goodData])):
-                    #print float(peaks1[goodData][i])
-                    #ftr_chi.addObservedPoint(float(peaks1[i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))
-                    ftr_chi.addObservedPoint(float(peaks1[goodData][i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[goodData][i]),float(peaks2[goodData][i]))
-                    
-                result_chi = ftr_chi.fit(f,inputGuessParams)
-                   
-                
-                
-                chiline = result_chi[0]
-                #print 'chiline:',chiline
-                #print result_chi[1] 
-                
-                
-                epsilon_chi =  - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
-                #epsilon_chi =  + chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
-                
-                phi = atan(chiline)
-                
-                #print 'measured_anisotropy:',sqrt(epsilon_chi+1)
-                #print 'input_anisotropy:',aniso
-                
-                
-                anisotropyDifference = sqrt(epsilon_chi+1) - aniso
-                if le(anisotropyDifference.value(),0):
-                    deltaPlus_dep0 = concatenate(deltaPlus_dep0,randAngle[0])
-                    deltaPlus_dep1 = concatenate(deltaPlus_dep1,sqrt(epsilon_chi+1))
-                    deltaPlus = concatenate( deltaPlus , -anisotropyDifference )
-                    deltaPlus.putProperty(QDataSet.DEPEND_0,deltaPlus_dep0)
-                    deltaPlus.putProperty(QDataSet.DEPEND_1,deltaPlus_dep1)
-                else:
-                    deltaMinus_dep0 = concatenate(deltaMinus_dep0,randAngle[0])
-                    deltaMinus_dep1 = concatenate(deltaMinus_dep1,sqrt(epsilon_chi+1))
-                    deltaMinus = concatenate( deltaMinus , anisotropyDifference )
-                    deltaMinus.putProperty(QDataSet.DEPEND_0,deltaMinus_dep0)
-                    deltaMinus.putProperty(QDataSet.DEPEND_1,deltaMinus_dep1)
-                counter     = counter+1  
-                
-            except:
-                counter     = counter+1  
-                continue
+                        #These are realistic individually, but need to be centered on same peak if the histogram is to work
+                        #p1_curve = (a1 * exp( -((vz_axis - b1)**2) / (c1**2) ))#+(rand(length)*0.1)
+                        #p2_curve = (a2 * exp( -((vx_axis - b2)**2) / (c2**2) ))#+(rand(length)*0.1)
             
-            
-        elif UseRealisticGaussians == False:
-    
-            randAngle = (angleMin + (angleMax-angleMin) * rand(1))
-            randAnisotropy = 10.**(log10(anisotropyMin) + (log10(anisotropyMax)-log10(anisotropyMin)) * rand(1))
-            
-            slope = toRadians(randAngle)[0]
-            aniso = randAnisotropy[0]
-            
-            monitor.setTaskProgress(counter)
-            try:
-            
-                p1 = randomn(long(rand(1)[0]*1E6),length)
-                p2 = randomn(long(rand(1)[0]*1E6),length)*aniso
-                
-                Nz = cos(slope)
-                Nx = sin(slope)
-                
-                p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-5,5]),dataset([-5,5]))
-                
-                peaks = None
-                peaks1 = None
-                peaks2 = None
-                for i in xrange(len(p1p2_hist)):
-                    temp_slice_peak_dep0 = p1p2_hist[i,:][imax(slice0(p1p2_hist,i))]
-                    temp_slice_peak_dep1 = p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))]
-                    
-                    peaks1 = concatenate(peaks1,temp_slice_peak_dep0)
-                    peaks2 = concatenate(peaks2,temp_slice_peak_dep1)
-                    
-                
-                
+                        p1_axis = linspace(-800,800,length)
+                        p2_axis = linspace(-800,800,length)
+                        p1_curve = (a1 * exp( -((p1_axis - b1)**2) / (c1**2) ))#+(rand(length)*0.1)
+                        p2_curve = (a2 * exp( -((p2_axis - b2)**2) / (c2**2) ))#+(rand(length)*0.1)
                         
-                inputGuessParams = [0.5,0.5]
-                f = LinFit()
-                ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
-                peaks1 = normalize(peaks1)
+                        mapNormal = dblarr(p1_curve.length(),p2_curve.length())
+                        mapNormal_Depend0 = dblarr(p1_curve.length(),p2_curve.length())
+                        mapNormal_Depend1 = dblarr(p1_curve.length(),p2_curve.length())
+                        for i in xrange(p1_curve.length()):
+                            mapNormal[i,:] = p1_curve[i]*p2_curve
+                            for j in xrange(p2_curve.length()):
+                                #mapNormal_Depend0[i,j] = (i-(p1_curve.length()/2.))*cos(slope) - (j-(p2_curve.length()/2.))*sin(slope)
+                                #mapNormal_Depend1[i,j] = (i-(p1_curve.length()/2.))*sin(slope) + (j-(p2_curve.length()/2.))*cos(slope)
+                                mapNormal_Depend0[i,j] = p1_axis[i]*cos(slope) - p2_axis[j]*sin(slope)
+                                mapNormal_Depend1[i,j] = p1_axis[i]*sin(slope) + p2_axis[j]*cos(slope)
+            
+                        
+                        mapNormal_rebin  = rebin( link(mapNormal_Depend0+velocity_parallel,mapNormal_Depend1+velocity_perp,mapNormal) , linspace(vz_min,vz_max,30) , linspace(vx_min,vx_max,250) )
+                        backgroundNoise = rand(mapNormal_rebin[:,0].length(),mapNormal_rebin[0,:].length())*BackgroundNoiseFactor
+                        mapNormal_rebin = mapNormal_rebin+backgroundNoise
+                        
+                        #plot(1,mapNormal_rebin)
+                        p1p2_hist = copy(mapNormal_rebin)
+                        
+                        p1p2_hist.putProperty(QDataSet.VALID_MIN,0)
+                        #print p1p2_hist[28,10]
+                        invalidPoints = where(eq(valid(p1p2_hist),0))
+                        validPoints = where(valid(p1p2_hist))
+                        p1p2_hist[invalidPoints] = 0#1E-30
+            
                 
-                for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0))):
-                    ftr_chi.addObservedPoint(float(peaks1[i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))
-                    #ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))#,float(ones(len((peaks1)))[i]))
+                        Nz = cos(slope)
+                        Nx = sin(slope)
+            
+                        
+                        #
+                        # Peak Identification part:
+                        #
+                        
+                        peaks = None
+                        peaks1 = None
+                        peaks2 = None
+                        for i in xrange(len(p1p2_hist)):
+                            temp_slice_peak_dep0 = p1p2_hist[i,:][imax(slice0(p1p2_hist,i))]
+                            temp_slice_peak_dep1 = p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))]
+                            
+                            peaks1 = concatenate(peaks1,temp_slice_peak_dep0)
+                            peaks2 = concatenate(peaks2,temp_slice_peak_dep1)
+                            
+                        
+                        
+                                
+                        inputGuessParams = [0.5,0.5]
+                        f = LinFit()
+                        ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
+                        peaks1 = normalize(peaks1)
+                        
+                        goodData = where(ge(peaks1,0.3*max(peaks1)))
+                        
+                        for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0)[goodData])):
+                            #print float(peaks1[goodData][i])
+                            #ftr_chi.addObservedPoint(float(peaks1[i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))
+                            ftr_chi.addObservedPoint(float(peaks1[goodData][i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[goodData][i]),float(peaks2[goodData][i]))
+                            
+                        result_chi = ftr_chi.fit(f,inputGuessParams)
+                           
+                        
+                        
+                        chiline = result_chi[0]
+                        #print 'chiline:',chiline
+                        #print result_chi[1] 
+                        
+                        
+                        epsilon_chi =  - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+                        #epsilon_chi =  + chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+                        
+                        phi = atan(chiline)
+                        
+                        #print 'measured_anisotropy:',sqrt(epsilon_chi+1)
+                        #print 'input_anisotropy:',aniso
+                        
+                        
+                        anisotropyDifference = sqrt(epsilon_chi+1) - aniso
+                        if le(anisotropyDifference.value(),0):
+                            deltaPlus_dep0 = concatenate(deltaPlus_dep0,randAngle[0])
+                            deltaPlus_dep1 = concatenate(deltaPlus_dep1,sqrt(epsilon_chi+1))
+                            deltaPlus = concatenate( deltaPlus , -anisotropyDifference )
+                            deltaPlus.putProperty(QDataSet.DEPEND_0,deltaPlus_dep0)
+                            deltaPlus.putProperty(QDataSet.DEPEND_1,deltaPlus_dep1)
+                        else:
+                            deltaMinus_dep0 = concatenate(deltaMinus_dep0,randAngle[0])
+                            deltaMinus_dep1 = concatenate(deltaMinus_dep1,sqrt(epsilon_chi+1))
+                            deltaMinus = concatenate( deltaMinus , anisotropyDifference )
+                            deltaMinus.putProperty(QDataSet.DEPEND_0,deltaMinus_dep0)
+                            deltaMinus.putProperty(QDataSet.DEPEND_1,deltaMinus_dep1)
+                        counter     = counter+1  
+                        
+                    except:
+                        counter     = counter+1  
+                        continue
                     
-                result_chi = ftr_chi.fit(f,inputGuessParams)
-                   
-                
-                
-                chiline = result_chi[0]
-                #print 'chiline:',chiline
-                #print result_chi[1] 
-                
-                
-                epsilon_chi =  - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
-                
-                phi = atan(chiline)
-                #print 'ecc:',(tan((slope - phi)/slope))
-                
-                #print '1/epsilon:',1./sqrt(epsilon_chi+1)
-                #print 'measured_anisotropy:',sqrt(epsilon_chi+1)
-                #print 'input_anisotropy:',aniso
-                
-                anisotropyDifference = sqrt(epsilon_chi+1) - aniso
-                if le(anisotropyDifference.value(),0):
-                    deltaPlus_dep0 = concatenate(deltaPlus_dep0,randAngle[0])
-                    deltaPlus_dep1 = concatenate(deltaPlus_dep1,sqrt(epsilon_chi+1))
-                    deltaPlus = concatenate( deltaPlus , -anisotropyDifference )
-                    deltaPlus.putProperty(QDataSet.DEPEND_0,deltaPlus_dep0)
-                    deltaPlus.putProperty(QDataSet.DEPEND_1,deltaPlus_dep1)
-                else:
-                    deltaMinus_dep0 = concatenate(deltaMinus_dep0,randAngle[0])
-                    deltaMinus_dep1 = concatenate(deltaMinus_dep1,sqrt(epsilon_chi+1))
-                    deltaMinus = concatenate( deltaMinus , anisotropyDifference )
-                    deltaMinus.putProperty(QDataSet.DEPEND_0,deltaMinus_dep0)
-                    deltaMinus.putProperty(QDataSet.DEPEND_1,deltaMinus_dep1)
-                counter     = counter+1  
-                
-            except:
-                counter     = counter+1  
-                continue
                     
-        if mod(counter,pauseAndPlotCounter) == 0 and deltaPlus!=None and deltaMinus!=None :     
-            monitor.setProgressMessage('Remaining: '+str(datum(timeToStopProcessing) - TimeUtil.now()))    
-                 
+                elif UseRealisticGaussians == False:
             
-            deltaPlus.putProperty(QDataSet.VALID_MIN,0)
-            deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
-            deltaPlus.putProperty(QDataSet.NAME,'DELTA_PLUS')
-            deltaPlus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
-            deltaPlus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
-            deltaMinus.putProperty(QDataSet.VALID_MIN,0)
-            deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
-            deltaMinus.putProperty(QDataSet.NAME,'DELTA_MINUS')
-            deltaMinus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
-            deltaMinus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
-            
-            deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
-            deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
-            deltaPlusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_PLUS')
-            deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_MINUS')
-            
-            # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
-            #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
-            #plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
-            
-            
-            deltaPlusRebin  = rebin(deltaPlusLink,magSlopes,anisotropyList)
-            deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
-            
-            anisotropyArray = dblarr(len(deltaPlusRebin[:,0]),len(deltaPlusRebin[0,:]))
-            for i in xrange(len(deltaPlusRebin[:,0])):
-                anisotropyArray[i,:] = anisotropyList
-                
-            plot(0,deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
-            plot(1,deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
-            #plot(1,anisotropyArray)
-            
-            formatDataSet( deltaPlusLink   , temp_outputMap )
-            formatDataSet( deltaMinusLink  , temp_outputMap+'?append=T' )
-            formatDataSet( deltaPlusRebin  , temp_outputMap+'?append=T' )
-            formatDataSet( deltaMinusRebin , temp_outputMap+'?append=T' )
+                    randAngle = (angleMin + (angleMax-angleMin) * rand(1))
+                    randAnisotropy = 10.**(log10(anisotropyMin) + (log10(anisotropyMax)-log10(anisotropyMin)) * rand(1))
+                    
+                    slope = toRadians(randAngle)[0]
+                    aniso = randAnisotropy[0]
+                    
+                    monitor.setTaskProgress(counter)
+                    try:
+                    
+                        p1 = randomn(long(rand(1)[0]*1E6),length)
+                        p2 = randomn(long(rand(1)[0]*1E6),length)*aniso
+                        
+                        Nz = cos(slope)
+                        Nx = sin(slope)
+                        
+                        p1p2_hist = histogram2d(p1*cos(slope)-p2*sin(slope),p2*cos(slope)+p1*sin(slope),[70,70],dataset([-5,5]),dataset([-5,5]))
+                        
+                        peaks = None
+                        peaks1 = None
+                        peaks2 = None
+                        for i in xrange(len(p1p2_hist)):
+                            temp_slice_peak_dep0 = p1p2_hist[i,:][imax(slice0(p1p2_hist,i))]
+                            temp_slice_peak_dep1 = p1p2_hist.property(QDataSet.DEPEND_1)[imax(slice0(p1p2_hist,i))]
+                            
+                            peaks1 = concatenate(peaks1,temp_slice_peak_dep0)
+                            peaks2 = concatenate(peaks2,temp_slice_peak_dep1)
+                            
+                        
+                        
+                                
+                        inputGuessParams = [0.5,0.5]
+                        f = LinFit()
+                        ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
+                        peaks1 = normalize(peaks1)
+                        
+                        for i in xrange(len(p1p2_hist.property(QDataSet.DEPEND_0))):
+                            ftr_chi.addObservedPoint(float(peaks1[i]),float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))
+                            #ftr_chi.addObservedPoint(float(p1p2_hist.property(QDataSet.DEPEND_0)[i]),float(peaks2[i]))#,float(ones(len((peaks1)))[i]))
+                            
+                        result_chi = ftr_chi.fit(f,inputGuessParams)
+                           
+                        
+                        
+                        chiline = result_chi[0]
+                        #print 'chiline:',chiline
+                        #print result_chi[1] 
+                        
+                        
+                        epsilon_chi =  - chiline / ( (chiline*(1 - Nz**2)) + Nz*Nx )
+                        
+                        phi = atan(chiline)
+                        #print 'ecc:',(tan((slope - phi)/slope))
+                        
+                        #print '1/epsilon:',1./sqrt(epsilon_chi+1)
+                        #print 'measured_anisotropy:',sqrt(epsilon_chi+1)
+                        #print 'input_anisotropy:',aniso
+                        
+                        anisotropyDifference = sqrt(epsilon_chi+1) - aniso
+                        if le(anisotropyDifference.value(),0):
+                            deltaPlus_dep0 = concatenate(deltaPlus_dep0,randAngle[0])
+                            deltaPlus_dep1 = concatenate(deltaPlus_dep1,sqrt(epsilon_chi+1))
+                            deltaPlus = concatenate( deltaPlus , -anisotropyDifference )
+                            deltaPlus.putProperty(QDataSet.DEPEND_0,deltaPlus_dep0)
+                            deltaPlus.putProperty(QDataSet.DEPEND_1,deltaPlus_dep1)
+                        else:
+                            deltaMinus_dep0 = concatenate(deltaMinus_dep0,randAngle[0])
+                            deltaMinus_dep1 = concatenate(deltaMinus_dep1,sqrt(epsilon_chi+1))
+                            deltaMinus = concatenate( deltaMinus , anisotropyDifference )
+                            deltaMinus.putProperty(QDataSet.DEPEND_0,deltaMinus_dep0)
+                            deltaMinus.putProperty(QDataSet.DEPEND_1,deltaMinus_dep1)
+                        counter     = counter+1  
+                        
+                    except:
+                        counter     = counter+1  
+                        continue
+                            
+                if mod(counter,pauseAndPlotCounter) == 0 and deltaPlus!=None and deltaMinus!=None :     
+                    monitor.setProgressMessage('Remaining: '+str(datum(timeToStopProcessing) - TimeUtil.now()))    
+                         
+                    deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+                    deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+                    deltaPlus.putProperty(QDataSet.NAME,'DELTA_PLUS')
+                    deltaPlus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+                    deltaPlus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+                    deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+                    deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+                    deltaMinus.putProperty(QDataSet.NAME,'DELTA_MINUS')
+                    deltaMinus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+                    deltaMinus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+                    
+                    deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
+                    deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
+                    deltaPlusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_PLUS')
+                    deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_MINUS')
+                    
+                    # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
+                    #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+                    #plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+                    
+                    
+                    deltaPlusRebin  = rebin(deltaPlusLink,magSlopes,anisotropyList)
+                    deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
+                    
+                    anisotropyArray = dblarr(len(deltaPlusRebin[:,0]),len(deltaPlusRebin[0,:]))
+                    for i in xrange(len(deltaPlusRebin[:,0])):
+                        anisotropyArray[i,:] = anisotropyList
+                        
+                    plot(0,deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
+                    plot(1,deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
+                    #plot(1,anisotropyArray)
+                    
+                    try:
+                        formatDataSet( deltaPlusLink   , temp_outputMap_googleDrive )
+                        formatDataSet( deltaMinusLink  , temp_outputMap_googleDrive+'?append=T' )
+                        formatDataSet( deltaPlusRebin  , temp_outputMap_googleDrive+'?append=T' )
+                        formatDataSet( deltaMinusRebin , temp_outputMap_googleDrive+'?append=T' )
+                    except:
+                        try:
+                            formatDataSet( deltaPlusLink   , temp_outputMap )
+                            formatDataSet( deltaMinusLink  , temp_outputMap+'?append=T' )
+                            formatDataSet( deltaPlusRebin  , temp_outputMap+'?append=T' )
+                            formatDataSet( deltaMinusRebin , temp_outputMap+'?append=T' )
+                        except:
+                            continue
       
     deltaPlus.putProperty(QDataSet.VALID_MIN,0)
     deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)

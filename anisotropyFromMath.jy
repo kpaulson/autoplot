@@ -297,8 +297,10 @@ for tr in trs:
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
         del(windowWidths,mv_hi)
         
-        #totalFlux = totalFlux / (mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo)
-        #totalFlux = totalFlux/( (mv_hi-mv_lo))
+        for i in xrange(len(v_z)):
+            if gt(v_z[i,max(where(valid(v_z[i,:])))] - v_z[i,min(where(valid(v_z[i,:])))],500):
+                vdf[i,:] = -1E38
+        
         totalFlux.putProperty(QDataSet.DEPEND_1,mv_lo)
         #peaks = reduceMax(totalFlux,1)
         #r = where(eq(totalFlux,peaks))

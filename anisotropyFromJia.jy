@@ -3,7 +3,7 @@
 # Timerange
 tr_dd = getParam('timerange','2018-11-01','Iteration Timerange')
 fitSeconds = getParam('fitSeconds',60,'Width of window in seconds over which to compare Br/B and Tp')
-pauseAndPlotIndex = 500
+pauseAndPlotIndex = 5
 
 outputDirectory = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/Jia/'
 
@@ -91,8 +91,8 @@ for tr_fit_time in tr_fit_times:
         
     #setLayoutOverplot(2)
     if mod(ind,pauseAndPlotIndex) == 0:
-        plot(0,BrB2_ratio,Tp,renderType='scatter',symbolSize=3)
-        plot(1,fitLine_xaxis,fitLine,renderType='series>color=red',lineThick=3,title=plotTitle)
+        plot(0,BrB2_ratio,Tp,Tp.property(QDataSet.DEPEND_0),renderType='colorScatter',symbolSize=3)
+        plot(1,fitLine_xaxis,fitLine,renderType='series>color=red',lineThick=3,title=plotTitle,ytitle='Tp',xtitle='(Br/B)!U2!N')
     
     #sleep(1000)
     
@@ -107,4 +107,4 @@ anisotropyJia.putProperty(QDataSet.TYPICAL_MIN,0.1)
     
 plot(2, dataset(tr_fit_times) , anisotropyJia) 
 
-formatDataSet(putProperty(anisotropyJia,QDataSet.DEPEND_0,dataset(tr_fit_times)),outputDirectory+'AnisotropyJia_%s_%s.txt'%(tr_dd,fitSeconds))
+#formatDataSet(putProperty(anisotropyJia,QDataSet.DEPEND_0,dataset(tr_fit_times)),outputDirectory+'AnisotropyJia_%s_%s.txt'%(tr_dd,fitSeconds))

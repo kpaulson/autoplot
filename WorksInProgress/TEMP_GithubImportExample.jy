@@ -1,0 +1,29 @@
+Hanningfft_file = getFile('https://github.com/kpaulson/autoplot/blob/master/Hanningfft.jy',monitor.getSubtaskMonitor('import'))
+execfile( Hanningfft_file.toString() )
+Trim_it_Merge_it_file = getFile('https://github.com/kpaulson/autoplot/blob/master/Trim_it_Merge_it.jy',monitor.getSubtaskMonitor('import'))
+execfile( Trim_it_Merge_it_file.toString() )
+
+# Timerange
+tr = '2018-11-02 09:00 to 10:00'
+
+
+freq_min = 0.5
+freq_max = 3.
+window = 512
+slide = 4
+
+
+
+mag_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+
+mag_rtn = getDataSet(mag_file+'?psp_fld_mag_rtn',tr)
+mag_rtn = trim(mag_rtn,tr)
+
+mag_r_fft = Hanningfft( mag_rtn[:,0] , freq_min , freq_max , window , slide )
+
+
+print mag_r_fft
+
+mag_r_fft_power = mag_r_fft[:,:,0]**2 + mag_r_fft[:,:,1]**2
+
+plot(mag_r_fft_power)

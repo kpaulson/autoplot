@@ -1,0 +1,46 @@
+def rotateSPANiToSC(SPAN_vector):
+    '''
+    Subroutine to rotate a given vector of SPAN-ion measurements from the SPAN
+    coordinate system to PSP spacecraft coordinates
+    
+    input:
+        rank1 or rank2 vector in SPAN coordinates (where elements [0,1,2] correspond to [x,y,z])
+    output:
+        rank1 or rank2 vector rotated in s/c coordinates 
+    '''
+    # Rotate SPAN to S/C:
+    #    0  -cos(theta)  -sin(theta)
+    #    0   sin(theta)  -cos(theta)
+    #    1       0            0     
+    
+    span_theta = 20
+    theta = toRadians(span_theta)
+    
+    if SPAN_vector.rank() == 1:
+        SPAN_vector_spanx = SPAN_vector[0]
+        SPAN_vector_spany = SPAN_vector[1]
+        SPAN_vector_spanz = SPAN_vector[2]
+    elif SPAN_vector.rank() == 2:
+        SPAN_vector_spanx = SPAN_vector[:,0]
+        SPAN_vector_spany = SPAN_vector[:,1]
+        SPAN_vector_spanz = SPAN_vector[:,2]
+    
+    SPAN_vector_scx = SPAN_vector_spany*(-cos(theta)) + SPAN_vector_spanz*(-sin(theta))
+    SPAN_vector_scy = SPAN_vector_spany*(sin(theta)) + SPAN_vector_spanz*(-cos(theta))
+    SPAN_vector_scz = SPAN_vector_spanx
+    
+    try:
+        vectorLabel = SPAN_vector.property(QDataSet.LABEL)
+        SPAN_vector_scx.putProperty(QDataSet.LABEL,vectorLabel+'_scx')
+        SPAN_vector_scy.putProperty(QDataSet.LABEL,vectorLabel+'_scy')
+        SPAN_vector_scz.putProperty(QDataSet.LABEL,vectorLabel+'_scz')
+        SPAN_vector_scx.putProperty(QDataSet.NAME,vectorLabel+'_scx')
+        SPAN_vector_scy.putProperty(QDataSet.NAME,vectorLabel+'_scy')
+        SPAN_vector_scz.putProperty(QDataSet.NAME,vectorLabel+'_scz')
+    except:
+        pass
+    
+    SPAN_vector_sc = bundle(SPAN_vector_scx,SPAN_vector_scy,SPAN_vector_scz)
+    SPAN_vector_sc.putProperty(QDataSet.DEPEND_0,SPAN_vector.property(QDataSet.DEPEND_0))
+    
+    return(SPAN_vector_sc)

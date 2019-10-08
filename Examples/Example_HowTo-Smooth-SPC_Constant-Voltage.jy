@@ -2,7 +2,7 @@
 
 tr = '2018-11-03 19:19 to 19:20'
    
-spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
+spc_a = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?a_current',tr)
 
 spc_a = trim(spc_a,tr)
 mv_lo = spc_a.property(QDataSet.DEPEND_1)

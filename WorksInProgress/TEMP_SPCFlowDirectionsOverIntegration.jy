@@ -38,11 +38,34 @@ cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_s
 ############################################################################
 def smoothAndDownsample(ds,smoothPoints):
     ''' Takes rank1 or rank2 dataset and returns a downsampled boxcar average
+    THIS ONLY WORKS FOR DATASETS WITH A CONSTANT DEPEND_1
     '''
     #if ds.property(QDataSet.
     ds = smooth(ds,smoothPoints)[::smoothPoints]
     return(ds)
 ############################################################################
+def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
+    '''
+    Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
+    rather than just smoothing across indices.
+    
+    input:
+        spc_ds         = rank2 dataset - raw measurements
+        smoothPoints   = integer number of points over which to smooth (corresponded to spectra on SPC)
+    output:
+        spc_ds_smooth  = rank2 dataset - smoothed
+    '''
+    temp_spc_ds = ones(len(spc_ds))*-1
+    temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
+    temp_spc_ds[r[:,0]] = spc_ds[r]
+    #plot(r[:,0])
+    temp_spc_ds_smooth = smooth(temp_spc_ds,5)
+    spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
+    
+    return(spc_ds_smooth)
+############################################################################
+
+
 
 import java
 time_begin = TimeUtil.now()    
@@ -50,6 +73,8 @@ time_begin = TimeUtil.now()
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
+    if lt( datumRange(timerange).width() , datumRange(tr).width() ):
+        tr = timerange
     time_begin_tr = TimeUtil.now()   
     
     if True:    
@@ -101,28 +126,61 @@ for tr in trs:
         
         mv_lo = trim(mv_lo,tr)
         mv_hi = trim(mv_hi,tr)
-        #print spc_a
-        
-        for i in xrange(len(mv_lo)):
-            s = sort(mv_lo[i])
-        
-        plot(0,spc_a)
-        if conflateAndDownsampleSpectra == True:
-            spc_a = smoothAndDownsample(spc_a,smoothPoints)
-            spc_b = smoothAndDownsample(spc_b,smoothPoints)
-            spc_c = smoothAndDownsample(spc_c,smoothPoints)
-            spc_d = smoothAndDownsample(spc_d,smoothPoints)
-            
-            mv_lo = smoothAndDownsample(mv_lo,smoothPoints)
-            mv_hi = smoothAndDownsample(mv_hi,smoothPoints)
-        spc_a.property(QDataSet.DEPEND_0)
-        plot(1,spc_a.property(QDataSet.DEPEND_0),mv_lo,spc_a)
+        print mv_lo.width()
         stop
         
-        #spc_a = putProperty(spc_a/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
-        #spc_b = putProperty(spc_b/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
-        #spc_c = putProperty(spc_c/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
-        #spc_d = putProperty(spc_d/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
+        if conflateAndDownsampleSpectra == True:
+            TEMP_mv_lo = None
+            for i in xrange(len(mv_lo)):
+                TEMP_mv_lo = concatenate(TEMP_mv_lo,mv_lo[i,:])
+            min_mv_lo = min(TEMP_mv_lo)
+            max_mv_lo = max(TEMP_mv_lo)
+            s = sort(TEMP_mv_lo)
+            uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+            #print uniq_mv_lo
+        
+            smoothPoints = 5
+            spc_a_smooth = dblarr(len(spc_a[:,0]),len(spc_a[0,:]))
+            spc_b_smooth = dblarr(len(spc_b[:,0]),len(spc_b[0,:]))
+            spc_c_smooth = dblarr(len(spc_c[:,0]),len(spc_c[0,:]))
+            spc_d_smooth = dblarr(len(spc_d[:,0]),len(spc_d[0,:]))
+            
+            for mv in uniq_mv_lo:
+                r = where(eq(mv_lo,mv))
+                
+                spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
+                spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
+                spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
+                spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
+                
+
+            spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+            spc_b_smooth.putProperty(QDataSet.DEPEND_0,spc_b.property(QDataSet.DEPEND_0))
+            spc_c_smooth.putProperty(QDataSet.DEPEND_0,spc_c.property(QDataSet.DEPEND_0))
+            spc_d_smooth.putProperty(QDataSet.DEPEND_0,spc_d.property(QDataSet.DEPEND_0))
+            
+            spc_a_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            spc_b_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            spc_c_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            spc_d_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            
+            spc_a_smooth.putProperty(QDataSet.VALID_MIN,0)
+            spc_b_smooth.putProperty(QDataSet.VALID_MIN,0)
+            spc_c_smooth.putProperty(QDataSet.VALID_MIN,0)
+            spc_d_smooth.putProperty(QDataSet.VALID_MIN,0)
+            
+            spc_a = spc_a_smooth[::smoothPoints,:]
+            spc_b = spc_b_smooth[::smoothPoints,:]
+            spc_c = spc_c_smooth[::smoothPoints,:]
+            spc_d = spc_d_smooth[::smoothPoints,:]
+            mv_lo = mv_lo[::smoothPoints,:]
+            mv_hi = mv_hi[::smoothPoints,:]
+        
+        #plot(1,spc_a_smooth[::5,:],yrange=[0,4E3])
+        
+        #stop
+        
+        
         spc_list = [spc_a,spc_b,spc_c,spc_d]
         del(spc_a,spc_b,spc_c,spc_d)
         
@@ -141,15 +199,15 @@ for tr in trs:
         V.putProperty(QDataSet.VALID_MAX,None)
         
         
-        for j in xrange(len(U[0,:])):
-            try:
-                U[:,j] = medianFilter(U[:,j],3)
-            except:
-                continue
-            try:
-                V[:,j] = medianFilter(V[:,j],3)
-            except:
-                continue
+#        for j in xrange(len(U[0,:])):
+#            try:
+#                U[:,j] = medianFilter(U[:,j],3)
+#            except:
+#                continue
+#            try:
+#                V[:,j] = medianFilter(V[:,j],3)
+#            except:
+#                continue
         
         U.putProperty(QDataSet.UNITS,Units.degrees)
         V.putProperty(QDataSet.UNITS,Units.degrees)
@@ -192,7 +250,9 @@ for tr in trs:
         
         #setLayoutOverplot(2)
         #waitUntilIdle()
-        plot(2,vdf,zlog=True,zrange=[0.05,20])
+        plot(0,U,yrange=[0,4E3],zrange=[-45,45])
+        plot(1,V,yrange=[0,4E3],zrange=[-45,45])
+        plot(2,vdf,zlog=True,ytitle='v!Bz!N (km/s)',zrange=[0.05,20],ztitle='VDF')
         
         dom.plotElements[0].controller.renderer.setRebinner(org.das2.graph.SpectrogramRenderer.RebinnerEnum.lanlNearestNeighbor)
         #plot(1,v_z[r],renderType='scatter')

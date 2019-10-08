@@ -130,16 +130,17 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
 ############################################################################
 ############################################################################
 
-timerange = getParam('timerange','2018-10-01 to 2019-05-01','Iteration Timerange')
+timerange = getParam('timerange','2018-11-01','Iteration Timerange')
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
-version = getParam('version','0.4.1','Version number to be appended to filenames')
+version = getParam('version','0.4.2','Version number to be appended to filenames')
 
 separatePeaksWithL3Values = False
 writeStuff = True
 useVDFFluxForWeights = True
+conflateAndDownsampleSpectra = True
 
-#output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-output_folder = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+output_folder = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+#output_folder = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 
@@ -152,6 +153,7 @@ minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data
 #fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
 fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
+smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
         
@@ -161,10 +163,33 @@ cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_s
 ############################################################################
 ############################################################################
 
+############################################################################
+def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
+    '''
+    Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
+    rather than just smoothing across indices.
+    
+    input:
+        spc_ds         = rank2 dataset - raw measurements
+        smoothPoints   = integer number of points over which to smooth (corresponded to spectra on SPC)
+    output:
+        spc_ds_smooth  = rank2 dataset - smoothed
+    '''
+    temp_spc_ds = ones(len(spc_ds))*-1
+    temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
+    temp_spc_ds[r[:,0]] = spc_ds[r]
+    #plot(r[:,0])
+    temp_spc_ds_smooth = smooth(temp_spc_ds,5)
+    spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
+    
+    return(spc_ds_smooth)
+############################################################################
+
+
 import java
 time_begin = TimeUtil.now()    
 
-plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+plotFitsAndPauseALot_yn = getParam('FitPlots','T', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
 if plotFitsAndPauseALot_yn == 'T':
     plotFitsAndPauseALot = True
 elif plotFitsAndPauseALot_yn == 'F':
@@ -179,9 +204,14 @@ try:
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
 except:
-    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
-    anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
-    anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+    try:
+        anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
+        anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+    except:
+        anisotropy_deltaPlusMinusFile = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?Anisotropy DELTA_PLUS_1')
+        anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?Anisotropy DELTA_MINUS_1')
     
 #plot(anisotropy_deltaPlus)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
@@ -240,13 +270,56 @@ for tr in trs:
         
         mv_lo = trim(mv_lo,tr)
         mv_hi = trim(mv_hi,tr)
-        #print spc_a
+        
+        if conflateAndDownsampleSpectra == True:
+            TEMP_mv_lo = None
+            #for i in xrange(len(mv_lo)): This made sense when we looked at a slice that was only 10-minutes wide. This takes forever for daily files and is overkill
+            for i in xrange(1000):
+                TEMP_mv_lo = concatenate(TEMP_mv_lo,mv_lo[i,:])
+            min_mv_lo = min(TEMP_mv_lo)
+            max_mv_lo = max(TEMP_mv_lo)
+            s = sort(TEMP_mv_lo)
+            uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+            #print uniq_mv_lo
+        
+            
+            spc_a_smooth = dblarr(len(spc_a[:,0]),len(spc_a[0,:]))
+            spc_b_smooth = dblarr(len(spc_b[:,0]),len(spc_b[0,:]))
+            spc_c_smooth = dblarr(len(spc_c[:,0]),len(spc_c[0,:]))
+            spc_d_smooth = dblarr(len(spc_d[:,0]),len(spc_d[0,:]))
+            
+            for mv in uniq_mv_lo:
+                r = where(eq(mv_lo,mv))
+                
+                spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
+                spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
+                spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
+                spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
+                
+
+            spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+            spc_b_smooth.putProperty(QDataSet.DEPEND_0,spc_b.property(QDataSet.DEPEND_0))
+            spc_c_smooth.putProperty(QDataSet.DEPEND_0,spc_c.property(QDataSet.DEPEND_0))
+            spc_d_smooth.putProperty(QDataSet.DEPEND_0,spc_d.property(QDataSet.DEPEND_0))
+            
+            spc_a_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            spc_b_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            spc_c_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            spc_d_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            
+            spc_a_smooth.putProperty(QDataSet.VALID_MIN,0)
+            spc_b_smooth.putProperty(QDataSet.VALID_MIN,0)
+            spc_c_smooth.putProperty(QDataSet.VALID_MIN,0)
+            spc_d_smooth.putProperty(QDataSet.VALID_MIN,0)
+            
+            spc_a = spc_a_smooth[::smoothPoints,:]
+            spc_b = spc_b_smooth[::smoothPoints,:]
+            spc_c = spc_c_smooth[::smoothPoints,:]
+            spc_d = spc_d_smooth[::smoothPoints,:]
+            mv_lo = mv_lo[::smoothPoints,:]
+            mv_hi = mv_hi[::smoothPoints,:]
         
         
-        #spc_a = putProperty(spc_a/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
-        #spc_b = putProperty(spc_b/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
-        #spc_c = putProperty(spc_c/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
-        #spc_d = putProperty(spc_d/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
         spc_list = [spc_a,spc_b,spc_c,spc_d]
         del(spc_a,spc_b,spc_c,spc_d)
         
@@ -266,7 +339,7 @@ for tr in trs:
         
 
         # This part is in there to match Mike's measurement of Bulk Flow Directions, 
-        # but we should pull it out for our fitting, right?
+        # but we should pull it out for our fitting, right? - Yes, right now it filters over index for rank2 instead of DEPEND_1 so you get bad results
 #        for j in xrange(len(U[0,:])):
 #            try:
 #                U[:,j] = medianFilter(U[:,j],3)
@@ -280,9 +353,6 @@ for tr in trs:
         U.putProperty(QDataSet.UNITS,Units.degrees)
         V.putProperty(QDataSet.UNITS,Units.degrees)
         
-        #plot(0,totalFlux)
-        #plot(1,U)
-        #plot(2,V)
         
         
         #Are you measuring the slope near the peak in current or near the peak in the velocity distribution function? 
@@ -297,9 +367,12 @@ for tr in trs:
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
         del(windowWidths,mv_hi)
         
-        for i in xrange(len(v_z)):
-            if gt(v_z[i,max(where(valid(v_z[i,:])))] - v_z[i,min(where(valid(v_z[i,:])))],500):
-                vdf[i,:] = -1E38
+        # This step is meant to be a further step in removing full scans, but is probably not set properly
+        
+#        if manuallyRemoveFullScans == True:
+#            for i in xrange(len(v_z)):
+#                if gt(v_z[i,max(where(valid(v_z[i,:])))] - v_z[i,min(where(valid(v_z[i,:])))],500):
+#                    vdf[i,:] = -1E38
         
         totalFlux.putProperty(QDataSet.DEPEND_1,mv_lo)
         #peaks = reduceMax(totalFlux,1)
@@ -488,8 +561,8 @@ for tr in trs:
             dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$S.$(milli,span=%s)'%int(fitSeconds*1E3),tr)
         
         time_fit_begin = TimeUtil.now()
-        monitor.setTaskSize(len(dds)-1)
-        for ind in xrange(len(dds)-1):
+        monitor.setTaskSize(len(dds))
+        for ind in xrange(len(dds)):
             monitor.setTaskProgress(ind)
             monitor.setLabel('Linear Fits') 
             
@@ -499,7 +572,10 @@ for tr in trs:
                 break
             
             try:
-                tr_dds = dds[ind]+' to '+dds[ind+1]
+            #if True:
+                #tr_dds = dds[ind]+' to '+dds[ind+1]
+                tr_dds = dds[ind]+' to '+str( datum(dds[ind])+datum('%s s'%fitSeconds) )
+                #tr_dds = dds[ind]+' to '+str( datum(dds[ind]) + datum('5secs') )
                 if mod(ind,modFits) == 0:
                     plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
                 
@@ -511,7 +587,7 @@ for tr in trs:
 #                event[0,3] = dataset('event')
 
                 # Correct way to Create Event
-                event = createEvents(datumRange(tr_dds),Color(0x666600FF))
+                event = createEvents(dataset(datumRange(tr_dds)),Color(0x666600FF))
                 
                 v_z_dd = trim(v_z,tr_dds)
                 vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)

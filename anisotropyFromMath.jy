@@ -189,7 +189,7 @@ def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
 import java
 time_begin = TimeUtil.now()    
 
-plotFitsAndPauseALot_yn = getParam('FitPlots','T', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
 if plotFitsAndPauseALot_yn == 'T':
     plotFitsAndPauseALot = True
 elif plotFitsAndPauseALot_yn == 'F':
@@ -274,7 +274,8 @@ for tr in trs:
         if conflateAndDownsampleSpectra == True:
             TEMP_mv_lo = None
             #for i in xrange(len(mv_lo)): This made sense when we looked at a slice that was only 10-minutes wide. This takes forever for daily files and is overkill
-            for i in xrange(1000):
+            mv_lo_probe_range = min(len(mv_lo),1000)
+            for i in xrange(mv_lo_probe_range):
                 TEMP_mv_lo = concatenate(TEMP_mv_lo,mv_lo[i,:])
             min_mv_lo = min(TEMP_mv_lo)
             max_mv_lo = max(TEMP_mv_lo)
@@ -576,8 +577,6 @@ for tr in trs:
                 #tr_dds = dds[ind]+' to '+dds[ind+1]
                 tr_dds = dds[ind]+' to '+str( datum(dds[ind])+datum('%s s'%fitSeconds) )
                 #tr_dds = dds[ind]+' to '+str( datum(dds[ind]) + datum('5secs') )
-                if mod(ind,modFits) == 0:
-                    plot(3,datumRange(tr_dds),renderType='eventsBar',color='magenta')
                 
                 # Manual way to Create Event
 #                event = dblarr(1,4)
@@ -587,7 +586,10 @@ for tr in trs:
 #                event[0,3] = dataset('event')
 
                 # Correct way to Create Event
-                event = createEvents(dataset(datumRange(tr_dds)),Color(0x666600FF))
+                event = createEvent( None, datumRange(tr_dds), 0x666600FF, 'Selected Spectrum' )
+                
+                if mod(ind,modFits) == 0:
+                    plot(3, event , renderType='eventsBar')
                 
                 v_z_dd = trim(v_z,tr_dds)
                 vz_tanPhi_dd = trim(vz_tanPhi,tr_dds)
@@ -993,12 +995,19 @@ for tr in trs:
             
             
             formatDataSet(chiline,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(psiline,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(rSquared_chi,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(rSquared_psi,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(slopeError_chi,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(slopeError_psi,output_file+'?append=T')
             
             ######
@@ -1018,7 +1027,9 @@ for tr in trs:
             
             epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')
             epsilon_psi.putProperty(QDataSet.NAME,'Epsilon_psi')
+            waitUntilIdle()
             formatDataSet(epsilon_chi,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(epsilon_psi,output_file+'?append=T')
             
             anisotropy_chi.putProperty(QDataSet.NAME,'Anisotropy_chi')
@@ -1040,13 +1051,19 @@ for tr in trs:
             
             anisotropy_psi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaMinus')
             anisotropy_psi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
-            
+                        
+            waitUntilIdle()
             formatDataSet(anisotropy_chi,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(anisotropy_psi,output_file+'?append=T')
             
+            waitUntilIdle()
             formatDataSet(anisotropy_chi_deltaPlus, output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(anisotropy_chi_deltaMinus,output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(anisotropy_psi_deltaPlus, output_file+'?append=T')
+            waitUntilIdle()
             formatDataSet(anisotropy_psi_deltaMinus,output_file+'?append=T')
         
         

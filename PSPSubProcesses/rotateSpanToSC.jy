@@ -24,6 +24,10 @@ def rotateSPANiToSC(SPAN_vector):
         SPAN_vector_spanx = SPAN_vector[:,0]
         SPAN_vector_spany = SPAN_vector[:,1]
         SPAN_vector_spanz = SPAN_vector[:,2]
+    elif SPAN_vector.rank() == 3:
+        SPAN_vector_spanx = SPAN_vector[:,:,0]
+        SPAN_vector_spany = SPAN_vector[:,:,1]
+        SPAN_vector_spanz = SPAN_vector[:,:,2]
     
     SPAN_vector_scx = SPAN_vector_spany*(-cos(theta)) + SPAN_vector_spanz*(-sin(theta))
     SPAN_vector_scy = SPAN_vector_spany*(sin(theta)) + SPAN_vector_spanz*(-cos(theta))

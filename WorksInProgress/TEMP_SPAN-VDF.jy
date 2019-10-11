@@ -1,0 +1,164 @@
+### INPUTS
+
+tr = '2019-04-04 18:55:06 to 18:55:26'
+
+
+### CONSTANTS
+
+mp              = 0.0104389 #[ev/c2] where c = 299792 [km/s]
+electronCharge  = 1 # in eV, obviously
+
+
+### FILE LOCATIONS
+
+L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L2/$Y/$m/spi_sf00/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+L2draft_mag_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+
+
+### IMPORTS
+rotations= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSpanToSC.jy',monitor.getSubtaskMonitor('import'))
+execfile( rotations.toString() )
+#######################################################################
+#######################################################################
+
+#index = [1000:1010]
+
+maxIndex = 9736
+minIndex = 9734
+index = linspace(minIndex,maxIndex,maxIndex-minIndex)
+#index = [1001,1002]
+#index = 1001
+
+
+theta  = getDataSet(L2_spani_w3sweap_file+'?THETA',tr)
+phi    = getDataSet(L2_spani_w3sweap_file+'?PHI'  ,tr)
+eflux  = getDataSet(L2_spani_w3sweap_file+'?EFLUX',tr)
+time   = getDataSet(L2_spani_w3sweap_file+'?Epoch',tr)
+
+
+#theta  = trim(theta,minIndex,maxIndex)
+#phi    = trim(phi,minIndex,maxIndex)
+#eflux  = trim(eflux,minIndex,maxIndex)
+#time   = trim(time,minIndex,maxIndex)
+
+theta  = trim(theta, tr)
+phi    = trim(phi  , tr)
+eflux  = trim(eflux, tr)
+time   = trim(time , tr)
+
+
+#reset()
+
+numberFlux = eflux / eflux.property(QDataSet.DEPEND_1)
+vdf = numberFlux * (mp**2 )/((2E5)*eflux.property(QDataSet.DEPEND_1)) 
+v_star = sqrt( 2*electronCharge*eflux.property(QDataSet.DEPEND_1) / mp )
+
+
+vx = v_star*cos(toRadians(phi))*cos(toRadians(theta))
+vy = v_star*sin(toRadians(phi))*cos(toRadians(theta))
+vz = v_star*sin(toRadians(theta))
+#plot(v_x)
+#stop
+
+s = sort(phi[0,:])
+phiVals = uniqValues(phi[0,:],s)
+phiVals.putProperty(QDataSet.NAME,None)
+s = sort(theta[0,:])
+thetaVals = uniqValues(theta[0,:],s)
+thetaVals.putProperty(QDataSet.NAME,None)
+
+#for thetaAngle in thetaVals:
+#    print thetaAngle
+#i = 0
+#for phiAngle in phiVals:
+#    print phiAngle
+#    r = where(eq(phi,phiAngle))
+#    #plot(i,numberFlux[r])
+#    i = i+1
+
+#thetaCollapsed       = reduceMean(theta[index,:],0)
+#phiCollapsed         = reduceMean(phi[index,:],0)
+#numberFluxCollapsed  = reduceMean(numberFlux[index,:],0)
+#vdfCollapsed         = reduceMean(vdf[index,:],0)
+#v_xCollapsed         = reduceMean(v_x[index,:],0)
+#v_yCollapsed         = reduceMean(v_y[index,:],0)
+#v_zCollapsed         = reduceMean(v_z[index,:],0)
+
+thetaCollapsed       = reduceMean(theta,0)
+phiCollapsed         = reduceMean(phi,0)
+numberFluxCollapsed  = reduceMean(numberFlux,0)
+vdfCollapsed         = reduceMean(vdf,0)
+vx_Collapsed         = reduceMean(vx,0)
+vy_Collapsed         = reduceMean(vy,0)
+vz_Collapsed         = reduceMean(vz,0)
+
+thetaCollapsed.putProperty(QDataSet.DEPEND_0,None)
+phiCollapsed.putProperty(QDataSet.DEPEND_0,None)
+numberFluxCollapsed.putProperty(QDataSet.DEPEND_0,None)
+vdfCollapsed.putProperty(QDataSet.DEPEND_0,None)
+vx_Collapsed.putProperty(QDataSet.DEPEND_0,None)
+vy_Collapsed.putProperty(QDataSet.DEPEND_0,None)
+vz_Collapsed.putProperty(QDataSet.DEPEND_0,None)
+
+#collapsedSPANBundle = bundle(collapse0(theta[index,:]),collapse0(phi[index,:]),collapse0(numberFlux[index,:]))
+collapsedSPANBundle = bundle(thetaCollapsed,phiCollapsed,vdfCollapsed)
+collapsedSPANBundle_vxvz = bundle(-vx_Collapsed,vz_Collapsed,vdfCollapsed)
+collapsedSPANBundle_vxvy = bundle(-vx_Collapsed,vy_Collapsed,vdfCollapsed)
+collapsedSPANBundle_vyvz = bundle( vy_Collapsed,vz_Collapsed,vdfCollapsed)
+#collapse0(theta[index,:]),collapse0(phi[index,:]),collapse0(numberFlux[index,:])
+
+
+timestamp = mean(time)
+plot(0,collapsedSPANBundle_vxvy,symbolSize=10,title=timestamp,xlog=False,ylog=False)
+plot(1,collapsedSPANBundle_vxvz,symbolSize=10,title=timestamp,xlog=False,ylog=False)
+#plot(2,collapsedSPANBundle_vyvz,symbolSize=10,title=timestamp)#,renderType='nnSpectrogram')
+#plot(0,bundle(thetaCollapsed,phiCollapsed,numberFluxCollapsed),symbolSize=10)
+
+#plot(0,eflux)
+
+#stop
+
+
+#plot(1,numberFlux)
+
+vx_bins = linspace(0,1000,40)
+vy_bins = linspace(0,700,10)
+vz_bins = linspace(-600,600,10)
+
+#rebinnedSPANBundle_vxvy = rebin( link(-vx_Collapsed,vy_Collapsed,vdfCollapsed) , vx_bins , vy_bins )
+#rebinnedSPANBundle_vxvz = rebin( link(-vx_Collapsed,vz_Collapsed,vdfCollapsed) , vx_bins , vz_bins )
+rebinnedSPANBundle_vxvy = rebin( link(-vx,vy,vdf) , vx_bins , vy_bins )
+rebinnedSPANBundle_vxvz = rebin( link(-vx,vz,vdf) , vx_bins , vz_bins )
+
+plot(0,rebinnedSPANBundle_vxvy)
+plot(1,rebinnedSPANBundle_vxvz)
+
+r = where(eq(valid( rebinnedSPANBundle_vxvz ),0))
+rebinnedSPANBundle_vxvz[r] = 0
+rebinnedSPANBundle_vxvz.putProperty(QDataSet.VALID_MIN,0)
+
+
+totalDistribution = dblarr(len(rebinnedSPANBundle_vxvz))
+for i in xrange(rebinnedSPANBundle_vxvz[:,0].length()):
+    #print p1p2_hist[i,0]
+    totalDistribution[i] = total(rebinnedSPANBundle_vxvz[i,:])
+
+#totalDistribution = total(rebinnedSPANBundle_vxvz,1)
+plot(2,vx_bins,totalDistribution)
+
+vSPAN_sc = rotateSPANiToSC(bundle(vx,vy,vz))
+
+vx_sc_bins = linspace(-100,1000,40)
+vy_sc_bins = linspace(-500,700,10)
+vz_sc_bins = linspace(-800,600,10)
+rebinnedSPANBundle_vxvy_sc = rebin( link(-vSPAN_sc[:,:,0],vSPAN_sc[:,:,1],vdf) , vx_sc_bins , vy_sc_bins )
+rebinnedSPANBundle_vxvz_sc = rebin( link(-vSPAN_sc[:,:,0],vSPAN_sc[:,:,2],vdf) , vx_sc_bins , vz_sc_bins )
+
+plot(0,rebinnedSPANBundle_vxvy_sc)
+plot(1,rebinnedSPANBundle_vxvz_sc)
+
+#mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
+
+
+
+

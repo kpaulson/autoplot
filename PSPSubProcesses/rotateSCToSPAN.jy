@@ -1,17 +1,17 @@
-def rotateSPANiToSC(SPAN_vector):
+def rotateSCToSPANi(SC_vector):
     '''
-    Subroutine to rotate a given vector of SPAN-ion measurements from the SPAN
-    coordinate system to PSP spacecraft coordinates
+    Subroutine to rotate a given vector of PSP measurements from the spacecraft
+    coordinate system to SPAN instrument coordinates
     
     input:
-        rank1, rank2, or rank3 vector in SPAN coordinates (where elements [0,1,2] correspond to [x,y,z])
+        rank1, rank2, or rank3 vector in S/C coordinates (where elements [0,1,2] correspond to [x,y,z])
     output:
-        rank1, rank2, or rank3 vector rotated into s/c coordinates 
+        rank1, rank2, or rank3 vector rotated into SPAN coordinates 
     '''
-    # Rotate SPAN to S/C:
-    #    0  -cos(theta)  -sin(theta)
-    #    0   sin(theta)  -cos(theta)
-    #    1       0            0     
+    # Rotate S/C to SPAN:
+    #     0              0         1
+    #  -cos(theta)   sin(theta)    0
+    #  -sin(theta)  -cos(theta)    0
     
     span_theta = 20
     theta = toRadians(span_theta)
@@ -28,6 +28,11 @@ def rotateSPANiToSC(SPAN_vector):
         SPAN_vector_spanx = SPAN_vector[:,:,0]
         SPAN_vector_spany = SPAN_vector[:,:,1]
         SPAN_vector_spanz = SPAN_vector[:,:,2]
+    
+    SC_vector_spanx = SC_vector_scz
+    SC_vector_spanx = SC_vector_scy*(-cos(theta)) + SC_vector_scz*(-sin(theta))
+    SC_vector_spany = SC_vector_scy*(sin(theta)) + SC_vector_scz*(-cos(theta))
+    SC_vector_spanz = SC_vector_scx
     
     SPAN_vector_scx = SPAN_vector_spany*(-cos(theta)) + SPAN_vector_spanz*(-sin(theta))
     SPAN_vector_scy = SPAN_vector_spany*(sin(theta)) + SPAN_vector_spanz*(-cos(theta))

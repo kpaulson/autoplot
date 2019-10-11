@@ -9,47 +9,42 @@ def rotateSCToSPANi(SC_vector):
         rank1, rank2, or rank3 vector rotated into SPAN coordinates 
     '''
     # Rotate S/C to SPAN:
-    #     0              0         1
-    #  -cos(theta)   sin(theta)    0
-    #  -sin(theta)  -cos(theta)    0
+    #    |    0              0         1 |     | sc_x |
+    #    | -cos(theta)   sin(theta)    0 |  *  | sc_y |
+    #    | -sin(theta)  -cos(theta)    0 |     | sc_z |
     
     span_theta = 20
     theta = toRadians(span_theta)
     
-    if SPAN_vector.rank() == 1:
-        SPAN_vector_spanx = SPAN_vector[0]
-        SPAN_vector_spany = SPAN_vector[1]
-        SPAN_vector_spanz = SPAN_vector[2]
-    elif SPAN_vector.rank() == 2:
-        SPAN_vector_spanx = SPAN_vector[:,0]
-        SPAN_vector_spany = SPAN_vector[:,1]
-        SPAN_vector_spanz = SPAN_vector[:,2]
-    elif SPAN_vector.rank() == 3:
-        SPAN_vector_spanx = SPAN_vector[:,:,0]
-        SPAN_vector_spany = SPAN_vector[:,:,1]
-        SPAN_vector_spanz = SPAN_vector[:,:,2]
+    if SC_vector.rank() == 1:
+        SC_vector_spanx = SC_vector[0]
+        SC_vector_spany = SC_vector[1]
+        SC_vector_spanz = SC_vector[2]
+    elif SC_vector.rank() == 2:
+        SC_vector_spanx = SC_vector[:,0]
+        SC_vector_spany = SC_vector[:,1]
+        SC_vector_spanz = SC_vector[:,2]
+    elif SC_vector.rank() == 3:
+        SC_vector_spanx = SC_vector[:,:,0]
+        SC_vector_spany = SC_vector[:,:,1]
+        SC_vector_spanz = SC_vector[:,:,2]
     
     SC_vector_spanx = SC_vector_scz
-    SC_vector_spanx = SC_vector_scy*(-cos(theta)) + SC_vector_scz*(-sin(theta))
-    SC_vector_spany = SC_vector_scy*(sin(theta)) + SC_vector_scz*(-cos(theta))
-    SC_vector_spanz = SC_vector_scx
-    
-    SPAN_vector_scx = SPAN_vector_spany*(-cos(theta)) + SPAN_vector_spanz*(-sin(theta))
-    SPAN_vector_scy = SPAN_vector_spany*(sin(theta)) + SPAN_vector_spanz*(-cos(theta))
-    SPAN_vector_scz = SPAN_vector_spanx
+    SC_vector_spany = SC_vector_scx*(-cos(theta)) + SC_vector_scy*(sin(theta))
+    SC_vector_spanz = SC_vector_scx*(-sin(theta)) + SC_vector_scy*(-cos(theta))
     
     try:
-        vectorLabel = SPAN_vector.property(QDataSet.LABEL)
-        SPAN_vector_scx.putProperty(QDataSet.LABEL,vectorLabel+'_scx')
-        SPAN_vector_scy.putProperty(QDataSet.LABEL,vectorLabel+'_scy')
-        SPAN_vector_scz.putProperty(QDataSet.LABEL,vectorLabel+'_scz')
-        SPAN_vector_scx.putProperty(QDataSet.NAME,vectorLabel+'_scx')
-        SPAN_vector_scy.putProperty(QDataSet.NAME,vectorLabel+'_scy')
-        SPAN_vector_scz.putProperty(QDataSet.NAME,vectorLabel+'_scz')
+        vectorLabel = SC_vector.property(QDataSet.LABEL)
+        SC_vector_spanx.putProperty(QDataSet.LABEL,vectorLabel+'_spanx')
+        SC_vector_spany.putProperty(QDataSet.LABEL,vectorLabel+'_spany')
+        SC_vector_spanz.putProperty(QDataSet.LABEL,vectorLabel+'_spanz')
+        SC_vector_spanx.putProperty(QDataSet.NAME, vectorLabel+'_spanx')
+        SC_vector_spany.putProperty(QDataSet.NAME, vectorLabel+'_spany')
+        SC_vector_spanz.putProperty(QDataSet.NAME, vectorLabel+'_spanz')
     except:
         pass
     
-    SPAN_vector_sc = bundle(SPAN_vector_scx,SPAN_vector_scy,SPAN_vector_scz)
-    SPAN_vector_sc.putProperty(QDataSet.DEPEND_0,SPAN_vector.property(QDataSet.DEPEND_0))
+    SC_vector_span = bundle(SC_vector_spanx,SC_vector_spany,SC_vector_spanz)
+    SC_vector_span.putProperty(QDataSet.DEPEND_0,SC_vector.property(QDataSet.DEPEND_0))
     
-    return(SPAN_vector_sc)
+    return(SC_vector_span)

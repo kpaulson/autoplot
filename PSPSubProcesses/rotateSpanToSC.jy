@@ -9,9 +9,9 @@ def rotateSPANiToSC(SPAN_vector):
         rank1, rank2, or rank3 vector rotated into s/c coordinates 
     '''
     # Rotate SPAN to S/C:
-    #    0  -cos(theta)  -sin(theta)
-    #    0   sin(theta)  -cos(theta)
-    #    1       0            0     
+    #    | 0  -cos(theta)  -sin(theta) |     | span_x |
+    #    | 0   sin(theta)  -cos(theta) |  *  | span_y |
+    #    | 1       0            0      |     | span_z |
     
     span_theta = 20
     theta = toRadians(span_theta)

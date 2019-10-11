@@ -17,17 +17,17 @@ def rotateSCToSPANi(SC_vector):
     theta = toRadians(span_theta)
     
     if SC_vector.rank() == 1:
-        SC_vector_spanx = SC_vector[0]
-        SC_vector_spany = SC_vector[1]
-        SC_vector_spanz = SC_vector[2]
+        SC_vector_scx = SC_vector[0]
+        SC_vector_scy = SC_vector[1]
+        SC_vector_scz = SC_vector[2]
     elif SC_vector.rank() == 2:
-        SC_vector_spanx = SC_vector[:,0]
-        SC_vector_spany = SC_vector[:,1]
-        SC_vector_spanz = SC_vector[:,2]
+        SC_vector_scx = SC_vector[:,0]
+        SC_vector_scy = SC_vector[:,1]
+        SC_vector_scz = SC_vector[:,2]
     elif SC_vector.rank() == 3:
-        SC_vector_spanx = SC_vector[:,:,0]
-        SC_vector_spany = SC_vector[:,:,1]
-        SC_vector_spanz = SC_vector[:,:,2]
+        SC_vector_scx = SC_vector[:,:,0]
+        SC_vector_scy = SC_vector[:,:,1]
+        SC_vector_scz = SC_vector[:,:,2]
     
     SC_vector_spanx = SC_vector_scz
     SC_vector_spany = SC_vector_scx*(-cos(theta)) + SC_vector_scy*(sin(theta))

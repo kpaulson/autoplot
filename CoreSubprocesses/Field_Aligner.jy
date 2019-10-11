@@ -57,9 +57,13 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
     TEMP_Ry = interpolate( (TEMP_Ry/TEMP_Rmag) , ephem_to_mag_ratio )
     TEMP_Rz = interpolate( (TEMP_Rz/TEMP_Rmag) , ephem_to_mag_ratio )
     
-    Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
-    Ry = -(TEMP_Ry/TEMP_Rmag) 
-    Rz = -(TEMP_Rz/TEMP_Rmag) 
+    # This version divides by Rmag again, which I should not be doing.... how long has this been in here??
+    #Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
+    #Ry = -(TEMP_Ry/TEMP_Rmag) 
+    #Rz = -(TEMP_Rz/TEMP_Rmag)
+    Rx = -(TEMP_Rx) #Negate R so that NxR is westwards (need this for right-handedness)
+    Ry = -(TEMP_Ry) 
+    Rz = -(TEMP_Rz) 
     
     TEMP_Px = ( Ny * Rz ) - ( Nz * Ry )
     TEMP_Py = ( Nz * Rx ) - ( Nx * Rz )

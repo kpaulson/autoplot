@@ -1,7 +1,10 @@
 ### INPUTS
 
 tr = '2019-04-04 18:55:06 to 18:55:26'
+tr = '2019-04-04 19:09:05 to 19:10:08'
+trend_seconds = 10
 
+tr_outer = datumRange( str(datumRange(tr).min() - datum(str(trend_seconds)+' s'))+' to '+str(datumRange(tr).max() + datum(str(trend_seconds)+' s')) )
 
 ### CONSTANTS
 
@@ -16,8 +19,12 @@ L2draft_mag_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft
 
 
 ### IMPORTS
-rotations= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSpanToSC.jy',monitor.getSubtaskMonitor('import'))
-execfile( rotations.toString() )
+rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
+execfile( rotateSPANiToSC.toString() )
+rotateSCToSPANi= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSCToSPANi.jy',monitor.getSubtaskMonitor('import Rotation to SPANi'))
+execfile( rotateSCToSPANi.toString() )
+fieldAligner= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import Field Aligner'))
+execfile( fieldAligner.toString() )
 #######################################################################
 #######################################################################
 
@@ -109,8 +116,8 @@ collapsedSPANBundle_vyvz = bundle( vy_Collapsed,vz_Collapsed,vdfCollapsed)
 
 
 timestamp = mean(time)
-plot(0,collapsedSPANBundle_vxvy,symbolSize=10,title=timestamp,xlog=False,ylog=False)
-plot(1,collapsedSPANBundle_vxvz,symbolSize=10,title=timestamp,xlog=False,ylog=False)
+#plot(0,collapsedSPANBundle_vxvy,symbolSize=10,title=timestamp,xlog=False,ylog=False)
+#plot(1,collapsedSPANBundle_vxvz,symbolSize=10,title=timestamp,xlog=False,ylog=False)
 #plot(2,collapsedSPANBundle_vyvz,symbolSize=10,title=timestamp)#,renderType='nnSpectrogram')
 #plot(0,bundle(thetaCollapsed,phiCollapsed,numberFluxCollapsed),symbolSize=10)
 
@@ -130,8 +137,8 @@ vz_bins = linspace(-600,600,10)
 rebinnedSPANBundle_vxvy = rebin( link(-vx,vy,vdf) , vx_bins , vy_bins )
 rebinnedSPANBundle_vxvz = rebin( link(-vx,vz,vdf) , vx_bins , vz_bins )
 
-plot(0,rebinnedSPANBundle_vxvy)
-plot(1,rebinnedSPANBundle_vxvz)
+#plot(0,rebinnedSPANBundle_vxvy)
+#plot(1,rebinnedSPANBundle_vxvz)
 
 r = where(eq(valid( rebinnedSPANBundle_vxvz ),0))
 rebinnedSPANBundle_vxvz[r] = 0
@@ -144,7 +151,7 @@ for i in xrange(rebinnedSPANBundle_vxvz[:,0].length()):
     totalDistribution[i] = total(rebinnedSPANBundle_vxvz[i,:])
 
 #totalDistribution = total(rebinnedSPANBundle_vxvz,1)
-plot(2,vx_bins,totalDistribution)
+#plot(2,vx_bins,totalDistribution)
 
 vSPAN_sc = rotateSPANiToSC(bundle(vx,vy,vz))
 
@@ -154,10 +161,44 @@ vz_sc_bins = linspace(-800,600,10)
 rebinnedSPANBundle_vxvy_sc = rebin( link(-vSPAN_sc[:,:,0],vSPAN_sc[:,:,1],vdf) , vx_sc_bins , vy_sc_bins )
 rebinnedSPANBundle_vxvz_sc = rebin( link(-vSPAN_sc[:,:,0],vSPAN_sc[:,:,2],vdf) , vx_sc_bins , vz_sc_bins )
 
-plot(0,rebinnedSPANBundle_vxvy_sc)
-plot(1,rebinnedSPANBundle_vxvz_sc)
+#plot(0,rebinnedSPANBundle_vxvy_sc)
+#plot(1,rebinnedSPANBundle_vxvz_sc)
 
-#mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
+mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
+mag_sc = trim(mag_sc,tr_outer)
+
+
+mag_span = rotateSCToSPANi(mag_sc)
+mag_magnitude = magnitude(mag_span)
+TEMP_Rx = putProperty(ones(len(eflux)),QDataSet.DEPEND_0,time)
+TEMP_Ry = putProperty(zeros(len(eflux)),QDataSet.DEPEND_0,time)
+TEMP_Rz = putProperty(zeros(len(eflux)),QDataSet.DEPEND_0,time)
+
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( mag_span[:,0] , mag_span[:,1] , mag_span[:,2] , mag_magnitude , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+
+#mag_span = trim(mag_span,tr)
+#mag_magnitude = magnitude(mag_span)
+
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = synchronize(eflux, [ Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ])
+
+vSPAN_n = vSPAN_sc[:,:,0]*Nx + vSPAN_sc[:,:,1]*Ny + vSPAN_sc[:,:,2]*Nz
+vSPAN_p = vSPAN_sc[:,:,0]*Px + vSPAN_sc[:,:,1]*Py + vSPAN_sc[:,:,2]*Pz
+vSPAN_q = vSPAN_sc[:,:,0]*Qx + vSPAN_sc[:,:,1]*Qy + vSPAN_sc[:,:,2]*Qz
+
+
+vn_span_bins = linspace(-900,500,40)
+vp_span_bins = linspace(-900,900,40)
+vq_span_bins = linspace(-900,500,40)
+
+temp =  link(concatenate(vSPAN_p,-vSPAN_p),concatenate(vSPAN_q,vSPAN_q),concatenate(vdf,vdf))
+temp =  link(concatenate(concatenate(vSPAN_p,-vSPAN_p),vSPAN_p),concatenate(concatenate(vSPAN_q,vSPAN_q),-(vSPAN_q+150)),concatenate(concatenate(vdf,vdf),vdf))
+
+rebinnedSPANBundle_vpvn_mag = rebin( link(vSPAN_p,vSPAN_n,vdf) , vp_span_bins , vn_span_bins )
+rebinnedSPANBundle_vpvq_mag = rebin( link(vSPAN_p,vSPAN_q,vdf) , vp_span_bins , vq_span_bins )
+rebinnedSPANBundle_vpvq_mag = rebin( temp , vp_span_bins , vq_span_bins )
+
+plot(0,rebinnedSPANBundle_vpvn_mag,ytitle='v!B||!N',xtitle='v!B&perp;1!N',xrange=[vp_span_bins[0],vp_span_bins[-1]],title=timestamp)
+plot(1,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
 
 
 

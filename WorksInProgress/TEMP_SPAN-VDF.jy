@@ -1,8 +1,13 @@
 ### INPUTS
 
 tr = '2019-04-04 18:55:06 to 18:55:26'
-tr = '2019-04-04 19:09:05 to 19:10:08'
-trend_seconds = 10
+#tr = '2019-04-04 19:09:05 to 19:10:08'
+#tr = '2019-04-06 16:41:20 to 16:43:47'  # See the whole peak
+#tr = '2019-04-06 16:57:20 to 16:58:47'  # Not able to see the full distribution
+#tr = '2019-04-06 17:49:00 to 17:49:30'  # 
+tr = '2019-04-06 17:20 to 17:22'  # 
+tr = '2019-04-06 15:00 to 19:30'  # 
+trend_seconds = 30
 
 tr_outer = datumRange( str(datumRange(tr).min() - datum(str(trend_seconds)+' s'))+' to '+str(datumRange(tr).max() + datum(str(trend_seconds)+' s')) )
 
@@ -15,6 +20,7 @@ electronCharge  = 1 # in eV, obviously
 ### FILE LOCATIONS
 
 L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L2/$Y/$m/spi_sf00/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
 L2draft_mag_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
 
 
@@ -28,11 +34,21 @@ execfile( fieldAligner.toString() )
 #######################################################################
 #######################################################################
 
+# Download and trim down magnetic field data
+mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
+mag_sc = trim(mag_sc,tr_outer)
+
+mag_span = rotateSCToSPANi(mag_sc)
+mag_span = trim(mag_span,tr)
+mag_magnitude = magnitude(mag_span)
+mag_time = mag_span.property(QDataSet.DEPEND_0)
+
+
 #index = [1000:1010]
 
-maxIndex = 9736
-minIndex = 9734
-index = linspace(minIndex,maxIndex,maxIndex-minIndex)
+#maxIndex = 9736
+#minIndex = 9734
+#index = linspace(minIndex,maxIndex,maxIndex-minIndex)
 #index = [1001,1002]
 #index = 1001
 
@@ -53,19 +69,23 @@ phi    = trim(phi  , tr)
 eflux  = trim(eflux, tr)
 time   = trim(time , tr)
 
-
+mag_span = synchronize(eflux,mag_span)
 #reset()
 
 numberFlux = eflux / eflux.property(QDataSet.DEPEND_1)
 vdf = numberFlux * (mp**2 )/((2E5)*eflux.property(QDataSet.DEPEND_1)) 
 v_star = sqrt( 2*electronCharge*eflux.property(QDataSet.DEPEND_1) / mp )
 
-
+# Create cartesian velocity components from SPAN phi/theta values
 vx = v_star*cos(toRadians(phi))*cos(toRadians(theta))
 vy = v_star*sin(toRadians(phi))*cos(toRadians(theta))
 vz = v_star*sin(toRadians(theta))
-#plot(v_x)
-#stop
+
+r = where(eq(floor(theta),-70))
+
+plot(1,time,v_star*cos(toRadians(phi)),vdf)
+plot(1,time,vy,vdf)
+stop
 
 s = sort(phi[0,:])
 phiVals = uniqValues(phi[0,:],s)
@@ -116,6 +136,7 @@ collapsedSPANBundle_vyvz = bundle( vy_Collapsed,vz_Collapsed,vdfCollapsed)
 
 
 timestamp = mean(time)
+timeWidth = str(datumRange(tr).width()/2.)
 #plot(0,collapsedSPANBundle_vxvy,symbolSize=10,title=timestamp,xlog=False,ylog=False)
 #plot(1,collapsedSPANBundle_vxvz,symbolSize=10,title=timestamp,xlog=False,ylog=False)
 #plot(2,collapsedSPANBundle_vyvz,symbolSize=10,title=timestamp)#,renderType='nnSpectrogram')
@@ -129,16 +150,20 @@ timestamp = mean(time)
 #plot(1,numberFlux)
 
 vx_bins = linspace(0,1000,40)
-vy_bins = linspace(0,700,10)
-vz_bins = linspace(-600,600,10)
+vy_bins = linspace(0,700,20)
+vz_bins = linspace(-600,600,20)
 
 #rebinnedSPANBundle_vxvy = rebin( link(-vx_Collapsed,vy_Collapsed,vdfCollapsed) , vx_bins , vy_bins )
 #rebinnedSPANBundle_vxvz = rebin( link(-vx_Collapsed,vz_Collapsed,vdfCollapsed) , vx_bins , vz_bins )
 rebinnedSPANBundle_vxvy = rebin( link(-vx,vy,vdf) , vx_bins , vy_bins )
 rebinnedSPANBundle_vxvz = rebin( link(-vx,vz,vdf) , vx_bins , vz_bins )
 
-#plot(0,rebinnedSPANBundle_vxvy)
-#plot(1,rebinnedSPANBundle_vxvz)
+plot(0,rebinnedSPANBundle_vxvy,xtitle='v!Bx!N',ytitle='v!By!N')
+plot(1,mag_span[:,0],mag_span[:,1],color='red')
+plot(2,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)')
+plot(3,mag_span[:,0],mag_span[:,2],color='red')
+stop
+
 
 r = where(eq(valid( rebinnedSPANBundle_vxvz ),0))
 rebinnedSPANBundle_vxvz[r] = 0
@@ -164,12 +189,8 @@ rebinnedSPANBundle_vxvz_sc = rebin( link(-vSPAN_sc[:,:,0],vSPAN_sc[:,:,2],vdf) ,
 #plot(0,rebinnedSPANBundle_vxvy_sc)
 #plot(1,rebinnedSPANBundle_vxvz_sc)
 
-mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
-mag_sc = trim(mag_sc,tr_outer)
 
-
-mag_span = rotateSCToSPANi(mag_sc)
-mag_magnitude = magnitude(mag_span)
+# Run Field-Alignement routine to establish field coordinates
 TEMP_Rx = putProperty(ones(len(eflux)),QDataSet.DEPEND_0,time)
 TEMP_Ry = putProperty(zeros(len(eflux)),QDataSet.DEPEND_0,time)
 TEMP_Rz = putProperty(zeros(len(eflux)),QDataSet.DEPEND_0,time)
@@ -185,20 +206,28 @@ vSPAN_n = vSPAN_sc[:,:,0]*Nx + vSPAN_sc[:,:,1]*Ny + vSPAN_sc[:,:,2]*Nz
 vSPAN_p = vSPAN_sc[:,:,0]*Px + vSPAN_sc[:,:,1]*Py + vSPAN_sc[:,:,2]*Pz
 vSPAN_q = vSPAN_sc[:,:,0]*Qx + vSPAN_sc[:,:,1]*Qy + vSPAN_sc[:,:,2]*Qz
 
+#vSPAN_n = vSPAN_sc[:,:,0]*Nx + vSPAN_sc[:,:,1]*Px + vSPAN_sc[:,:,2]*Qx
+#vSPAN_p = vSPAN_sc[:,:,0]*Ny + vSPAN_sc[:,:,1]*Py + vSPAN_sc[:,:,2]*Qy
+#vSPAN_q = vSPAN_sc[:,:,0]*Nz + vSPAN_sc[:,:,1]*Pz + vSPAN_sc[:,:,2]*Qz
+
 
 vn_span_bins = linspace(-900,500,40)
 vp_span_bins = linspace(-900,900,40)
 vq_span_bins = linspace(-900,500,40)
 
+vq_drift = 0
+vp_drift = 0
 temp =  link(concatenate(vSPAN_p,-vSPAN_p),concatenate(vSPAN_q,vSPAN_q),concatenate(vdf,vdf))
-temp =  link(concatenate(concatenate(vSPAN_p,-vSPAN_p),vSPAN_p),concatenate(concatenate(vSPAN_q,vSPAN_q),-(vSPAN_q+150)),concatenate(concatenate(vdf,vdf),vdf))
+temp =  link(concatenate(concatenate(vSPAN_p,-vSPAN_p),vSPAN_p),concatenate(concatenate(vSPAN_q,vSPAN_q),-(vSPAN_q+vq_drift)),concatenate(concatenate(vdf,vdf),vdf))
+temp =  link(concatenate(concatenate(concatenate(vSPAN_p,-vSPAN_p),vSPAN_p),-vSPAN_p),concatenate(concatenate(concatenate(vSPAN_q,vSPAN_q),-(vSPAN_q+vq_drift)),-vSPAN_q),concatenate(concatenate(concatenate(vdf,vdf),vdf),vdf))
 
 rebinnedSPANBundle_vpvn_mag = rebin( link(vSPAN_p,vSPAN_n,vdf) , vp_span_bins , vn_span_bins )
 rebinnedSPANBundle_vpvq_mag = rebin( link(vSPAN_p,vSPAN_q,vdf) , vp_span_bins , vq_span_bins )
-rebinnedSPANBundle_vpvq_mag = rebin( temp , vp_span_bins , vq_span_bins )
+rebinnedSPANBundle_vpvq_mag_reflected = rebin( temp , vp_span_bins , vq_span_bins )
 
-plot(0,rebinnedSPANBundle_vpvn_mag,ytitle='v!B||!N',xtitle='v!B&perp;1!N',xrange=[vp_span_bins[0],vp_span_bins[-1]],title=timestamp)
+plot(0,rebinnedSPANBundle_vpvn_mag,ytitle='v!B||!N',xtitle='v!B&perp;1!N',xrange=[vp_span_bins[0],vp_span_bins[-1]],title=str(timestamp)[:-1]+' ± '+timeWidth)
 plot(1,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
+#plot(1,rebinnedSPANBundle_vpvq_mag_reflected,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
 
 
 

@@ -1,0 +1,41 @@
+timerange = getParam('timerange','2019-04-04','timerange of flags to generate (typically daily files)')
+#tr = generateTimeRanges('$Y-$m-$d',timerange)
+tr = timerange
+
+w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L3/$Y/$m/spi_sf00/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
+
+eflux_vs_phi = getDataSet(w3sweap_SPAN_L3_file+'?EFLUX_VS_PHI',tr)
+phi_vals = getDataSet(w3sweap_SPAN_L3_file+'?PHI_VALS',tr)
+time = eflux_vs_phi.property(QDataSet.DEPEND_0)
+
+eflux_vs_phi.putProperty(QDataSet.VALID_MIN,0)
+eflux_vs_phi.putProperty(QDataSet.VALID_MAX,1E20)
+
+#plot(0,eflux_vs_phi)
+
+peakObservationFlag = ones(len(time))
+#if True:
+#    i = 1000
+for i in xrange(len(eflux_vs_phi)):
+    #r = where( valid(eflux_vs_phi[i,:]).and(valid(phi_vals[i,:])) )
+    #r = dataset([0,1,2,3,4,5,6,7])
+    #plot(valid(eflux_vs_phi[i,:][r]))
+#    print max(eflux_vs_phi[i,:][r])
+#    print imax(phi_vals[i,:][r])
+#    print max(phi_vals[i,:][r])
+#    print eflux_vs_phi[i,imax(phi_vals[i,:][r])]
+#    if gt( max(eflux_vs_phi[i,r]) , eflux_vs_phi[i,imax(phi_vals[i,r])] ).and(gt( max(eflux_vs_phi[i,r]) , eflux_vs_phi[i,imin(phi_vals[i,r])] )):
+#        peakObservationFlag[i] = 0
+    if gt( max(eflux_vs_phi[i,:]) , eflux_vs_phi[i,imax(phi_vals[i,:])] ).and(gt( max(eflux_vs_phi[i,:]) , eflux_vs_phi[i,imin(phi_vals[i,:])] )):
+        peakObservationFlag[i] = 0
+
+#plot(1,time,peakObservationFlag)
+
+peakObservationFlag.putProperty(QDataSet.DEPEND_0,time)
+peakObservationFlag.putProperty(QDataSet.LABEL,'VDF Peak Observation (0=Yes, 1=No)')
+peakObservationFlag.putProperty(QDataSet.NAME,'VDF_Peak_Obs')
+peakObservationFlag.putProperty(QDataSet.DESCRIPTION,'Flag dataset on whether the peak of the VDF is located within the edge of the view the SPANi instrument')
+
+spaniPeakObservation_directory = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/'
+
+formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s.txt?header=rich'%tr)

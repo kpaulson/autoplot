@@ -65,8 +65,6 @@ def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
     return(spc_ds_smooth)
 ############################################################################
 
-
-
 import java
 time_begin = TimeUtil.now()    
 
@@ -126,8 +124,7 @@ for tr in trs:
         
         mv_lo = trim(mv_lo,tr)
         mv_hi = trim(mv_hi,tr)
-        print mv_lo.width()
-        stop
+        
         
         if conflateAndDownsampleSpectra == True:
             TEMP_mv_lo = None

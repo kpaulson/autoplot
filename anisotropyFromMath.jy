@@ -277,8 +277,9 @@ for tr in trs:
             mv_lo_probe_range = min(len(mv_lo),1000)
             for i in xrange(mv_lo_probe_range):
                 TEMP_mv_lo = concatenate(TEMP_mv_lo,mv_lo[i,:])
-            min_mv_lo = min(TEMP_mv_lo)
-            max_mv_lo = max(TEMP_mv_lo)
+            mv_lo_range = extent(mv_lo)
+            min_mv_lo = min(mv_lo_range)
+            max_mv_lo = max(mv_lo_range)
             s = sort(TEMP_mv_lo)
             uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
             #print uniq_mv_lo
@@ -290,13 +291,15 @@ for tr in trs:
             spc_d_smooth = dblarr(len(spc_d[:,0]),len(spc_d[0,:]))
             
             for mv in uniq_mv_lo:
-                r = where(eq(mv_lo,mv))
-                
-                spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
-                spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
-                spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
-                spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
-                
+                try:
+                    r = where(eq(mv_lo,mv))
+                    
+                    spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
+                    spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
+                    spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
+                    spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
+                except:
+                    continue
 
             spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
             spc_b_smooth.putProperty(QDataSet.DEPEND_0,spc_b.property(QDataSet.DEPEND_0))

@@ -471,8 +471,8 @@ elif generatingDeltaPlusMinusMaps == True:
                     
                     deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
                     deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
-                    deltaPlusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_PLUS')
-                    deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy DELTA_MINUS')
+                    deltaPlusLink.putProperty( QDataSet.NAME,'Anisotropy_DELTA_PLUS')
+                    deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy_DELTA_MINUS')
                     
                     # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
                     #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
@@ -482,12 +482,15 @@ elif generatingDeltaPlusMinusMaps == True:
                     deltaPlusRebin  = rebin(deltaPlusLink,magSlopes,anisotropyList)
                     deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
                     
+                    deltaPlusRebin.putProperty( QDataSet.NAME,'DELTA_PLUS_UncertaintyMap')
+                    deltaMinusRebin.putProperty(QDataSet.NAME,'DELTA_MINUS_UncertaintyMap')
+                    
                     anisotropyArray = dblarr(len(deltaPlusRebin[:,0]),len(deltaPlusRebin[0,:]))
                     for i in xrange(len(deltaPlusRebin[:,0])):
                         anisotropyArray[i,:] = anisotropyList
                         
-                    plot(0,deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
-                    plot(1,deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
+                    plot(0,100*deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
+                    plot(1,100*deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E0,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
                     #plot(1,anisotropyArray)
                     
                     try:
@@ -539,8 +542,8 @@ elif generatingDeltaPlusMinusMaps == True:
     deltaMinusRebin.putProperty(QDataSet.VALID_MAX,1E10)
     deltaMinusRebin.putProperty(QDataSet.NAME,'UncertaintyMap DELTA_MINUS')
     
-    plot(0,deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-1,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
-    plot(1,deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-1,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
+    plot(0,100*deltaPlusRebin/anisotropyArray,colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-1,1E2],ztitle='DELTA_PLUS Percentage',zlog=True)
+    plot(1,100*deltaMinusRebin/anisotropyArray,xtitle='Incident MAG Angle',colorTable='apl_rainbow_black0',ytitle='Anisotropy  T!B&perp;!N/T!B||!N',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-1,1E2],ztitle='DELTA_MINUS Percentage',zlog=True)
         
   
     formatDataSet( deltaPlusLink   , outputMap )

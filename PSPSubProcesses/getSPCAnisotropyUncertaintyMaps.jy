@@ -1,0 +1,73 @@
+def getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS):
+    '''
+    Subprocess that grabs the pre-generated uncertaintyMap file and creates a rebinned 
+    array. This is used by several SPC anisotropy scripts to define instrumental error
+    if each measurement based on the observed anisotropy and incident Bfield angle.
+    
+    The error is calculated numerically, so too fine of a chosen resolution will result
+    in empty bins queried
+    
+    input:
+        angleBinWdith        = resolution of incident magnetic field angle bin in degrees
+        anisotropyBinNumber  = number of bins in logarithmic anisotropy space between 1E-1 and 1E1
+    output:
+        deltaPlus   = rank2 array of binned values of upper bounds of probable anisotropy
+        deltaMinus  = rank2 array of binned values of lower bounds of probable anisotropy
+    '''
+    
+    if OS == 'mac':
+        UncertaintyMapFile = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+    elif OS == 'windows':
+        UncertaintyMapFile = 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+    
+    anisotropy_deltaPlus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_PLUS')
+    anisotropy_deltaMinus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_MINUS')
+
+    deltaPlus      = anisotropy_deltaPlus[:,2]
+    deltaPlus_dep0 = anisotropy_deltaPlus[:,0]
+    deltaPlus_dep1 = anisotropy_deltaPlus[:,1]
+
+    deltaMinus      = anisotropy_deltaMinus[:,2]
+    deltaMinus_dep0 = anisotropy_deltaMinus[:,0]
+    deltaMinus_dep1 = anisotropy_deltaMinus[:,1]
+
+    deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+    deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+    deltaPlus.putProperty(QDataSet.NAME,'DELTA_PLUS')
+    deltaPlus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+    deltaPlus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+    deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+    deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+    deltaMinus.putProperty(QDataSet.NAME,'DELTA_MINUS')
+    deltaMinus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+    deltaMinus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+
+    deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
+    deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
+    deltaPlusLink.putProperty( QDataSet.NAME,'Anisotropy_DELTA_PLUS')
+    deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy_DELTA_MINUS')
+
+    # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
+    #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+    #plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+
+    angleMin = -90
+    angleMax = 90
+    angleBinNumber = int((angleMax-angleMin)/angleBinWdith)     # Number of bins in incident mag angle space
+    
+    anisotropyMin = 0.03
+    anisotropyMax = 15
+    #anisotropyBinNumber = 50  # Number of bins in anisotropy space
+    
+    magSlopes = linspace(angleMin,angleMax,angleBinNumber)
+    anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
+
+    deltaPlusRebin  = rebin(deltaPlusLink,magSlopes,anisotropyList)
+    deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
+
+    deltaPlusRebin.putProperty( QDataSet.NAME,'DELTA_PLUS_UncertaintyMap')
+    deltaMinusRebin.putProperty(QDataSet.NAME,'DELTA_MINUS_UncertaintyMap')
+    
+    #plot(deltaPlusRebin)
+    #plot(1,deltaMinusRebin)
+    return(deltaPlusRebin,deltaMinusRebin)

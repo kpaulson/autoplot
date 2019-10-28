@@ -53,7 +53,7 @@ if writeStuff == 'T':
 elif writeStuff == 'F':
     writeStuff = False
 
-analyzingTimeWidthComparisons = True   
+analyzingTimeWidthComparisons = False   
 fitSeconds = getParam('fitSeconds',1,'Width of time used to fit data for anisotropy (this should only be used in the time comparison results)')
 # SI
 k    = 1.3807E-23
@@ -61,20 +61,21 @@ mu_0 = PI*4E-7
 mp   = 1.6726E-27
 
 #######################
-
+OS = None
 try:
     filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
-    #filename = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/SPC_Anisotropy_2019-04-05 18-30 to 18-40_v0.2.cdf'
-    #filename = 'C:/Users/krist/Downloads/SPC_Anisotropy_2018-11-01_v0.2.cdf'
-    
+    filename = 'file:/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
+
     chi = getDataSet(filename+'?Anisotropy_chi',tr)
+    OS = 'mac'
 except:
     if analyzingTimeWidthComparisons == True:
-        filename = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/TEMP/SPC_Anisotropy_$Y-$m-$d_v%s_%ssec.cdf'%(version_L0,fitSeconds)
+        filename = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/TEMP/SPC_Anisotropy_$Y-$m-$d_v%s_%ssec.cdf'%(version_L0,fitSeconds)
         chi = getDataSet(filename+'?Anisotropy_chi',tr)
     else:
-        filename = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
+        filename = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
         chi = getDataSet(filename+'?Anisotropy_chi',tr)
+    OS = 'windows'
     
 chi_plus = getDataSet(filename+'?anisotropy_chi_deltaPlus',tr)
 chi_minus = getDataSet(filename+'?anisotropy_chi_deltaMinus',tr)
@@ -127,12 +128,13 @@ psi.putProperty(QDataSet.DELTA_MINUS,psi_minus)
 ##########
 #################
 anisotropy_deltaPlusMinusFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
+anisotropy_deltaPlusMinusFile = 'file:/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
 
 try:
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
 except:
-    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+    anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
     anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
 
@@ -439,8 +441,11 @@ plot(6,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True,ylog=True,yra
 ###
 
 if writeStuff == True:
-    #output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-    output_anitostropyL1_directory = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+    if OS == 'mac:
+        #output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+        output_anitostropyL1_directory = 'file:/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+    elif OS == 'windows':
+        output_anitostropyL1_directory = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
     output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
     if analyzingTimeWidthComparisons == True:
         output_anitostropyL1_directory = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/TEMP/L1/'

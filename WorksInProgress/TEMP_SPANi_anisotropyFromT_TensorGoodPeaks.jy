@@ -1,0 +1,55 @@
+
+### SET VARIABLES
+
+tr = getParam('timerange','2019-04-04','timerange used to analyze data')
+trend_seconds = getParam('trendSeconds',30,'Number of seconds to use as Bfield detrend')
+
+### DOWNLOAD DATA
+
+SPANi_peakObservation = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt?depend0=Epoch&column=VDF_Peak_Obs',tr)
+goodPeaks = where(eq(SPANi_peakObservation,0))
+
+t_tensor = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf?T_TENSOR',tr)
+t_tensor = t_tensor[goodPeaks]
+time = t_tensor.property(QDataSet.DEPEND_0)
+
+mag_sc = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_sc',tr)
+
+
+### IMPORT SUBPROCESSES
+
+rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
+execfile( rotateSPANiToSC.toString() )
+
+rotateSCToSPANi= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSCToSPANi.jy',monitor.getSubtaskMonitor('import Rotation to SPANi'))
+execfile( rotateSCToSPANi.toString() )
+
+fieldAligner= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import Field Aligner'))
+execfile( fieldAligner.toString() )
+
+
+### SCIENCE!
+
+t_tensor_trace = bundle(t_tensor[:,0],t_tensor[:,1],t_tensor[:,2])
+t_tensor_trace.putProperty(QDataSet.DEPEND_0,time)
+
+t_tensor_trace_sc = rotateSPANiToSC(t_tensor_trace)
+
+#mag_sc = synchronize(t_tensor_trace_sc,mag_sc)
+sunDirection = bundle(ones(len(time)),zeros(len(time)),zeros(len(time)))
+sunDirection.putProperty(QDataSet.DEPEND_0,time)
+
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( mag_sc[:,0] , mag_sc[:,1] , mag_sc[:,2] , magnitude(mag_sc) , sunDirection[:,0] , sunDirection[:,1] , sunDirection[:,2] , trend_seconds )
+
+(Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz) = synchronize(t_tensor_trace_sc,[Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz])
+
+t_tensor_trace_n = t_tensor_trace_sc[:,0]*Nx + t_tensor_trace_sc[:,1]*Ny + t_tensor_trace_sc[:,2]*Nz
+t_tensor_trace_p = t_tensor_trace_sc[:,0]*Px + t_tensor_trace_sc[:,1]*Py + t_tensor_trace_sc[:,2]*Pz
+t_tensor_trace_q = t_tensor_trace_sc[:,0]*Qx + t_tensor_trace_sc[:,1]*Qy + t_tensor_trace_sc[:,2]*Qz
+
+spani_anisotropy = sqrt(t_tensor_trace_p**2 + t_tensor_trace_q**2) / t_tensor_trace_n  # T_perp/T_para
+spani_anisotropy.putProperty(QDataSet.VALID_MIN,1E-30)
+
+plot(1,spani_anisotropy,ylog=True,color='red')
+
+

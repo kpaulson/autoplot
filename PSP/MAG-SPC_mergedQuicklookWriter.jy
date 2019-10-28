@@ -1,0 +1,31 @@
+# SI
+k    = 1.3807E-23
+mu_0 = PI*4E-7
+mp   = 1.6726E-27
+
+tr = getParam('timerange','2018-10-14','timerange for individual file creation (typically daily)')
+
+w3sweap_spc_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+w3sweap_mag_L2Draft_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+
+
+np_moment = getDataSet( w3sweap_spc_L3_file+'?np_moment' , tr )
+wp_moment = getDataSet( w3sweap_spc_L3_file+'?wp_moment' , tr )
+vp_moment_sc = getDataSet( w3sweap_spc_L3_file+'?vp_moment_SC' , tr )
+time = np_moment.property(QDataSet.DEPEND_0)
+
+mag_sc = getDataSet( w3sweap_mag_L2Draft_file+'?psp_fld_mag_sc' , tr )
+mag_sc = synchronize(np_moment,mag_sc)
+
+Tp_moment = 0.5*((wp_moment*1E3)**2)*(mp/k)#0.5*(mp/k)**2
+Tp_moment.putProperty(QDataSet.LABEL,'tp_moment')
+Tp_moment.putProperty(QDataSet.UNITS,Units.kelvin)
+
+bindle = bundle(mag_sc[:,0],mag_sc[:,1],mag_sc[:,2])
+bindle = bundle(bindle,np_moment,Tp_moment)
+bindle = bundle(bindle,vp_moment_sc[:,0],vp_moment_sc[:,1],vp_moment_sc[:,2])
+bindle.putProperty(QDataSet.DEPEND_0,time)
+
+outputDirectory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/Quicklook_Merged_Data_MAG-SPC/'
+output_file = 'MAG-SPC_merged_SCcoords_%s.txt'%tr
+formatDataSet(bindle,outputDirectory+output_file)

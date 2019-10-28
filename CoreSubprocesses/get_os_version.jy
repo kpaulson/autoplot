@@ -1,0 +1,13 @@
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver

@@ -41,7 +41,7 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 import sys
 
-tr = getParam('timerange','2019-04-04','Timerange over which to generate combined anisotropy measurement')
+tr = getParam('timerange','2019-04-05','Timerange over which to generate combined anisotropy measurement')
 version_L0 = '0.4.2'
 version_L1 = '1.1.3'
 
@@ -56,6 +56,7 @@ anisotropyBinNumber = getParam('anisotropyBins',40,'Number of bins in anisotropy
 
 analyzingTimeWidthComparisons = False   
 fitSeconds = getParam('fitSeconds',1,'Width of time used to fit data for anisotropy (this should only be used in the time comparison results)')
+
 # SI
 k    = 1.3807E-23
 mu_0 = PI*4E-7
@@ -63,19 +64,107 @@ mp   = 1.6726E-27
 
 #######################
 
-### IMPORT SUBPROCESSES
-get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
-execfile( get_OS_version.toString() )
-
-getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
-execfile( getSPCAnisotropyUncertaintyMaps.toString() )
-
+try:
+    ### IMPORT SUBPROCESSES
+    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+    
+    getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+except:
+    def get_os_version():
+        '''
+        Basic subprocess that should print out the operating system version. Mostly helpful
+        for scripts looking for files in a different directory structure on windows vs mac.
+        Easiest application:
+            print get_os_version().split()[0]
+        '''
+        import sys
+        ver = sys.platform.lower()
+        if ver.startswith('java'):
+            import java.lang
+            ver = java.lang.System.getProperty("os.name").lower()
+        return ver
+        
+    def getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS):
+        '''
+        Subprocess that grabs the pre-generated uncertaintyMap file and creates a rebinned 
+        array. This is used by several SPC anisotropy scripts to define instrumental error
+        if each measurement based on the observed anisotropy and incident Bfield angle.
+        
+        The error is calculated numerically, so too fine of a chosen resolution will result
+        in empty bins queried
+        
+        input:
+            angleBinWdith        = resolution of incident magnetic field angle bin in degrees
+            anisotropyBinNumber  = number of bins in logarithmic anisotropy space between 1E-1 and 1E1
+        output:
+            deltaPlus   = rank2 array of binned values of upper bounds of probable anisotropy
+            deltaMinus  = rank2 array of binned values of lower bounds of probable anisotropy
+        '''
+        
+        if OS == 'mac':
+            UncertaintyMapFile = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        elif OS == 'windows':
+            UncertaintyMapFile = 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        
+        anisotropy_deltaPlus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_PLUS')
+        anisotropy_deltaMinus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_MINUS')
+    
+        deltaPlus      = anisotropy_deltaPlus[:,2]
+        deltaPlus_dep0 = anisotropy_deltaPlus[:,0]
+        deltaPlus_dep1 = anisotropy_deltaPlus[:,1]
+    
+        deltaMinus      = anisotropy_deltaMinus[:,2]
+        deltaMinus_dep0 = anisotropy_deltaMinus[:,0]
+        deltaMinus_dep1 = anisotropy_deltaMinus[:,1]
+    
+        deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+        deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+        deltaPlus.putProperty(QDataSet.NAME,'DELTA_PLUS')
+        deltaPlus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+        deltaPlus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+        deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+        deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+        deltaMinus.putProperty(QDataSet.NAME,'DELTA_MINUS')
+        deltaMinus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+        deltaMinus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+    
+        deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
+        deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
+        deltaPlusLink.putProperty( QDataSet.NAME,'Anisotropy_DELTA_PLUS')
+        deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy_DELTA_MINUS')
+    
+        # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
+        #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+        #plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+    
+        angleMin = -90
+        angleMax = 90
+        angleBinNumber = int((angleMax-angleMin)/angleBinWdith)     # Number of bins in incident mag angle space
+        
+        anisotropyMin = 0.03
+        anisotropyMax = 15
+        #anisotropyBinNumber = 50  # Number of bins in anisotropy space
+        
+        magSlopes = linspace(angleMin,angleMax,angleBinNumber)
+        anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
+    
+        deltaPlusRebin  = rebin(deltaPlusLink,magSlopes,anisotropyList)
+        deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
+    
+        deltaPlusRebin.putProperty( QDataSet.NAME,'DELTA_PLUS_UncertaintyMap')
+        deltaMinusRebin.putProperty(QDataSet.NAME,'DELTA_MINUS_UncertaintyMap')
+        
+        #plot(deltaPlusRebin)
+        #plot(1,deltaMinusRebin)
+        return(deltaPlusRebin,deltaMinusRebin)
 
 OS = get_os_version().split()[0]
 
 if OS == 'mac':
     filename = 'file:/home/kpaulson/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
-    filename = 'file:/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
+    filename = 'file:/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
 
     chi = getDataSet(filename+'?Anisotropy_chi',tr)
 elif OS == 'windows':
@@ -97,7 +186,6 @@ rSquared_chi = getDataSet(filename+'?rSquared_chi',tr)
 rSquared_psi = getDataSet(filename+'?rSquared_psi',tr)
 slopeError_chi = getDataSet(filename+'?slopeError_chi',tr)
 slopeError_psi = getDataSet(filename+'?slopeError_psi',tr)
-
 
 epoch = getDataSet(filename+'?Epoch',tr)
 

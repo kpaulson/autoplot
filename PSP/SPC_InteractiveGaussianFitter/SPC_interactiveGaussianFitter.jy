@@ -207,7 +207,7 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
     v_space_min = min(ds.property(QDataSet.DEPEND_0))
     v_space_max = max(ds.property(QDataSet.DEPEND_0))
     v_space = logspace(v_space_min,v_space_max,1000)
-    
+    v_space.putProperty( QDataSet.UNITS, Units.lookupUnits('km/s') )
     
     peak_1 = Peak1_amplitude*exp(-((v_space   - Peak1_center)**2 / (Peak1_width**2)))
     peak_2 = Peak2_amplitude*exp(-((v_space   - Peak2_center)**2 / (Peak2_width**2)))
@@ -265,7 +265,7 @@ def doFit( ds ):
     fit= LinFit(lx,ly)
     xx= lx
     xx= exp(xx)
-    xx= putProperty( xx, QDataSet.UNITS, Units.lookupUnits('eV') )
+    xx= putProperty( xx, QDataSet.UNITS, Units.lookupUnits('km/s') )
     yy= fit.a + lx * fit.b
     yy= exp(yy) 
     yy= putProperty( yy, QDataSet.UNITS, Units.lookupUnits('s!E-1!Ncm!E-2!Nster!E-1!NkeV!E-1!N') )
@@ -296,7 +296,7 @@ def mouse( evt ):
             col[index] = mean(ds[r][validPoints])
             index += 1
         col.putProperty(QDataSet.DEPEND_0,uniq_dep1_sorted)   
-    plot( 1, col, title='FESA!c'+str(evt.getXRange()) )
+    plot( 1, col, title='VDF!c'+str(evt.getXRange()) )
     plot( 2, None )
     invokeLater( doGaussianFit, col , peakEstimates, single_or_double,chi_squared_critical_min,maxAttempts )
    

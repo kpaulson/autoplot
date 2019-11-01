@@ -21,7 +21,7 @@
                 </property>
                 <property name="fitted" type="Boolean" value="true"/>
                 <property default="sans-10" name="font" type="String" value="xkcd Script-17"/>
-                <property default="480" name="height" type="Integer" value="685"/>
+                <property default="480" name="height" type="Integer" value="655"/>
                 <property name="marginColumn" type="DomNode">
                     <Column id="marginColumn_0">
                         <property default="2em" name="left"
@@ -34,7 +34,7 @@
                 <property name="marginRow" type="DomNode">
                     <Row id="marginRow_0">
                         <property default="+100%-2em" name="bottom"
-                            type="String" value="100%-3em"/>
+                            type="String" value="100.00%-4.0em"/>
                         <property name="parent" type="String" value=""/>
                         <property default="+2em" name="top"
                             type="String" value="2em"/>
@@ -54,7 +54,7 @@
                             type="String" value="50.00%+2.0em"/>
                     </Row>
                 </property>
-                <property default="640" name="width" type="Integer" value="1017"/>
+                <property default="640" name="width" type="Integer" value="951"/>
             </Canvas>
         </property>
         <property class="Connector" length="0" name="connectors"/>
@@ -62,7 +62,7 @@
             <DataSourceFilter id="data_0">
                 <property name="fill" type="String" value=""/>
                 <property name="filters" type="String" value=""/>
-                <property default="" name="uri" type="String" value="vap+cdf:https://github.com/kpaulson/autoplot/blob/master/PSP/SPC_InteractiveGaussianFitter/FAKE_SPC.cdf?vdf"/>
+                <property default="" name="uri" type="String" value="vap+cdf:file:///C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/SPC_InteractiveGaussianFitter/FAKE_SPC.cdf?vdf"/>
                 <property name="validRange" type="String" value=""/>
             </DataSourceFilter>
             <DataSourceFilter id="data_2">
@@ -129,7 +129,8 @@
                     type="Boolean" value="true"/>
                 <property default="false" name="autoLabel"
                     type="Boolean" value="true"/>
-                <property name="autoRenderType" type="Boolean" value="false"/>
+                <property default="false" name="autoRenderType"
+                    type="Boolean" value="true"/>
                 <property name="cadenceCheck" type="Boolean" value="true"/>
                 <property name="component" type="String" value=""/>
                 <property default="" name="dataSourceFilterId"
@@ -181,7 +182,7 @@
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="microseconds: 1.13390E8"/>
+                                    name="scale" type="datum" value="microseconds: 1.15860E6"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property name="visible" type="Boolean" value="true"/>
@@ -208,7 +209,7 @@
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="log10Ratio: 0.019475"/>
+                                    name="scale" type="datum" value="4.6569 (dimensionless)"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property name="visible" type="Boolean" value="true"/>
@@ -237,7 +238,7 @@
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="log10Ratio: 0.051546"/>
+                                    name="scale" type="datum" value="log10Ratio: 0.017696"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property name="visible" type="Boolean" value="true"/>
@@ -327,11 +328,11 @@
                                 <property name="log" type="Boolean" value="false"/>
                                 <property name="opposite" type="Boolean" value="false"/>
                                 <property name="range" type="datumRange">
-                                    <datumRange units="" value="106.096608091456 to 735.8627231255385"/>
+                                    <datumRange units="" value="76.38863385093165 to 950.5764960962341"/>
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="log10Ratio: 0.0036992"/>
+                                    name="scale" type="datum" value="log10Ratio: 0.0041633"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property name="visible" type="Boolean" value="true"/>
@@ -359,7 +360,7 @@
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="log10Ratio: 0.010336"/>
+                                    name="scale" type="datum" value="log10Ratio: 0.011473"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property name="visible" type="Boolean" value="true"/>
@@ -386,7 +387,7 @@
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="0.43103 (dimensionless)"/>
+                                    name="scale" type="datum" value="0.47847 (dimensionless)"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property default="true" name="visible"
@@ -476,11 +477,11 @@
                                 <property name="log" type="Boolean" value="false"/>
                                 <property name="opposite" type="Boolean" value="false"/>
                                 <property name="range" type="datumRange">
-                                    <datumRange units="" value="137.48739907570007 to 704.471932141294"/>
+                                    <datumRange units="km/s" value="117.92306814696568 to 705.438368248196"/>
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="log10Ratio: 0.0036992"/>
+                                    name="scale" type="datum" value="log10Ratio: 0.0041633"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property name="visible" type="Boolean" value="true"/>
@@ -503,11 +504,11 @@
                                 <property name="log" type="Boolean" value="false"/>
                                 <property name="opposite" type="Boolean" value="false"/>
                                 <property name="range" type="datumRange">
-                                    <datumRange units="" value="-0.2204393221878204 to 4.708879855772645"/>
+                                    <datumRange units="" value="-0.8631217076899393 to 4.058937959712463"/>
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="log10Ratio: 0.010336"/>
+                                    name="scale" type="datum" value="log10Ratio: 0.011473"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property name="visible" type="Boolean" value="true"/>
@@ -534,7 +535,7 @@
                                 </property>
                                 <property name="reference" type="String" value=""/>
                                 <property default="0.1 (dimensionless)"
-                                    name="scale" type="datum" value="0.43103 (dimensionless)"/>
+                                    name="scale" type="datum" value="0.47847 (dimensionless)"/>
                                 <property name="tickValues"
                                     type="String" value=""/>
                                 <property default="true" name="visible"
@@ -611,7 +612,7 @@
                         </property>
                         <property name="reference" type="String" value=""/>
                         <property default="0.1 (dimensionless)"
-                            name="scale" type="datum" value="microseconds: 1.05830E6"/>
+                            name="scale" type="datum" value="microseconds: 1.15860E6"/>
                         <property name="tickValues" type="String" value=""/>
                         <property name="visible" type="Boolean" value="true"/>
                     </Axis>
@@ -634,7 +635,7 @@
                         </property>
                         <property name="reference" type="String" value=""/>
                         <property default="0.1 (dimensionless)"
-                            name="scale" type="datum" value="4.1768 (dimensionless)"/>
+                            name="scale" type="datum" value="4.6569 (dimensionless)"/>
                         <property name="tickValues" type="String" value=""/>
                         <property name="visible" type="Boolean" value="true"/>
                     </Axis>
@@ -654,11 +655,11 @@
                             type="Boolean" value="true"/>
                         <property name="opposite" type="Boolean" value="false"/>
                         <property name="range" type="datumRange">
-                            <datumRange units="pA" value="0.009306688221245998 to 11.168025865495197"/>
+                            <datumRange units="pA" value="0.005 to 6.0 pA"/>
                         </property>
                         <property name="reference" type="String" value=""/>
                         <property default="0.1 (dimensionless)"
-                            name="scale" type="datum" value="log10Ratio: 0.015872"/>
+                            name="scale" type="datum" value="log10Ratio: 0.017696"/>
                         <property name="tickValues" type="String" value=""/>
                         <property name="visible" type="Boolean" value="true"/>
                     </Axis>
@@ -682,18 +683,17 @@
                     type="enum:org.das2.graph.LegendPosition" value="NE"/>
                 <property default="" name="rowId" type="String" value="row_3"/>
                 <property name="ticksURI" type="String" value=""/>
-                <property default="" name="title" type="String" value="FESA!c2020-01-01 0:13:05.149606 to 0:13:23.140157"/>
+                <property default="" name="title" type="String" value="VDF!c2020-01-01 0:12:46.055172 to 0:13:15.020690"/>
                 <property name="visible" type="Boolean" value="true"/>
                 <property name="xaxis" type="DomNode">
                     <Axis id="xaxis_2">
-                        <property default="false" name="autoLabel"
-                            type="Boolean" value="true"/>
+                        <property name="autoLabel" type="Boolean" value="false"/>
                         <property name="autoRange" type="Boolean" value="false"/>
                         <property name="autoRangeHints" type="String" value=""/>
                         <property name="drawTickLabels" type="Boolean" value="true"/>
                         <property name="flipped" type="Boolean" value="false"/>
                         <property name="fontSize" type="String" value="1em"/>
-                        <property default="" name="label" type="String" value="eV"/>
+                        <property default="" name="label" type="String" value="km/s"/>
                         <property default="false" name="log"
                             type="Boolean" value="true"/>
                         <property name="opposite" type="Boolean" value="false"/>
@@ -702,7 +702,7 @@
                         </property>
                         <property name="reference" type="String" value=""/>
                         <property default="0.1 (dimensionless)"
-                            name="scale" type="datum" value="log10Ratio: 0.0036992"/>
+                            name="scale" type="datum" value="log10Ratio: 0.0041633"/>
                         <property name="tickValues" type="String" value=""/>
                         <property name="visible" type="Boolean" value="true"/>
                     </Axis>
@@ -716,7 +716,7 @@
                         <property name="drawTickLabels" type="Boolean" value="true"/>
                         <property name="flipped" type="Boolean" value="false"/>
                         <property name="fontSize" type="String" value="1em"/>
-                        <property default="" name="label" type="String" value="chi = 0.56299 "/>
+                        <property default="" name="label" type="String" value="chi = 0.48365 "/>
                         <property default="false" name="log"
                             type="Boolean" value="true"/>
                         <property name="opposite" type="Boolean" value="false"/>
@@ -725,7 +725,7 @@
                         </property>
                         <property name="reference" type="String" value=""/>
                         <property default="0.1 (dimensionless)"
-                            name="scale" type="datum" value="log10Ratio: 0.010336"/>
+                            name="scale" type="datum" value="log10Ratio: 0.011473"/>
                         <property name="tickValues" type="String" value=""/>
                         <property name="visible" type="Boolean" value="true"/>
                     </Axis>
@@ -748,7 +748,7 @@
                         </property>
                         <property name="reference" type="String" value=""/>
                         <property default="0.1 (dimensionless)"
-                            name="scale" type="datum" value="0.43103 (dimensionless)"/>
+                            name="scale" type="datum" value="0.47847 (dimensionless)"/>
                         <property name="tickValues" type="String" value=""/>
                         <property default="true" name="visible"
                             type="Boolean" value="false"/>

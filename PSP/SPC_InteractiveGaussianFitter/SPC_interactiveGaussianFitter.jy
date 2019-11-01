@@ -15,9 +15,9 @@ from org.das2.qds.util import LinFit
 #plot( 0, 'vap+cdaweb:ds=RBSP-A_HFR-SPECTRA-MERGED_EMFISIS-L2&filter=emfisis&id=HFR_Spectra&timerange=2016-10-01' )
 plot( 0, PWD + 'FAKE_SPC.cdf?vdf' )
 
-single_or_double = 'double'
-chi_squared_critical_min = 1
-maxAttempts = 20
+single_or_double = 'triple'
+chi_squared_critical_min = 0.05
+maxAttempts = 30
 singleFitAttempt = False
 
 
@@ -70,6 +70,47 @@ class GaussDoubleFit(ParametricRealFunction):
                 exp(-((x - c2)**2 / (2*d2**2))),
                 (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
                 (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2)))]
+
+class GaussTripleFit(ParametricRealFunction):
+    def value(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        a3 = params[8]
+        b3 = params[9]
+        c3 = params[10]
+        d3 = params[11]
+        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2)))) + (a2 + b2*exp(-((x - c2)**2 / (2*d2**2)))) + (a3 + b3*exp(-((x - c3)**2 / (2*d3**2))))
+    def gradient(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        a3 = params[8]
+        b3 = params[9]
+        c3 = params[10]
+        d3 = params[11]
+        return [1,
+                exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2))),
+                1,
+                exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2))),
+                1,
+                exp(-((x - c3)**2 / (2*d3**2))),
+                (b3*(x-c3)/(d2**2))*exp(-((x - c3)**2 / (2*d3**2))),
+                (b3*((x-c3)**2)/(d3**3))*exp(-((x - c3)**2 / (2*d3**2)))]
                 
 class GaussDoubleFitKnownVz(ParametricRealFunction):
     def value(self, x, params):
@@ -122,6 +163,8 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
         f = GaussFit()
     elif single_or_double == 'double':
         f = GaussDoubleFit()
+    elif single_or_double == 'triple':
+        f = GaussTripleFit()
         
     ftr = CurveFitter(LevenbergMarquardtOptimizer())
     
@@ -138,7 +181,9 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
         if single_or_double == 'single':
             inputGuessParams = [0,3,peakEstimates[0],30]
         elif single_or_double == 'double': 
-            inputGuessParams = [0,3,peakEstimates[0],30,0,1,peakEstimates[1],10]    
+            inputGuessParams = [0,3,peakEstimates[0],30,0,1,peakEstimates[1],10]   
+        elif single_or_double == 'triple': 
+            inputGuessParams = [0,3,peakEstimates[0],30,0,1,peakEstimates[1],10,0,3,peakEstimates[0],30]    
         best_result = ftr.fit(f,inputGuessParams) 
         y= zeros( x.length() )
         chi_squared = 0
@@ -166,7 +211,11 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
                 Peak2_amplitude  = long(rand(1).value(0)*peak_scale)
                 Peak2_width      = long(rand(1).value(0)*width_scale)
                 
-                inputGuessParams = [0.5,Peak1_amplitude,Peak1_center,Peak1_width,0.5,Peak2_amplitude,Peak2_center,Peak2_width]
+                Peak3_center     = long(Peak1_center*1.1)
+                Peak3_amplitude  = long(rand(1).value(0)*peak_scale)
+                Peak3_width      = long(rand(1).value(0)*width_scale)
+                
+                inputGuessParams = [0.5,Peak1_amplitude,peakEstimates[0],Peak1_width,0.5,Peak2_amplitude,peakEstimates[1],Peak2_width,0.5,Peak3_amplitude,peakEstimates[0],Peak3_width]
                 
                 result = ftr.fit(f,inputGuessParams)
                     
@@ -186,7 +235,10 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
                 tryIndex = tryIndex+1
             except: 
                 if tryIndex == 1:
-                    best_result = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+                    if single_or_double == 'double':
+                        best_result = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+                    if single_or_double == 'triple':
+                        best_result = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
                 tryIndex = tryIndex+1
                 continue
             
@@ -197,10 +249,20 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
     Peak2_amplitude  = 0
     Peak2_center     = 0
     Peak2_width      = 0
+    Peak3_amplitude  = 0
+    Peak3_center     = 0
+    Peak3_width      = 0
     if single_or_double == 'double':
         Peak2_amplitude  = best_result[5]
         Peak2_center     = best_result[6]
         Peak2_width      = best_result[7]  
+    if single_or_double == 'triple':
+        Peak2_amplitude  = best_result[5]
+        Peak2_center     = best_result[6]
+        Peak2_width      = best_result[7]  
+        Peak3_amplitude  = best_result[9]
+        Peak3_center     = best_result[10]
+        Peak3_width      = best_result[11]  
     
     #v_space_min = dom.plots[1].xaxis.range.min()
     #v_space_max = dom.plots[1].xaxis.range.max()
@@ -211,6 +273,7 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
     
     peak_1 = Peak1_amplitude*exp(-((v_space   - Peak1_center)**2 / (Peak1_width**2)))
     peak_2 = Peak2_amplitude*exp(-((v_space   - Peak2_center)**2 / (Peak2_width**2)))
+    peak_3 = Peak3_amplitude*exp(-((v_space   - Peak3_center)**2 / (Peak3_width**2)))
     
     #peak_1 = 3*exp(-((v_space   - 290)**2 / (50**2)))
     #peak_2 = 1*exp(-((v_space   - 390)**2 / (40**2)))
@@ -226,14 +289,17 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
     print 'Peak2_amplitude',Peak2_amplitude
     print 'Peak2_center',Peak2_center
     print 'Peak2_width',Peak2_width
+    print 'Peak3_amplitude',Peak2_amplitude
+    print 'Peak3_center',Peak2_center
+    print 'Peak3_width',Peak2_width
     print 'min_chi_squared',min_chi_squared
     print '~~~~~~~~~~~'
     print '~~~~~~~~~~~'
     print '~~~~~~~~~~~'
     print '~~~~~~~~~~~'
     #plot(3,v_space,peak_1)
-    model_vdf = peak_1 + peak_2# + peak_a
-    plot( 2, v_space, model_vdf, color=Color.RED , xlog=True , ytitle='chi = %s'%(str(min_chi_squared)))    
+    model_vdf = peak_1 + peak_2 + peak_3
+    plot( 2, v_space, model_vdf, color=Color.RED , xlog=True , ylog=True , ytitle='chi = %s'%(str(min_chi_squared)))    
     #return(min_chi_squared,best_result,f)
     
 def smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints):

@@ -136,6 +136,7 @@ try:
     smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
     execfile( smoothSPCByVoltage.toString() )
 except:
+    print 'Unable to grab subprocess from github'
     def get_os_version():
         '''
         Basic subprocess that should print out the operating system version. Mostly helpful

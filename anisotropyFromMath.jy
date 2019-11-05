@@ -269,13 +269,15 @@ OS = get_os_version().split()[0]
 
 
 if OS == 'mac':
-    output_folder = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-
+    googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
-    if analyzingTimeWidthComparisons == True:
-        output_folder = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version)
-    elif analyzingTimeWidthComparisons == False:
-        output_folder = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+    googleDrive_path = 'C:/Users/kpaulson/GoogleDrive/'
+    
+if analyzingTimeWidthComparisons == True:
+    output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version)
+elif analyzingTimeWidthComparisons == False:
+    output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+    
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 
@@ -1079,8 +1081,12 @@ for tr in trs:
         # ###
         
         if writeStuff == True:
-            output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
-            #output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec.cdf'%(tr,version,str(fitSeconds))
+            if analyzingTimeWidthComparisons == True:
+                output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec.cdf'%(tr,version,str(fitSeconds))
+            elif analyzingTimeWidthComparisons == False:
+                output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version)
+
+
             
             Bunit.putProperty(QDataSet.NAME,'B_hat')
             Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))

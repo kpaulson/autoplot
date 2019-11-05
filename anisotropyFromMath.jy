@@ -1,22 +1,63 @@
 
 ############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
+
+
+timerange = getParam('timerange','2019-04-04','Iteration Timerange')
+#timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
+version = getParam('version','0.4.2','Version number to be appended to filenames')
+
+separatePeaksWithL3Values = False
+writeStuff = True
+useVDFFluxForWeights = True
+conflateAndDownsampleSpectra = True
+analyzingTimeWidthComparisons = True
+
+
+
+m_p                  = 1.6726231E-24
+q                    = 1.6022E-12
+#trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
+trend_seconds        = getParam('Bfield_window' , 30 , 'Number of seconds over which to average magField to determine background field direction' )
+#minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
+minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
+#fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
+fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
+smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
+
+angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
+anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
+
+cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+
+
+plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
     
 
 import sys
 try:
+
     ### IMPORT SUBPROCESSES
     field_aligner = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
-    
+
     get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
-    
+
     getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
     execfile( getSPCAnisotropyUncertaintyMaps.toString() )
-    
+
     smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
     execfile( smoothSPCByVoltage.toString() )
-    
+
 except:
     print 'Unable to grab subprocess from github'
     
@@ -253,19 +294,9 @@ except:
 
 
 ############################################################################
+##################            DEFINITIONS        ###########################
 ############################################################################
 ############################################################################
-############################################################################
-
-timerange = getParam('timerange','2019-04-04','Iteration Timerange')
-#timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
-version = getParam('version','0.4.2','Version number to be appended to filenames')
-
-separatePeaksWithL3Values = False
-writeStuff = True
-useVDFFluxForWeights = True
-conflateAndDownsampleSpectra = True
-analyzingTimeWidthComparisons = True
 
 
 OS = get_os_version().split()[0]
@@ -283,38 +314,21 @@ elif analyzingTimeWidthComparisons == False:
     
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-
-m_p                  = 1.6726231E-24
-q                    = 1.6022E-12
-#trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
-trend_seconds        = getParam('Bfield_window' , 30 , 'Number of seconds over which to average magField to determine background field direction' )
-#minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
-minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
-#fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
-fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
-modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
-smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
-
-angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
-anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
-
-cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
         
-    
-############################################################################
-############################################################################
-############################################################################
-############################################################################
-
-
-import java
-time_begin = TimeUtil.now()    
-
-plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
 if plotFitsAndPauseALot_yn == 'T':
     plotFitsAndPauseALot = True
 elif plotFitsAndPauseALot_yn == 'F':
     plotFitsAndPauseALot = False
+    
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+import java
+time_begin = TimeUtil.now()    
+
     
         
 #####
@@ -344,7 +358,6 @@ anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
 #################
 ##########
 #####
-        
 
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
@@ -371,6 +384,7 @@ for tr in trs:
         
         
         try:
+            print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
             spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
             spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
             spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
@@ -381,6 +395,7 @@ for tr in trs:
         except:
             noSPCData = None
             raise java.io.FileNotFoundException
+        
             
         print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
         time_last = TimeUtil.now()
@@ -512,7 +527,7 @@ for tr in trs:
         
         # If we want to use the peaks as weights in fitting, import L3 data and build model distributions
         if separatePeaksWithL3Values == True:
-            sweap_spc_file = 'http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+            sweap_spc_file = 'http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 
             np_fit = getDataSet(sweap_spc_file+'?np_fit',tr)
             wp_fit = getDataSet(sweap_spc_file+'?wp_fit',tr)
@@ -619,7 +634,8 @@ for tr in trs:
         #####
         ##########
         #################
-        mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+        mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+        mag_datafile = 'C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
         mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
         
         #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
@@ -627,7 +643,7 @@ for tr in trs:
         
         mag_time = mag.property(QDataSet.DEPEND_0)
         
-        pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+        pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
         pos_time = pos.property(QDataSet.DEPEND_0)
         
         Bx = mag[:,0]

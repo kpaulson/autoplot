@@ -1,0 +1,382 @@
+setScriptTitle('Slice Tool Gaussian Demo')
+setScriptDescription('''
+This demonstrates how a script can be used to create a digitizing app.  Data is loaded in
+the top panel, and the scientist draws a box to select a time range in the top panel.  
+This will run a model on the time-averaged of the data in the interval.
+''')
+
+#load( PWD + 'layout.vap' )
+
+#plot( 0, PWD + 'FAKE_SPC.cdf?vdf' )
+
+single_or_double = 'triple'
+chi_squared_critical_min = 0.05
+maxAttempts = 50
+singleFitAttempt = False
+
+from org.apache.commons.math.optimization.fitting import CurveFitter
+from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+
+class GaussFit(ParametricRealFunction):
+    def value(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2))))
+    def gradient(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        return [1,
+                exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2)))]  
+
+class GaussDoubleFit(ParametricRealFunction):
+    def value(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2)))) + (a2 + b2*exp(-((x - c2)**2 / (2*d2**2))))
+    def gradient(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        return [1,
+                exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2))),
+                1,
+                exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2)))]
+
+class GaussTripleFit(ParametricRealFunction):
+    def value(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        a3 = params[8]
+        b3 = params[9]
+        c3 = params[10]
+        d3 = params[11]
+        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2)))) + (a2 + b2*exp(-((x - c2)**2 / (2*d2**2)))) + (a3 + b3*exp(-((x - c3)**2 / (2*d3**2))))
+    def gradient(self, x, params):
+        a1 = params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        a3 = params[8]
+        b3 = params[9]
+        c3 = params[10]
+        d3 = params[11]
+        return [1,
+                exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2))),
+                1,
+                exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2))),
+                1,
+                exp(-((x - c3)**2 / (2*d3**2))),
+                (b3*(x-c3)/(d2**2))*exp(-((x - c3)**2 / (2*d3**2))),
+                (b3*((x-c3)**2)/(d3**3))*exp(-((x - c3)**2 / (2*d3**2)))]
+                
+class GaussDoubleFitKnownVz(ParametricRealFunction):
+    def value(self, x, params):
+        a1 = 0#params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = 0#params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2)))) + (a2 + b2*exp(-((x - c2)**2 / (2*d2**2))))
+    def gradient(self, x, params):
+        a1 = 0#params[0]
+        b1 = params[1]
+        c1 = params[2]
+        d1 = params[3]
+        a2 = 0#params[4]
+        b2 = params[5]
+        c2 = params[6]
+        d2 = params[7]
+        return [0,
+                exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2))),
+                0,
+                exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*(x-c2)/(d2**2))*exp(-((x - c2)**2 / (2*d2**2))),
+                (b2*((x-c2)**2)/(d2**3))*exp(-((x - c2)**2 / (2*d2**2)))]  
+    
+def reportFit( fit ):
+    'clear the fit from the annotation and from the lower right panel reportFit( { "Peak1_amplitude":Peak1_amplitude, "Peak1_center":Peak1_center, "Peak1_width":Peak1_width, "Peak2_amplitude":Peak2_amplitude, "Peak2_center":Peak2_center, "Peak2_width":Peak2_width, "min_chi_squared":min_chi_squared } )'
+    if ( fit==None ):
+        plot(1,None)
+        plot(2,None)
+        ss= '''Peak 1 Amp: ---!c
+Peak 1 Center: ---!c
+Peak 1 Width: ---!c
+!c
+Peak 2 Amp: ---!c
+Peak 2 Center: ---!c
+Peak 2 Width: ---!c
+!c
+chi= ---
+'''
+        dom.annotations[0].text= ss        
+    else:
+        ss= '''Peak 1 Amp: %(Peak1_amplitude).2f!c
+Peak 1 Center: %(Peak1_center).2f!c
+Peak 1 Width: %(Peak1_width).2f!c
+!c
+Peak 2 Amp: %(Peak2_amplitude).2f!c
+Peak 2 Center:  %(Peak2_center).2f!c
+Peak 2 Width: %(Peak2_width).2f!c
+!c
+Peak 3 Amp: %(Peak3_amplitude).2f!c
+Peak 3 Center:  %(Peak3_center).2f!c
+Peak 3 Width: %(Peak3_width).2f!c
+!c
+chi=%(min_chi_squared).2f
+'''
+        dom.annotations[0].text= ss % fit
+               
+def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,maxAttempts):
+    #sleep(300)
+    '''Subroutine to fit dataset to single or double gaussian peaks.
+    Inputs:
+        ds                         = rank1 dataset to be fit
+        peakEstimates              = two-value list for the estimates of the two gaussian peaks (first value taken for single peak fitting)
+        single_or_double           = str flag ['single','double'] as to whether to fit one or two peaks
+        inputGuessParams           = rank1 list of 4 or 8 guessed parameters describing ideal gaussian
+        chi_squared_critical_min   = minimum chi^2 value sufficient for output (will continue trying X times until found)
+    Returns:
+        min_chi_squared   = rank0 value of lowest achieved chi^2 value
+        results           = rank1 list of output paramters satisfying gaussian fit function (in order of input)
+        f                 = ParametricRealFunction satisfying fit
+    '''
+  
+    if single_or_double == 'single':
+        f = GaussFit()
+    elif single_or_double == 'double':
+        f = GaussDoubleFit()
+    elif single_or_double == 'triple':
+        f = GaussTripleFit()
+        
+    ftr = CurveFitter(LevenbergMarquardtOptimizer())
+    
+    validPoints = where(valid(ds))
+    ds = ds[validPoints]
+    
+    x = ds.property(QDataSet.DEPEND_0)
+    for i in xrange(len(x)):
+        ftr.addObservedPoint(float(x[i]),float(ds[i]))
+        
+    #plot(3,ds)
+    
+    if singleFitAttempt == True:   
+        if single_or_double == 'single':
+            inputGuessParams = [0,3,peakEstimates[0],30]
+        elif single_or_double == 'double': 
+            inputGuessParams = [0,3,peakEstimates[0],30,0,1,peakEstimates[1],10]   
+        elif single_or_double == 'triple': 
+            inputGuessParams = [0,3,peakEstimates[0],30,0,1,peakEstimates[1],10,0,3,peakEstimates[0],30]    
+        best_result = ftr.fit(f,inputGuessParams) 
+        y= zeros( x.length() )
+        chi_squared = 0
+        for i in xrange(x.length()):
+            y[i]= f.value(x[i],best_result)
+            chi_squared = chi_squared + ( ((ds[i]-y[i])**2) / (y[i]) )
+        min_chi_squared =    chi_squared
+        
+    else:
+        range_scale = max(x).value()
+        peak_scale = max(ds).value()
+        width_scale = (max(x)-min(x))/len(x)
+        
+        #chi_squared_critical_min = 2.#0.005
+        chi_squared = chi_squared_critical_min
+        min_chi_squared = chi_squared_critical_min*10.
+        tryIndex = 1
+        while chi_squared >= chi_squared_critical_min and tryIndex<maxAttempts :  # or eq(valid(dataset(min_chi_squared)),0) :
+            try:
+                Peak1_center     = long(rand(1).value(0)*range_scale)
+                Peak1_amplitude  = long(rand(1).value(0)*peak_scale)
+                Peak1_width      = long(rand(1).value(0)*width_scale)
+                
+                Peak2_center     = long(Peak1_center*2)
+                Peak2_amplitude  = long(rand(1).value(0)*peak_scale)
+                Peak2_width      = long(rand(1).value(0)*width_scale)
+                
+                Peak3_center     = long(Peak1_center*1.1)
+                Peak3_amplitude  = long(rand(1).value(0)*peak_scale)
+                Peak3_width      = long(rand(1).value(0)*width_scale)
+                
+                inputGuessParams = [0.5,Peak1_amplitude,peakEstimates[0],Peak1_width,0.5,Peak2_amplitude,peakEstimates[1],Peak2_width,0.5,Peak3_amplitude,peakEstimates[0],Peak3_width]
+                
+                result = ftr.fit(f,inputGuessParams)
+                    
+                if tryIndex == 1:
+                    best_result = result
+                
+                y= zeros( x.length() )
+                chi_squared = 0
+                for i in xrange(x.length()):
+                    y[i]= f.value(x[i],result)
+                    chi_squared = chi_squared + ( ((ds[i]-y[i])**2) / (y[i]) )
+                
+                if chi_squared < min_chi_squared:
+                    min_chi_squared = chi_squared
+                    best_result = result
+                    
+                tryIndex = tryIndex+1
+            except: 
+                if tryIndex == 1:
+                    if single_or_double == 'double':
+                        best_result = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+                    if single_or_double == 'triple':
+                        best_result = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
+                tryIndex = tryIndex+1
+                continue
+            
+    Peak1_amplitude  = best_result[1]
+    Peak1_center     = best_result[2]
+    Peak1_width      = best_result[3]
+    
+    Peak2_amplitude  = 0
+    Peak2_center     = 0
+    Peak2_width      = 0
+    Peak3_amplitude  = 0
+    Peak3_center     = 0
+    Peak3_width      = 0
+    if single_or_double == 'double':
+        Peak2_amplitude  = best_result[5]
+        Peak2_center     = best_result[6]
+        Peak2_width      = best_result[7]  
+    if single_or_double == 'triple':
+        Peak2_amplitude  = best_result[5]
+        Peak2_center     = best_result[6]
+        Peak2_width      = best_result[7]  
+        Peak3_amplitude  = best_result[9]
+        Peak3_center     = best_result[10]
+        Peak3_width      = best_result[11]  
+    
+    #v_space_min = dom.plots[1].xaxis.range.min()
+    #v_space_max = dom.plots[1].xaxis.range.max()
+    v_space_min = min(ds.property(QDataSet.DEPEND_0))
+    v_space_max = max(ds.property(QDataSet.DEPEND_0))
+    v_space = logspace(v_space_min,v_space_max,1000)
+    v_space.putProperty( QDataSet.UNITS, Units.lookupUnits('km/s') )
+    
+    peak_1 = Peak1_amplitude*exp(-((v_space   - Peak1_center)**2 / (Peak1_width**2)))
+    peak_2 = Peak2_amplitude*exp(-((v_space   - Peak2_center)**2 / (Peak2_width**2)))
+    peak_3 = Peak3_amplitude*exp(-((v_space   - Peak3_center)**2 / (Peak3_width**2)))
+    
+    #peak_1 = 3*exp(-((v_space   - 290)**2 / (50**2)))
+    #peak_2 = 1*exp(-((v_space   - 390)**2 / (40**2)))
+    
+    
+    print '~~~~~~~~~~~'
+    print '~~~~~~~~~~~'
+    print '~~~~~~~~~~~'
+    print '~~~~~~~~~~~'
+    print 'Peak1_amplitude',Peak1_amplitude
+    print 'Peak1_center',Peak1_center
+    print 'Peak1_width',Peak1_width
+    print 'Peak2_amplitude',Peak2_amplitude
+    print 'Peak2_center',Peak2_center
+    print 'Peak2_width',Peak2_width
+    print 'Peak3_amplitude',Peak3_amplitude
+    print 'Peak3_center',Peak3_center
+    print 'Peak3_width',Peak3_width
+    print 'min_chi_squared',min_chi_squared
+    print '~~~~~~~~~~~'
+    print '~~~~~~~~~~~'
+    print '~~~~~~~~~~~'
+    print '~~~~~~~~~~~'
+    reportFit( { "Peak1_amplitude":Peak1_amplitude, "Peak1_center":Peak1_center, "Peak1_width":Peak1_width, "Peak2_amplitude":Peak2_amplitude, "Peak2_center":Peak2_center, "Peak2_width":Peak2_width, "Peak3_amplitude":Peak3_amplitude, "Peak3_center":Peak3_center, "Peak3_width":Peak3_width, "min_chi_squared":min_chi_squared } )
+
+    model_vdf = dataset( peak_1 + peak_2 + peak_3, units=ds.property(QDataSet.UNITS) )
+    plot( 2, v_space, model_vdf, color=Color.RED , xlog=True , ylog=True)    
+    
+    
+def smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints):
+    '''
+    Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
+    rather than just smoothing across indices.
+    
+    input:
+        spc_ds         = rank2 dataset - raw measurements
+        smoothPoints   = integer number of points over which to smooth (corresponded to spectra on SPC)
+    output:
+        spc_ds_smooth  = rank2 dataset - smoothed
+    '''
+    temp_spc_ds = ones(len(spc_ds))*-1
+    temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
+    temp_spc_ds[r[:,0]] = spc_ds[r]
+    #plot(r[:,0])
+    temp_spc_ds_smooth = smooth(temp_spc_ds,5)
+    spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
+    
+    return(spc_ds_smooth)
+
+def mouse( evt ):
+    ds= dom.plotElements[0].controller.dataSet
+    ds= trim( ds, evt.getXRange() )
+    peakEstimates = [evt.getYRange().min().value(),evt.getYRange().max().value()]
+    ds_dep1 = ds.property(QDataSet.DEPEND_1)
+    if ds_dep1.rank()==1:
+        col= collapse0( ds )
+    elif ds_dep1.rank()==2:
+        uniq_dep1 = None
+        for i in xrange(len(ds)):
+            uniq_dep1 = concatenate( uniq_dep1 , ds_dep1[i,:] )
+        r = where(valid(uniq_dep1))
+        uniq_dep1 = uniq_dep1[r]
+        sortedIndices = sort(uniq_dep1)
+        uniq_dep1_sorted = uniq_dep1[sortedIndices]
+        uniqInidices = uniq(uniq_dep1_sorted)
+        uniq_dep1_sorted = uniq_dep1_sorted[uniqInidices]
+        col = dblarr(len(uniq_dep1_sorted))  
+        index = 0     
+        for dep1 in uniq_dep1_sorted:
+            r = where(eq(ds_dep1,dep1))
+            validPoints = where(valid(ds[r]))
+            col[index] = mean(ds[r][validPoints])
+            index += 1
+        col.putProperty(QDataSet.DEPEND_0,uniq_dep1_sorted)   
+        col.putProperty(QDataSet.UNITS,ds.property(QDataSet.UNITS))
+    tp=TimeParser.create('$Y-$m-$d $H:$M:$S-$(H,end):$M:$S')
+    reportFit(None)
+    plot( 1, col, title='VDF!c'+ tp.format(evt.getXRange()), ytitle=dom.plots[0].zaxis.label , renderType='stairSteps', fillColor=None)
+    plot( 2, None )
+    invokeLater( doGaussianFit, col , peakEstimates, single_or_double,chi_squared_critical_min,maxAttempts )
+   
+addMouseModule( dom.plots[0], "doGaussianFit", mouse )
+reportFit(None)

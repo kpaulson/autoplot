@@ -1,0 +1,23 @@
+def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
+    '''
+    Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
+    rather than just smoothing across indices.
+    
+    input:
+        spc_ds         = rank2 dataset - raw measurements
+        smoothPoints   = integer number of points over which to smooth (corresponded to spectra on SPC)
+    output:
+        spc_ds_smooth  = rank2 dataset - smoothed
+        
+    TODO: adapt to time-smoothing (automatically interpolate up to highest cadence within dataset and 
+              generate smoothPoints from that to align with number of seconds, then synchronize back
+              onto original timestamps?
+    '''
+    temp_spc_ds = ones(len(spc_ds))*-1
+    temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
+    temp_spc_ds[r[:,0]] = spc_ds[r]
+    #plot(r[:,0])
+    temp_spc_ds_smooth = smooth(temp_spc_ds,5)
+    spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
+    
+    return(spc_ds_smooth)

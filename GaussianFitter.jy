@@ -490,6 +490,14 @@ for spc in spc_list:
         
     spcPeakFitList.append(TEMP_spcPeakFit)
     
+    
+    peak_1 = Peak1_amplitude*exp(-((v_space   - Peak1_center)**2 / (Peak1_width**2)))
+    peak_2 = Peak2_amplitude*exp(-((v_space   - Peak2_center)**2 / (Peak2_width**2)))
+    
+    plot(0,spcSlice)
+    
+    STOP
+    
     if (str(spc)[0]) == 'a':
         formatDataSet(resultTime,outputFile)
         formatDataSet(TEMP_spcPeakFit,outputFile+'?append=T')

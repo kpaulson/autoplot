@@ -121,7 +121,130 @@ def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_se
     
     return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
     
+############################################################################
     
+
+import sys
+try:
+    ### IMPORT SUBPROCESSES
+    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+    
+    getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+    
+    smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    execfile( smoothSPCByVoltage.toString() )
+except:
+    def get_os_version():
+        '''
+        Basic subprocess that should print out the operating system version. Mostly helpful
+        for scripts looking for files in a different directory structure on windows vs mac.
+        Easiest application:
+            print get_os_version().split()[0]
+        '''
+        import sys
+        ver = sys.platform.lower()
+        if ver.startswith('java'):
+            import java.lang
+            ver = java.lang.System.getProperty("os.name").lower()
+        return ver
+        
+    def getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS):
+        '''
+        Subprocess that grabs the pre-generated uncertaintyMap file and creates a rebinned 
+        array. This is used by several SPC anisotropy scripts to define instrumental error
+        if each measurement based on the observed anisotropy and incident Bfield angle.
+        
+        The error is calculated numerically, so too fine of a chosen resolution will result
+        in empty bins queried
+        
+        input:
+            angleBinWdith        = resolution of incident magnetic field angle bin in degrees
+            anisotropyBinNumber  = number of bins in logarithmic anisotropy space between 1E-1 and 1E1
+        output:
+            deltaPlus   = rank2 array of binned values of upper bounds of probable anisotropy
+            deltaMinus  = rank2 array of binned values of lower bounds of probable anisotropy
+        '''
+        
+        if OS == 'mac':
+            UncertaintyMapFile = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        elif OS == 'windows':
+            UncertaintyMapFile = 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        
+        anisotropy_deltaPlus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_PLUS')
+        anisotropy_deltaMinus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_MINUS')
+    
+        deltaPlus      = anisotropy_deltaPlus[:,2]
+        deltaPlus_dep0 = anisotropy_deltaPlus[:,0]
+        deltaPlus_dep1 = anisotropy_deltaPlus[:,1]
+    
+        deltaMinus      = anisotropy_deltaMinus[:,2]
+        deltaMinus_dep0 = anisotropy_deltaMinus[:,0]
+        deltaMinus_dep1 = anisotropy_deltaMinus[:,1]
+    
+        deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+        deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+        deltaPlus.putProperty(QDataSet.NAME,'DELTA_PLUS')
+        deltaPlus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+        deltaPlus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+        deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+        deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+        deltaMinus.putProperty(QDataSet.NAME,'DELTA_MINUS')
+        deltaMinus_dep0.putProperty(QDataSet.NAME,'Incident Mag Angle')
+        deltaMinus_dep1.putProperty(QDataSet.NAME,'Anisotropy')
+    
+        deltaPlusLink  = link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus)
+        deltaMinusLink = link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus)
+        deltaPlusLink.putProperty( QDataSet.NAME,'Anisotropy_DELTA_PLUS')
+        deltaMinusLink.putProperty(QDataSet.NAME,'Anisotropy_DELTA_MINUS')
+    
+        # This commented section is left over from plotting the results as a spectrogram before the rebinning was fixed
+        #plot(0,link(deltaPlus_dep0,deltaPlus_dep1,deltaPlus),renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_PLUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+        #plot(1,link(deltaMinus_dep0,deltaMinus_dep1,deltaMinus),xtitle='Incident MAG Angle',renderType='spectrogram',colorTable='apl_rainbow_white0',ytitle='Anisotropy DELTA_MINUS',yrange=[anisotropyMin,anisotropyMax],ylog=True,zrange=[1E-4,1E1],zlog=True)
+    
+        angleMin = -90
+        angleMax = 90
+        angleBinNumber = int((angleMax-angleMin)/angleBinWdith)     # Number of bins in incident mag angle space
+        
+        anisotropyMin = 0.03
+        anisotropyMax = 15
+        #anisotropyBinNumber = 50  # Number of bins in anisotropy space
+        
+        magSlopes = linspace(angleMin,angleMax,angleBinNumber)
+        anisotropyList = logspace(anisotropyMin,anisotropyMax,anisotropyBinNumber)
+    
+        deltaPlusRebin  = rebin(deltaPlusLink,magSlopes,anisotropyList)
+        deltaMinusRebin = rebin(deltaMinusLink,magSlopes,anisotropyList)
+    
+        deltaPlusRebin.putProperty( QDataSet.NAME,'DELTA_PLUS_UncertaintyMap')
+        deltaMinusRebin.putProperty(QDataSet.NAME,'DELTA_MINUS_UncertaintyMap')
+        
+        #plot(deltaPlusRebin)
+        #plot(1,deltaMinusRebin)
+        return(deltaPlusRebin,deltaMinusRebin)
+
+
+    def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
+        '''
+        Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
+        rather than just smoothing across indices.
+        
+        input:
+            spc_ds         = rank2 dataset - raw measurements
+            smoothPoints   = integer number of points over which to smooth (corresponded to spectra on SPC)
+        output:
+            spc_ds_smooth  = rank2 dataset - smoothed
+        '''
+        temp_spc_ds = ones(len(spc_ds))*-1
+        temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
+        temp_spc_ds[r[:,0]] = spc_ds[r]
+        #plot(r[:,0])
+        temp_spc_ds_smooth = smooth(temp_spc_ds,5)
+        spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
+        
+        return(spc_ds_smooth)
+############################################################################
 
 
 
@@ -138,9 +261,20 @@ separatePeaksWithL3Values = False
 writeStuff = True
 useVDFFluxForWeights = True
 conflateAndDownsampleSpectra = True
+analyzingTimeWidthComparisons = True
 
-output_folder = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-#output_folder = 'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+
+OS = get_os_version().split()[0]
+
+
+if OS == 'mac':
+    output_folder = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+
+elif OS == 'windows':
+    if analyzingTimeWidthComparisons == True:
+        output_folder = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version)
+    elif analyzingTimeWidthComparisons == False:
+        output_folder = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
 #output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 
@@ -163,28 +297,6 @@ cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_s
 ############################################################################
 ############################################################################
 
-############################################################################
-def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
-    '''
-    Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
-    rather than just smoothing across indices.
-    
-    input:
-        spc_ds         = rank2 dataset - raw measurements
-        smoothPoints   = integer number of points over which to smooth (corresponded to spectra on SPC)
-    output:
-        spc_ds_smooth  = rank2 dataset - smoothed
-    '''
-    temp_spc_ds = ones(len(spc_ds))*-1
-    temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
-    temp_spc_ds[r[:,0]] = spc_ds[r]
-    #plot(r[:,0])
-    temp_spc_ds_smooth = smooth(temp_spc_ds,5)
-    spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
-    
-    return(spc_ds_smooth)
-############################################################################
-
 
 import java
 time_begin = TimeUtil.now()    
@@ -200,19 +312,21 @@ elif plotFitsAndPauseALot_yn == 'F':
 ##########
 #################
 #anisotropy_deltaPlusMinusFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS copy.cdf'
-try:
-    anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
-    anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
-except:
-    try:
-        anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
-        anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
-        anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
-    except:
-        anisotropy_deltaPlusMinusFile = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
-        anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?Anisotropy DELTA_PLUS_1')
-        anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?Anisotropy DELTA_MINUS_1')
-    
+# try:
+    # anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
+    # anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+# except:
+    # try:
+        # anisotropy_deltaPlusMinusFile = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        # anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_PLUS')
+        # anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
+    # except:
+        # anisotropy_deltaPlusMinusFile = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        # anisotropy_deltaPlus = getDataSet(anisotropy_deltaPlusMinusFile+'?Anisotropy DELTA_PLUS_1')
+        # anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?Anisotropy DELTA_MINUS_1')
+ 
+(anisotropy_deltaPlus,anisotropy_deltaMinus) = getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS)
+   
 #plot(anisotropy_deltaPlus)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)

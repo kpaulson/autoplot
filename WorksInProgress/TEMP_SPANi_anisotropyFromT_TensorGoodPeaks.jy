@@ -1,7 +1,7 @@
 
 ### SET VARIABLES
 
-tr = getParam('timerange','2018-11-02','timerange used to analyze data')
+tr = getParam('timerange','2019-04-05','timerange used to analyze data')
 trend_seconds = getParam('trendSeconds',30,'Number of seconds to use as Bfield detrend')
 
 ### DOWNLOAD DATA
@@ -50,6 +50,6 @@ t_tensor_trace_q = t_tensor_trace_sc[:,0]*Qx + t_tensor_trace_sc[:,1]*Qy + t_ten
 spani_anisotropy = sqrt(t_tensor_trace_p**2 + t_tensor_trace_q**2) / t_tensor_trace_n  # T_perp/T_para
 spani_anisotropy.putProperty(QDataSet.VALID_MIN,1E-30)
 
-plot(4,spani_anisotropy,ylog=True,color='red',renderType='scatter',symbolSize=4)
+plot(1,spani_anisotropy,ylog=True,color='red',renderType='scatter',symbolSize=4)
 
 

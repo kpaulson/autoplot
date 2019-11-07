@@ -5,7 +5,7 @@
 ############################################################################
 
 
-timerange = getParam('timerange','2019-04-04','Iteration Timerange')
+timerange = getParam('timerange','2019-04-05 6:50 to 6:54','Iteration Timerange')
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.2','Version number to be appended to filenames')
 
@@ -369,6 +369,7 @@ for tr in trs:
         tr = timerange
         
     try:
+        monitor.setLabel('Downloading SPC') 
 
         #tr = '2018-11-03 18:33 to 18:39'
         #tr = '2018-11-02 16:45 to 17:20'
@@ -411,6 +412,7 @@ for tr in trs:
         mv_hi = trim(mv_hi,tr)
         
         if conflateAndDownsampleSpectra == True:
+            monitor.setLabel('Downsampling') 
             TEMP_mv_lo = None
             #for i in xrange(len(mv_lo)): This made sense when we looked at a slice that was only 10-minutes wide. This takes forever for daily files and is overkill
             mv_lo_probe_range = min(len(mv_lo),1000)
@@ -438,6 +440,7 @@ for tr in trs:
                     spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
                     spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
                 except:
+                    print 'Downsampling Failed'
                     continue
 
             spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
@@ -466,6 +469,7 @@ for tr in trs:
         print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
+        monitor.setLabel('Flow Angles') 
         spc_list = [spc_a,spc_b,spc_c,spc_d]
         del(spc_a,spc_b,spc_c,spc_d)
         
@@ -507,6 +511,8 @@ for tr in trs:
         print 'Calculating Flow Angles took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
+        
+        monitor.setLabel('Defining VDF') 
         v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
@@ -638,9 +644,14 @@ for tr in trs:
         #####
         ##########
         #################
-        mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-        mag_datafile = 'C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-        mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+        try:
+            mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+            mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+            print 'Used mag data from:',mag_datafile
+        except:
+            mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+            print 'Used mag data from:',mag_datafile
+            mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
         
         #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
         mag = trim(mag,tr)

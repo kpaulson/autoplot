@@ -11,6 +11,10 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
         smoothSeconds  = number of seconds over which to smooth (corresponded to spectra on SPC)
     output:
         spc_ds_smooth_downsampled  = rank2 dataset - smoothed and downsampled to smoothSeconds cadence
+        
+    TODO: Add sliding window functionality (is it as simple as decimating the downsampling?)
+    TODO: Interpolating mv_lo will cause trouble with where() calls, look into discrete integration
+              using only values from uniq_mv_lo
     '''
     
     mv_lo_range = extent(mv_lo)

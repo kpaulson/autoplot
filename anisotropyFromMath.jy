@@ -27,7 +27,7 @@ minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data
 fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
 #smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
-smoothPoints = fitSeconds
+smoothSeconds = fitSeconds
 
 angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
 anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')

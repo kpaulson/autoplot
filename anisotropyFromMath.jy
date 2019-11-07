@@ -463,6 +463,9 @@ for tr in trs:
             mv_hi = mv_hi[::smoothPoints,:]
         
         
+        print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last
+        time_last = TimeUtil.now()
+        
         spc_list = [spc_a,spc_b,spc_c,spc_d]
         del(spc_a,spc_b,spc_c,spc_d)
         

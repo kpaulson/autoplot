@@ -25,7 +25,7 @@ trend_seconds        = getParam('Bfield_window' , 30 , 'Number of seconds over w
 minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
 #fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
 fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
-modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
+modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
 #smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
 smoothPoints = fitSeconds
 
@@ -59,6 +59,8 @@ try:
     smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
     execfile( smoothSPCByVoltage.toString() )
 
+    smoothAndDownsampleSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    execfile( smoothAndDownsampleSPCByVoltage.toString() )
 except:
     print 'Unable to grab subprocess from github'
     
@@ -413,57 +415,69 @@ for tr in trs:
         
         if conflateAndDownsampleSpectra == True:
             monitor.setLabel('Downsampling') 
-            TEMP_mv_lo = None
-            #for i in xrange(len(mv_lo)): This made sense when we looked at a slice that was only 10-minutes wide. This takes forever for daily files and is overkill
-            mv_lo_probe_range = min(len(mv_lo),1000)
-            for i in xrange(mv_lo_probe_range):
-                TEMP_mv_lo = concatenate(TEMP_mv_lo,mv_lo[i,:])
-            mv_lo_range = extent(mv_lo)
-            min_mv_lo = min(mv_lo_range)
-            max_mv_lo = max(mv_lo_range)
-            s = sort(TEMP_mv_lo)
-            uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
-            #print uniq_mv_lo
+            
+            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds)
+            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds)
+            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds)
+            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds)
+            
+            mv_lo = spc_a.property(QDataSet.DEPEND_1)
+            mv_hi = synchronize(mv_lo,mv_hi)
+            
+            # mv_lo_range = extent(mv_lo)
+            # min_mv_lo = mv_lo_range[0]
+            # max_mv_lo = mv_lo_range[1]
+            
+            # valid_mv_lo = where(valid(mv_lo))
+            # min_mv_lo_sliceIndex = where(eq(mv_lo,min_mv_lo))
+            # min_mv_lo_sliceIndex = min_mv_lo_sliceIndex[imin(min_mv_lo_sliceIndex[:,1]),0]
+            # max_mv_lo_sliceIndex = where(eq(mv_lo,max_mv_lo))
+            # max_mv_lo_sliceIndex = max_mv_lo_sliceIndex[imax(max_mv_lo_sliceIndex[:,1]),0]
+            
+            # TEMP_mv_lo = concatenate(mv_lo[min_mv_lo_sliceIndex,:],mv_lo[max_mv_lo_sliceIndex,:])
+            # s = sort(TEMP_mv_lo)
+            # uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+            # #print uniq_mv_lo
         
             
-            spc_a_smooth = dblarr(len(spc_a[:,0]),len(spc_a[0,:]))
-            spc_b_smooth = dblarr(len(spc_b[:,0]),len(spc_b[0,:]))
-            spc_c_smooth = dblarr(len(spc_c[:,0]),len(spc_c[0,:]))
-            spc_d_smooth = dblarr(len(spc_d[:,0]),len(spc_d[0,:]))
+            # spc_a_smooth = dblarr(len(spc_a[:,0]),len(spc_a[0,:]))
+            # spc_b_smooth = dblarr(len(spc_b[:,0]),len(spc_b[0,:]))
+            # spc_c_smooth = dblarr(len(spc_c[:,0]),len(spc_c[0,:]))
+            # spc_d_smooth = dblarr(len(spc_d[:,0]),len(spc_d[0,:]))
             
-            for mv in uniq_mv_lo:
-                try:
-                    r = where(eq(mv_lo,mv))
+            # for mv in uniq_mv_lo:
+                # try:
+                    # r = where(eq(mv_lo,mv))
                     
-                    spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
-                    spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
-                    spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
-                    spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
-                except:
-                    print 'Downsampling Failed'
-                    continue
+                    # spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
+                    # spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
+                    # spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
+                    # spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
+                # except:
+                    # print 'Downsampling Failed'
+                    # continue
 
-            spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
-            spc_b_smooth.putProperty(QDataSet.DEPEND_0,spc_b.property(QDataSet.DEPEND_0))
-            spc_c_smooth.putProperty(QDataSet.DEPEND_0,spc_c.property(QDataSet.DEPEND_0))
-            spc_d_smooth.putProperty(QDataSet.DEPEND_0,spc_d.property(QDataSet.DEPEND_0))
+            # spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+            # spc_b_smooth.putProperty(QDataSet.DEPEND_0,spc_b.property(QDataSet.DEPEND_0))
+            # spc_c_smooth.putProperty(QDataSet.DEPEND_0,spc_c.property(QDataSet.DEPEND_0))
+            # spc_d_smooth.putProperty(QDataSet.DEPEND_0,spc_d.property(QDataSet.DEPEND_0))
             
-            spc_a_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-            spc_b_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-            spc_c_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-            spc_d_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            # spc_a_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            # spc_b_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            # spc_c_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+            # spc_d_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
             
-            spc_a_smooth.putProperty(QDataSet.VALID_MIN,0)
-            spc_b_smooth.putProperty(QDataSet.VALID_MIN,0)
-            spc_c_smooth.putProperty(QDataSet.VALID_MIN,0)
-            spc_d_smooth.putProperty(QDataSet.VALID_MIN,0)
+            # spc_a_smooth.putProperty(QDataSet.VALID_MIN,0)
+            # spc_b_smooth.putProperty(QDataSet.VALID_MIN,0)
+            # spc_c_smooth.putProperty(QDataSet.VALID_MIN,0)
+            # spc_d_smooth.putProperty(QDataSet.VALID_MIN,0)
             
-            spc_a = spc_a_smooth[::smoothPoints,:]
-            spc_b = spc_b_smooth[::smoothPoints,:]
-            spc_c = spc_c_smooth[::smoothPoints,:]
-            spc_d = spc_d_smooth[::smoothPoints,:]
-            mv_lo = mv_lo[::smoothPoints,:]
-            mv_hi = mv_hi[::smoothPoints,:]
+            # spc_a = spc_a_smooth[::smoothPoints,:]
+            # spc_b = spc_b_smooth[::smoothPoints,:]
+            # spc_c = spc_c_smooth[::smoothPoints,:]
+            # spc_d = spc_d_smooth[::smoothPoints,:]
+            # mv_lo = mv_lo[::smoothPoints,:]
+            # mv_hi = mv_hi[::smoothPoints,:]
         
         
         print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last

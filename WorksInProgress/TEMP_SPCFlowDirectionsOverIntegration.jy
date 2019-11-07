@@ -9,13 +9,13 @@ import org.das2.graph.SpectrogramRenderer
 ############################################################################
 ############################################################################
 
-timerange = getParam('timerange','2018-11-01 11:00 to 12:00','Iteration Timerange')
+timerange = getParam('timerange','2018-10-31 11:00 to 14:00','Iteration Timerange')
 #version = getParam('version','0.4.1','Version number to be appended to filenames')
 writeStuff = False
 manuallyRemoveFullScans = False
 conflateAndDownsampleSpectra = True
-smoothPoints = 5
-smoothSeconds = 5
+smoothPoints = 15
+smoothSeconds = 15
 
 plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
@@ -69,38 +69,94 @@ def smoothSPCByVoltage(spc_ds,spc_ds_smooth,mv_lo_ds,mv,smoothSeconds):
               generate smoothPoints from that to align with number of seconds, then synchronize back
               onto original timestamps?
     '''
+    
+    
+    temp_spc_ds = ones(len(spc_ds_highRes))*-1
+    temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
+    #print r_highestRes
+    #print temp_spc_ds
+    #print spc_ds,spc_ds.property(QDataSet.DEPEND_1)
+    temp_spc_ds[r_highestRes[:,0]] = spc_ds_highRes[r_highestRes]
+    #plot(r[:,0])
+    temp_spc_ds_smooth = smooth(temp_spc_ds,smoothPoints)
+    
+    
+    highestRes_time_to_temp_time_ratio = findex(highestRes_time,temp_time)
+    temp_spc_ds_smooth = interpolate(temp_spc_ds_smooth,highestRes_time_to_temp_time_ratio)
+    spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
+    
+    return(spc_ds_smooth)
+############################################################################
+
+def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
+    
+    mv_lo_range = extent(mv_lo)
+    min_mv_lo = mv_lo_range[0]
+    max_mv_lo = mv_lo_range[1]
+    
+    valid_mv_lo = where(valid(mv_lo))
+    min_mv_lo_sliceIndex = where(eq(mv_lo,min_mv_lo))
+    min_mv_lo_sliceIndex = min_mv_lo_sliceIndex[imin(min_mv_lo_sliceIndex[:,1]),0]
+    max_mv_lo_sliceIndex = where(eq(mv_lo,max_mv_lo))
+    max_mv_lo_sliceIndex = max_mv_lo_sliceIndex[imax(max_mv_lo_sliceIndex[:,1]),0]
+    
+    TEMP_mv_lo = concatenate(mv_lo[min_mv_lo_sliceIndex,:],mv_lo[max_mv_lo_sliceIndex,:])
+    
+    s = sort(TEMP_mv_lo)
+    uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+    
     temp_time = spc_ds.property(QDataSet.DEPEND_0)
     temp_time.putProperty(QDataSet.NAME,None)
     minimumCadence = min(diff(temp_time)[where(ne(diff(temp_time),0))])
 
     highestRes_time = timegen(str(temp_time[0]),str(minimumCadence),int((temp_time[-1]-temp_time[0])/minimumCadence))
     
-    smoothPoints = smoothSeconds/(convertUnitsTo(minimumCadence,Units.seconds).value())
-    print 'smoothPoints',smoothPoints
-    print 'minCadence',convertUnitsTo(minimumCadence,Units.seconds).value()
+    smoothPoints = int(smoothSeconds/(convertUnitsTo(minimumCadence,Units.seconds).value()))
+    #print 'smoothPoints',smoothPoints
+    #print 'minCadence',convertUnitsTo(minimumCadence,Units.seconds).value()
     
-    temp_time_to_highestRes_time_ratio = findex(temp_time,highestRes_time)
-    spc_ds = interpolate(spc_ds,temp_time_to_highestRes_time_ratio)
-    mv_lo_ds = interpolate(mv_lo_ds,temp_time_to_highestRes_time_ratio)
+    if smoothPoints != 0:
+        temp_time_to_highestRes_time_ratio = findex(temp_time,highestRes_time)
+        spc_ds_highRes = interpolate(spc_ds,temp_time_to_highestRes_time_ratio)
+        mv_lo_ds_highRes = interpolate(mv_lo,temp_time_to_highestRes_time_ratio)
+        
+        spc_ds_highRes.putProperty(QDataSet.DEPEND_1,mv_lo_ds_highRes)
+        
     
-    r_highestRes = where(eq(mv_lo_ds,mv))
+        spc_ds_smooth = dblarr(len(spc_ds[:,0]),len(spc_ds[0,:]))
+        
+        for mv in uniq_mv_lo:
+            r = where(eq(mv_lo,mv))
+            r_highestRes = where(eq(mv_lo_ds_highRes,mv))
+            
+            temp_spc_ds = ones(len(spc_ds_highRes))*-1
+            temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
+            #print r_highestRes
+            #print temp_spc_ds
+            #print spc_ds,spc_ds.property(QDataSet.DEPEND_1)
+            temp_spc_ds[r_highestRes[:,0]] = spc_ds_highRes[r_highestRes]
+            #plot(r[:,0])
+            temp_spc_ds_smooth = smooth(temp_spc_ds,smoothPoints)
+            
+            highestRes_time_to_temp_time_ratio = findex(highestRes_time,temp_time)
+            temp_spc_ds_smooth = interpolate(temp_spc_ds_smooth,highestRes_time_to_temp_time_ratio)
+            spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
+            
     
-    temp_spc_ds = ones(len(spc_ds))*-1
-    temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
-    print r_highestRes
-    print temp_spc_ds
-    print spc_ds
-    temp_spc_ds[r_highestRes[:,0]] = spc_ds[r_highestRes]
-    #plot(r[:,0])
-    temp_spc_ds_smooth = smooth(temp_spc_ds,smoothPoints)
-    
-    
-    highestRes_time_to_temp_time_ratio = findex(temp_time,highestRes_time)
-    temp_spc_ds_smooth = interpolate(temp_spc_ds_smooth,highestRes_time_to_temp_time_ratio)
-    spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
-    
-    return(spc_ds_smooth)
+        spc_ds_smooth.putProperty(QDataSet.DEPEND_0,spc_ds.property(QDataSet.DEPEND_0))
+        
+        spc_ds_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+        
+        spc_ds_smooth.putProperty(QDataSet.VALID_MIN,0)
+        
+        spc_ds_smooth_downsampled = spc_ds_smooth[::smoothPoints,:]
+    else:
+        spc_ds_smooth_downsampled = spc_ds
+
+    return(spc_ds_smooth_downsampled)
+
 ############################################################################
+
 
 import java
 time_begin = TimeUtil.now()    
@@ -163,60 +219,82 @@ for tr in trs:
         mv_hi = trim(mv_hi,tr)
         
         
+        plot(0,spc_a,yrange=[0,4E3],ytitle='raw')
+        plot(1,smooth(spc_a,smoothPoints),yrange=[0,4E3],ytitle='smoothed by index')
         if conflateAndDownsampleSpectra == True:
-            TEMP_mv_lo = None
-            for i in xrange(len(mv_lo)):
-                TEMP_mv_lo = concatenate(TEMP_mv_lo,mv_lo[i,:])
-            min_mv_lo = min(TEMP_mv_lo)
-            max_mv_lo = max(TEMP_mv_lo)
-            s = sort(TEMP_mv_lo)
-            uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
-            #print uniq_mv_lo
+##            TEMP_mv_lo = None
+##            for i in xrange(len(mv_lo)):
+##                TEMP_mv_lo = concatenate(TEMP_mv_lo,mv_lo[i,:])
+##            min_mv_lo = min(TEMP_mv_lo)
+##            max_mv_lo = max(TEMP_mv_lo)
+#
+#            mv_lo_range = extent(mv_lo)
+#            min_mv_lo = mv_lo_range[0]
+#            max_mv_lo = mv_lo_range[1]
+#
+#            valid_mv_lo = where(valid(mv_lo))
+#            min_mv_lo_sliceIndex = where(eq(mv_lo,min_mv_lo))
+#            min_mv_lo_sliceIndex = min_mv_lo_sliceIndex[imin(min_mv_lo_sliceIndex[:,1]),0]
+#            max_mv_lo_sliceIndex = where(eq(mv_lo,max_mv_lo))
+#            max_mv_lo_sliceIndex = max_mv_lo_sliceIndex[imax(max_mv_lo_sliceIndex[:,1]),0]
+#
+#            TEMP_mv_lo = concatenate(mv_lo[min_mv_lo_sliceIndex,:],mv_lo[max_mv_lo_sliceIndex,:])
+#
+#            s = sort(TEMP_mv_lo)
+#            uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+#
+#            spc_a_smooth = dblarr(len(spc_a[:,0]),len(spc_a[0,:]))
+#            spc_b_smooth = dblarr(len(spc_b[:,0]),len(spc_b[0,:]))
+#            spc_c_smooth = dblarr(len(spc_c[:,0]),len(spc_c[0,:]))
+#            spc_d_smooth = dblarr(len(spc_d[:,0]),len(spc_d[0,:]))
+#
+#            for mv in uniq_mv_lo:
+#                r = where(eq(mv_lo,mv))
+#
+#                #spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
+#                #spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
+#                #spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
+#                #spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
+#                spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,mv_lo,mv,smoothSeconds)
+#                spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,mv_lo,mv,smoothSeconds)
+#                spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,mv_lo,mv,smoothSeconds)
+#                spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,mv_lo,mv,smoothSeconds)
+#
+#
+#            spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+#            spc_b_smooth.putProperty(QDataSet.DEPEND_0,spc_b.property(QDataSet.DEPEND_0))
+#            spc_c_smooth.putProperty(QDataSet.DEPEND_0,spc_c.property(QDataSet.DEPEND_0))
+#            spc_d_smooth.putProperty(QDataSet.DEPEND_0,spc_d.property(QDataSet.DEPEND_0))
+#
+#            spc_a_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+#            spc_b_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+#            spc_c_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+#            spc_d_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
+#
+#            spc_a_smooth.putProperty(QDataSet.VALID_MIN,0)
+#            spc_b_smooth.putProperty(QDataSet.VALID_MIN,0)
+#            spc_c_smooth.putProperty(QDataSet.VALID_MIN,0)
+#            spc_d_smooth.putProperty(QDataSet.VALID_MIN,0)
+#
+#            spc_a = spc_a_smooth[::smoothPoints,:]
+#            spc_b = spc_b_smooth[::smoothPoints,:]
+#            spc_c = spc_c_smooth[::smoothPoints,:]
+#            spc_d = spc_d_smooth[::smoothPoints,:]
+#            mv_lo = mv_lo[::smoothPoints,:]
+#            mv_hi = mv_hi[::smoothPoints,:]
+            
+            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds)
+            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds)
+            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds)
+            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds)
+            
+            mv_lo = spc_a.property(QDataSet.DEPEND_1)
+            mv_hi = synchronize(mv_lo,mv_hi)
+            
         
-            smoothPoints = 5
-            spc_a_smooth = dblarr(len(spc_a[:,0]),len(spc_a[0,:]))
-            spc_b_smooth = dblarr(len(spc_b[:,0]),len(spc_b[0,:]))
-            spc_c_smooth = dblarr(len(spc_c[:,0]),len(spc_c[0,:]))
-            spc_d_smooth = dblarr(len(spc_d[:,0]),len(spc_d[0,:]))
-            
-            for mv in uniq_mv_lo:
-                r = where(eq(mv_lo,mv))
-                
-                #spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
-                #spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
-                #spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
-                #spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
-                spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,mv_lo,mv,smoothSeconds)
-                spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,mv_lo,mv,smoothSeconds)
-                spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,mv_lo,mv,smoothSeconds)
-                spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,mv_lo,mv,smoothSeconds)
-                
-
-            spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
-            spc_b_smooth.putProperty(QDataSet.DEPEND_0,spc_b.property(QDataSet.DEPEND_0))
-            spc_c_smooth.putProperty(QDataSet.DEPEND_0,spc_c.property(QDataSet.DEPEND_0))
-            spc_d_smooth.putProperty(QDataSet.DEPEND_0,spc_d.property(QDataSet.DEPEND_0))
-            
-            spc_a_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-            spc_b_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-            spc_c_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-            spc_d_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-            
-            spc_a_smooth.putProperty(QDataSet.VALID_MIN,0)
-            spc_b_smooth.putProperty(QDataSet.VALID_MIN,0)
-            spc_c_smooth.putProperty(QDataSet.VALID_MIN,0)
-            spc_d_smooth.putProperty(QDataSet.VALID_MIN,0)
-            
-            spc_a = spc_a_smooth[::smoothPoints,:]
-            spc_b = spc_b_smooth[::smoothPoints,:]
-            spc_c = spc_c_smooth[::smoothPoints,:]
-            spc_d = spc_d_smooth[::smoothPoints,:]
-            mv_lo = mv_lo[::smoothPoints,:]
-            mv_hi = mv_hi[::smoothPoints,:]
+        plot(2,spc_a,yrange=[0,4E3],ytitle='smoothed by voltage')
         
-        #plot(1,spc_a_smooth[::5,:],yrange=[0,4E3])
-        
-        #stop
+        stop
         
         
         spc_list = [spc_a,spc_b,spc_c,spc_d]

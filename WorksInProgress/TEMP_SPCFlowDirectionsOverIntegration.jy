@@ -1,3 +1,6 @@
+
+
+
 import org
 import org.das2.graph.SpectrogramRenderer
 
@@ -12,6 +15,7 @@ writeStuff = False
 manuallyRemoveFullScans = False
 conflateAndDownsampleSpectra = True
 smoothPoints = 5
+smoothSeconds = 5
 
 plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
@@ -27,13 +31,19 @@ q                    = 1.6022E-12
 #fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 #modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
 
-cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
         
     
 ############################################################################
 ############################################################################
 ############################################################################
 ############################################################################
+
+
+import sys
+smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+execfile( smoothSPCByVoltage.toString() )
+
 
 ############################################################################
 def smoothAndDownsample(ds,smoothPoints):
@@ -44,7 +54,7 @@ def smoothAndDownsample(ds,smoothPoints):
     ds = smooth(ds,smoothPoints)[::smoothPoints]
     return(ds)
 ############################################################################
-def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
+def smoothSPCByVoltage(spc_ds,spc_ds_smooth,mv_lo_ds,mv,smoothSeconds):
     '''
     Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
     rather than just smoothing across indices.
@@ -54,12 +64,39 @@ def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
         smoothPoints   = integer number of points over which to smooth (corresponded to spectra on SPC)
     output:
         spc_ds_smooth  = rank2 dataset - smoothed
+        
+    TODO: adapt to time-smoothing (automatically interpolate up to highest cadence within dataset and 
+              generate smoothPoints from that to align with number of seconds, then synchronize back
+              onto original timestamps?
     '''
+    temp_time = spc_ds.property(QDataSet.DEPEND_0)
+    temp_time.putProperty(QDataSet.NAME,None)
+    minimumCadence = min(diff(temp_time)[where(ne(diff(temp_time),0))])
+
+    highestRes_time = timegen(str(temp_time[0]),str(minimumCadence),int((temp_time[-1]-temp_time[0])/minimumCadence))
+    
+    smoothPoints = smoothSeconds/(convertUnitsTo(minimumCadence,Units.seconds).value())
+    print 'smoothPoints',smoothPoints
+    print 'minCadence',convertUnitsTo(minimumCadence,Units.seconds).value()
+    
+    temp_time_to_highestRes_time_ratio = findex(temp_time,highestRes_time)
+    spc_ds = interpolate(spc_ds,temp_time_to_highestRes_time_ratio)
+    mv_lo_ds = interpolate(mv_lo_ds,temp_time_to_highestRes_time_ratio)
+    
+    r_highestRes = where(eq(mv_lo_ds,mv))
+    
     temp_spc_ds = ones(len(spc_ds))*-1
     temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
-    temp_spc_ds[r[:,0]] = spc_ds[r]
+    print r_highestRes
+    print temp_spc_ds
+    print spc_ds
+    temp_spc_ds[r_highestRes[:,0]] = spc_ds[r_highestRes]
     #plot(r[:,0])
-    temp_spc_ds_smooth = smooth(temp_spc_ds,5)
+    temp_spc_ds_smooth = smooth(temp_spc_ds,smoothPoints)
+    
+    
+    highestRes_time_to_temp_time_ratio = findex(temp_time,highestRes_time)
+    temp_spc_ds_smooth = interpolate(temp_spc_ds_smooth,highestRes_time_to_temp_time_ratio)
     spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
     
     return(spc_ds_smooth)
@@ -145,10 +182,14 @@ for tr in trs:
             for mv in uniq_mv_lo:
                 r = where(eq(mv_lo,mv))
                 
-                spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
-                spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
-                spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
-                spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
+                #spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints)
+                #spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,smoothPoints)
+                #spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,smoothPoints)
+                #spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,smoothPoints)
+                spc_a_smooth = smoothSPCByVoltage(spc_a,spc_a_smooth,mv_lo,mv,smoothSeconds)
+                spc_b_smooth = smoothSPCByVoltage(spc_b,spc_b_smooth,mv_lo,mv,smoothSeconds)
+                spc_c_smooth = smoothSPCByVoltage(spc_c,spc_c_smooth,mv_lo,mv,smoothSeconds)
+                spc_d_smooth = smoothSPCByVoltage(spc_d,spc_d_smooth,mv_lo,mv,smoothSeconds)
                 
 
             spc_a_smooth.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))

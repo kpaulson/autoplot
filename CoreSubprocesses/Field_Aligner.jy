@@ -1,5 +1,5 @@
 def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
-    """Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
+    '''Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
 	
 	Parameters:
 	    Bx = rank1 X component of magnetic field
@@ -16,7 +16,7 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
 		(Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
 		(Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
 	
-	"""
+	'''
     monitor.setLabel('Field Aligner')    
     # ###
     # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR

@@ -13,6 +13,10 @@ def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
               generate smoothPoints from that to align with number of seconds, then synchronize back
               onto original timestamps?
     '''
+    temp_time = spc_ds.property(QDataSet.DEPEND_0)
+    minimumCadence = min(diff(temp_time))
+    highestRes_time = timegen(str(temp_time[0]),str(minimumCadence),temp_time.width()/minimumCadence)
+    
     temp_spc_ds = ones(len(spc_ds))*-1
     temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
     temp_spc_ds[r[:,0]] = spc_ds[r]

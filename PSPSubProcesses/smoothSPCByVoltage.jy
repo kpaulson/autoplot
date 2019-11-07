@@ -15,13 +15,13 @@ def smoothSPCByVoltage(spc_ds,spc_ds_smooth,smoothPoints):
     '''
     temp_time = spc_ds.property(QDataSet.DEPEND_0)
     minimumCadence = min(diff(temp_time))
-    highestRes_time = timegen(str(temp_time[0]),str(minimumCadence),temp_time.width()/minimumCadence)
+    #highestRes_time = timegen(str(temp_time[0]),str(minimumCadence),temp_time.width()/minimumCadence)
     
     temp_spc_ds = ones(len(spc_ds))*-1
     temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
     temp_spc_ds[r[:,0]] = spc_ds[r]
     #plot(r[:,0])
-    temp_spc_ds_smooth = smooth(temp_spc_ds,5)
+    temp_spc_ds_smooth = smooth(temp_spc_ds,smoothPoints)
     spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
     
     return(spc_ds_smooth)

@@ -7,13 +7,13 @@
 
 timerange = getParam('timerange','2019-04-05 6:50 to 6:54','Iteration Timerange')
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
-version = getParam('version','0.4.2','Version number to be appended to filenames')
+version = getParam('version','0.4.3','Version number to be appended to filenames')
 
 separatePeaksWithL3Values = False
 writeStuff = True
 useVDFFluxForWeights = True
 conflateAndDownsampleSpectra = True
-analyzingTimeWidthComparisons = True
+analyzingTimeWidthComparisons = False
 
 
 
@@ -745,9 +745,8 @@ for tr in trs:
             
             try:
             #if True:
-                #tr_dds = dds[ind]+' to '+dds[ind+1]
                 tr_dds = dds[ind]+' to '+str( datum(dds[ind])+datum('%s s'%fitSeconds) )
-                #tr_dds = dds[ind]+' to '+str( datum(dds[ind]) + datum('5secs') )
+                #print tr_dds
                 
                 # Manual way to Create Event
 #                event = dblarr(1,4)
@@ -789,9 +788,9 @@ for tr in trs:
                     temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
                     temp_Ny_temp_dd  = concatenate(temp_Ny_temp_dd,ones(len(v_z_dd[i,:]))*Ny_temp_dd[i])
                 
-                if mod(ind,modFits) == 0:    
-                    print 'Rewriting each fitting parameter into rank1 array took:',TimeUtil.now()-time_last
-                    time_last = TimeUtil.now()
+                #if mod(ind,modFits) == 0:    
+                #    print 'Rewriting each fitting parameter into rank1 array took:',TimeUtil.now()-time_last
+                #    time_last = TimeUtil.now()
                     
                 norm_temp_totalFlux = normalize(temp_totalFlux)
                 norm_temp_vdf = normalize(temp_vdf)
@@ -848,9 +847,9 @@ for tr in trs:
                         ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
 
                     
-                if mod(ind,modFits) == 0:    
-                    print 'Adding all points into fitting function took:',TimeUtil.now()-time_last
-                    time_last = TimeUtil.now()
+                #if mod(ind,modFits) == 0:    
+                #    print 'Adding all points into fitting function took:',TimeUtil.now()-time_last
+                #    time_last = TimeUtil.now()
                 
                 result_chi = ftr_chi.fit(f,inputGuessParams)
                 result_psi = ftr_psi.fit(f,inputGuessParams)
@@ -858,7 +857,6 @@ for tr in trs:
                 xx_x = linspace( min((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
                 xx_y = linspace( min((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
             
-                
                 
                 # This is the chiSquared value I was using
                 #temp_chiSquared_chi = abs(total( ( temp_vz_tanTheta[r] - (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) )**2 / (result_chi[0]*(temp_v_z[r]*temp_Nx_temp_dd[r]) + result_chi[1]) ) )
@@ -965,7 +963,15 @@ for tr in trs:
                 
                 
                 if plotFitsAndPauseALot == True:
+                    if 'vapAlreadyLoaded' not in locals():
+                        load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_IterativeFitPlotter.vap')
+                        plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='vdf',zlog=True)
+                        #plot(1,v_z[r])
+                        print v_z
+                        print 'vap loaded'
+                        vapAlreadyLoaded = None
                     
+                    print 'HERE'
                     temp_epsilon_chi = - result_chi[0] / ( (result_chi[0]*(1 - Nz_temp_dd**2)) + Nz_temp_dd )
                     temp_epsilon_psi = - result_psi[0] / ( (result_psi[0]*(1 - Nz_temp_dd**2)) + Nz_temp_dd )
                     plot_anisotropy_chi = sqrt(temp_epsilon_chi+1)

@@ -9,13 +9,13 @@ import org.das2.graph.SpectrogramRenderer
 ############################################################################
 ############################################################################
 
-timerange = getParam('timerange','2018-10-31 11:00 to 14:00','Iteration Timerange')
+timerange = getParam('timerange','2018-10-31 11:00 to 11:30','Iteration Timerange')
 #version = getParam('version','0.4.1','Version number to be appended to filenames')
 writeStuff = False
 manuallyRemoveFullScans = False
 conflateAndDownsampleSpectra = True
-smoothPoints = 15
-smoothSeconds = 15
+#smoothPoints = 15
+smoothSeconds = 10
 
 plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
@@ -112,7 +112,8 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
     highestRes_time = timegen(str(temp_time[0]),str(minimumCadence),int((temp_time[-1]-temp_time[0])/minimumCadence))
     
     smoothPoints = int(smoothSeconds/(convertUnitsTo(minimumCadence,Units.seconds).value()))
-    #print 'smoothPoints',smoothPoints
+    print 'smoothPoints',smoothPoints
+    print 'rawsmooth',smoothSeconds/(convertUnitsTo(minimumCadence,Units.seconds).value())
     #print 'minCadence',convertUnitsTo(minimumCadence,Units.seconds).value()
     
     if smoothPoints != 0:
@@ -149,7 +150,33 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
         
         spc_ds_smooth.putProperty(QDataSet.VALID_MIN,0)
         
-        spc_ds_smooth_downsampled = spc_ds_smooth[::smoothPoints,:]
+        #  This will be slow, but will reduce the dataset into regularly spaced values according to smoothSeconds
+        print str(datumRange(str(temp_time[0])+' to '+str(temp_time[-1])))
+        downsampleTimes = generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(smoothSeconds),str(datumRange(str(temp_time[0])+' to '+str(temp_time[-1]))))
+        print dataset(downsampleTimes)
+        spc_ds_smooth_downsampled = dblarr(len(downsampleTimes),128)
+        TEMP_mv_lo_downsampled = dblarr(len(downsampleTimes),128)
+        index = 0
+        #stop
+        for tr in downsampleTimes:
+            tr_range = datumRange(str(tr)+' through '+str(tr+putProperty(dataset(smoothSeconds),QDataSet.UNITS,Units.seconds)))
+            #spc_ds_smooth_downsampled = concatenate(spc_ds_smooth_downsampled,reduceMean(trim(spc_ds_smooth,tr_range),0))
+            print putProperty(reduceMean(trim(spc_ds_smooth,tr_range),0),QDataSet.DEPEND_0,None)
+            print spc_ds_smooth_downsampled
+            spc_ds_smooth_downsampled[index,:] = putProperty(reduceMean(trim(spc_ds_smooth,tr_range),0),QDataSet.DEPEND_0,None)
+            #TEMP_mv_lo_downsampled = concatenate(TEMP_mv_lo_downsampled,reduceMean(trim(mv_lo,tr_range),0))
+            TEMP_mv_lo_downsampled[index,:] = reduceMean(trim(mv_lo,tr_range),0)
+            print trim(spc_ds_smooth,tr_range)
+            print reduceMean(trim(spc_ds_smooth,tr_range),0)
+            index += 1
+            #stop
+        
+        spc_ds_smooth_downsampled.putProperty(QDataSet.DEPEND_1,TEMP_mv_lo_downsampled)
+        spc_ds_smooth_downsampled.putProperty(QDataSet.DEPEND_0,dataset(downsampleTimes))
+        TEMP_mv_lo_downsampled.putProperty(QDataSet.DEPEND_0,dataset(downsampleTimes))
+        
+        # Below is much more efficient but did not downsample at same rate as smoothSeconds due to int() call
+        #spc_ds_smooth_downsampled = spc_ds_smooth[::smoothPoints,:]
     else:
         spc_ds_smooth_downsampled = spc_ds
 
@@ -220,7 +247,7 @@ for tr in trs:
         
         
         plot(0,spc_a,yrange=[0,4E3],ytitle='raw')
-        plot(1,smooth(spc_a,smoothPoints),yrange=[0,4E3],ytitle='smoothed by index')
+        #plot(1,smooth(spc_a,smoothPoints),yrange=[0,4E3],ytitle='smoothed by index')
         if conflateAndDownsampleSpectra == True:
 ##            TEMP_mv_lo = None
 ##            for i in xrange(len(mv_lo)):
@@ -289,12 +316,12 @@ for tr in trs:
             spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds)
             
             mv_lo = spc_a.property(QDataSet.DEPEND_1)
-            mv_hi = synchronize(mv_lo,mv_hi)
+            mv_hi = synchronize(spc_a,mv_hi)
             
         
-        plot(2,spc_a,yrange=[0,4E3],ytitle='smoothed by voltage')
+        plot(1,spc_a,yrange=[0,4E3],ytitle='smoothed by voltage')
         
-        stop
+        #stop
         
         
         spc_list = [spc_a,spc_b,spc_c,spc_d]
@@ -343,7 +370,9 @@ for tr in trs:
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
-        del(windowWidths,mv_hi)
+        #plot(0,mv_lo)
+        #plot(1,mv_hi)
+        #del(windowWidths,mv_hi)
         
         if manuallyRemoveFullScans == True:
             for i in xrange(len(v_z)):

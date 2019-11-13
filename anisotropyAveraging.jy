@@ -54,7 +54,7 @@ elif writeStuff == 'F':
 angleBinWdith = getParam('angleBinWidth',4,'width of bins of incident magnetic field angle in uncertainty maps')
 anisotropyBinNumber = getParam('anisotropyBins',40,'Number of bins in anisotropy axis')
 
-analyzingTimeWidthComparisons = False   
+analyzingTimeWidthComparisons = True   
 fitSeconds = getParam('fitSeconds',1,'Width of time used to fit data for anisotropy (this should only be used in the time comparison results)')
 
 # SI
@@ -72,6 +72,7 @@ try:
     getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
     execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 except:
+    print 'Unable to grab scripts from github'
     def get_os_version():
         '''
         Basic subprocess that should print out the operating system version. Mostly helpful
@@ -163,18 +164,17 @@ except:
 OS = get_os_version().split()[0]
 
 if OS == 'mac':
-    filename = 'file:/home/kpaulson/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
-    filename = 'file:/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
-
-    chi = getDataSet(filename+'?Anisotropy_chi',tr)
+    googleDrive_directory = 'file:/home/kpaulson/Google Drive File Stream/My Drive/'
 elif OS == 'windows':
-    if analyzingTimeWidthComparisons == True:
-        filename = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/SPC_Anisotropy_$Y-$m-$d_v%s_%ssec.cdf'%(version_L0,fitSeconds)
-        chi = getDataSet(filename+'?Anisotropy_chi',tr)
-    else:
-        filename = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
-        chi = getDataSet(filename+'?Anisotropy_chi',tr)
-    
+    googleDrive_directory = 'file:/C:/Users/kpaulson/GoogleDrive/'
+
+filename = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
+
+
+if analyzingTimeWidthComparisons == True:
+    filename = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s_%ssec.cdf'%(version_L0,version_L0,fitSeconds)
+
+chi = getDataSet(filename+'?Anisotropy_chi',tr)
 chi_plus = getDataSet(filename+'?anisotropy_chi_deltaPlus',tr)
 chi_minus = getDataSet(filename+'?anisotropy_chi_deltaMinus',tr)
 psi = getDataSet(filename+'?Anisotropy_psi',tr)
@@ -239,9 +239,8 @@ psi.putProperty(QDataSet.DELTA_MINUS,psi_minus)
 #    anisotropy_deltaMinus = getDataSet(anisotropy_deltaPlusMinusFile+'?UncertaintyMap DELTA_MINUS')
 
 (anisotropy_deltaPlus,anisotropy_deltaMinus) = getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS)
-
-# Generate New Maps instead of the ones auto-generated?    
-plot(6,anisotropy_deltaPlus)
+ 
+#plot(6,anisotropy_deltaPlus)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
 anisotropy_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
@@ -250,7 +249,7 @@ anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
 ##########
 #####
 
-B_hat = getDataSet(filename+'?B_hat',tr)
+B_hat = getDataSet(filename+'?B_hat',tr)#print filename
 Nx = B_hat[:,0]
 Ny = B_hat[:,1]
 Nz = B_hat[:,2]
@@ -412,7 +411,7 @@ average_anisotropy_filtered.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_
 average_anisotropy_filtered.putProperty(QDataSet.VALID_MIN,0)
 average_anisotropy_filtered.putProperty(QDataSet.VALID_MAX,1E10)
 
-
+load(googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/L1_anisotropyAveragingPlotter.vap')
 #setLayoutOverplot(2)
 plot(0,chi,color='red',legendLabel='&Chi;',ytitle='T!B&perp;!N/T!B||!N',ylog=True,yrange=[1E-1,1E1])
 plot(1,psi,color='blue',legendLabel='&Psi;',ytitle='T!B&perp;!N/T!B||!N',ylog=True,yrange=[1E-1,1E1])
@@ -423,11 +422,13 @@ plot(2,average_anisotropy,ylog=True,yrange=[1E-1,1E1],ytitle='T!B&perp;!N/T!B||!
 
 #STOP
 
-N_xyz = getDataSet(filename+'?B_hat',tr)
+#N_xyz = getDataSet(filename+'?B_hat',tr)
 Bmag = getDataSet(filename+'?B_total',tr)
 
-wp = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?wp_moment',tr)
-np = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment',tr)
+sweap_directory = 'http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/'
+sweap_file = 'psp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+wp = getDataSet(sweap_directory+sweap_file+'?wp_moment',tr)
+np = getDataSet(sweap_directory+sweap_file+'?np_moment',tr)
 
 #reset()
 Tp = 0.5*((wp*1E3)**2)*(mp/k)#0.5*(mp/k)**2
@@ -448,9 +449,9 @@ Tp2 = (wp*(9.79E0))**2  # Temperature in K along s/c z-direction
 # ### DEFINE T_PARALLEL/T_PERP
 # ###
 
-theta_Br = acos(N_xyz[:,2])
+theta_Br = acos(Nz)
 #Tp_parallel = Tp / sqrt(1 + average_anisotropy**2)
-Tp_parallel = Tp / (N_xyz[:,2]**2 + average_anisotropy*(1 - N_xyz[:,2]**2) )
+Tp_parallel = Tp / (Nz**2 + average_anisotropy*(1 - Nz**2) )
 #Tp_parallel = Tp / ( N_xyz[:,2] + average_anisotropy*sin(acos(N_xyz[:,2])) )
 Tp_perp = Tp_parallel * average_anisotropy
 #Tp_parallel = Tp/(cos^2 theta_BR + a*sin^2 theta_BR)  # Temperature in K
@@ -543,16 +544,13 @@ plot(6,rebin_anisotropyVsBeta.property(QDataSet.WEIGHTS),zlog=True,ylog=True,yra
 ###
 
 if writeStuff == True:
-    if OS == 'mac':
-        #output_anitostropyL1_directory = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-        output_anitostropyL1_directory = 'file:/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-    elif OS == 'windows':
-        output_anitostropyL1_directory = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-    output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
     if analyzingTimeWidthComparisons == True:
-        output_anitostropyL1_directory = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L1/'
+        output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L1/v%s/'%version_L1
         output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s_%ssec.cdf'%(tr,version_L1,fitSeconds)
-    
+    else:
+        output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+        output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
+        
     #formatDataSet(epoch,output_anitostropyL1_file)
     #print output_anitostropyL1_file
     #print B_npq
@@ -563,7 +561,7 @@ if writeStuff == True:
     #formatDataSet(beta_SI,             output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
     #formatDataSet(beta_parallel_SI,    output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
     #formatDataSet(beta_perp_SI,        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(N_xyz,                                     output_anitostropyL1_directory + output_anitostropyL1_file)
+    formatDataSet(B_hat,                                     output_anitostropyL1_directory + output_anitostropyL1_file)
     formatDataSet(Bmag,                                      output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
     formatDataSet(average_anisotropy,                        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
     formatDataSet(average_anisotropy_uncertainty_deltaPlus,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')

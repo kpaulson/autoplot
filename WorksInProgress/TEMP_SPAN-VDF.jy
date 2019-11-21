@@ -4,10 +4,10 @@ tr = '2019-04-04 18:55:06 to 18:55:26'
 #tr = '2019-04-04 19:09:05 to 19:10:08'
 #tr = '2019-04-06 16:41:20 to 16:43:47'  # See the whole peak
 #tr = '2019-04-06 16:57:20 to 16:58:47'  # Not able to see the full distribution
-#tr = '2019-04-06 17:49:00 to 17:49:30'  # 
-tr = '2019-04-06 17:20 to 17:22'  # 
-tr = '2019-04-06 15:00 to 19:30'  # 
-trend_seconds = 30
+tr = '2019-04-06 17:49:00 to 17:49:30'  # 
+#tr = '2019-04-06 17:20 to 17:22'  # 
+#tr = '2019-04-06 15:00 to 19:30'  # 
+trend_seconds = 60
 
 tr_outer = datumRange( str(datumRange(tr).min() - datum(str(trend_seconds)+' s'))+' to '+str(datumRange(tr).max() + datum(str(trend_seconds)+' s')) )
 
@@ -20,9 +20,11 @@ electronCharge  = 1 # in eV, obviously
 ### FILE LOCATIONS
 
 L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L2/$Y/$m/spi_sf00/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
-L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+L2_spani_local_file = 'C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+L2_spani_w3sweap_file = L2_spani_local_file
 L2draft_mag_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-
+L2_mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 
 ### IMPORTS
 rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
@@ -35,11 +37,15 @@ execfile( fieldAligner.toString() )
 #######################################################################
 
 # Download and trim down magnetic field data
-mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
+#mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
+mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
 mag_sc = trim(mag_sc,tr_outer)
+print mag_sc
 
 mag_span = rotateSCToSPANi(mag_sc)
-mag_span = trim(mag_span,tr)
+#mag_span = trim(mag_span,tr)
+#print mag_span
+#stop
 mag_magnitude = magnitude(mag_span)
 mag_time = mag_span.property(QDataSet.DEPEND_0)
 
@@ -51,7 +57,8 @@ mag_time = mag_span.property(QDataSet.DEPEND_0)
 #index = linspace(minIndex,maxIndex,maxIndex-minIndex)
 #index = [1001,1002]
 #index = 1001
-
+print L2_spani_w3sweap_file+'?THETA'
+#stop
 
 theta  = getDataSet(L2_spani_w3sweap_file+'?THETA',tr)
 phi    = getDataSet(L2_spani_w3sweap_file+'?PHI'  ,tr)
@@ -83,9 +90,9 @@ vz = v_star*sin(toRadians(theta))
 
 r = where(eq(floor(theta),-70))
 
-plot(1,time,v_star*cos(toRadians(phi)),vdf)
-plot(1,time,vy,vdf)
-stop
+#plot(1,time,v_star*cos(toRadians(phi)),vdf)
+#plot(1,time,vy,vdf)
+#stop
 
 s = sort(phi[0,:])
 phiVals = uniqValues(phi[0,:],s)

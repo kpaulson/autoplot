@@ -1,13 +1,14 @@
 
 ### SET VARIABLES
 
-tr = getParam('timerange','2019-04-05','timerange used to analyze data')
-trend_seconds = getParam('trendSeconds',30,'Number of seconds to use as Bfield detrend')
+tr = getParam('timerange','2019-04-01 to 2019-04-07','timerange used to analyze data')
+trend_seconds = getParam('trendSeconds',60,'Number of seconds to use as Bfield detrend')
 
 ### DOWNLOAD DATA
 
 SPANi_peakObservation = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt?depend0=Epoch&column=VDF_Peak_Obs',tr)
 goodPeaks = where(eq(SPANi_peakObservation,0))
+goodPeaks = where(ge(SPANi_peakObservation,0))
 
 t_tensor = getDataSet('http://sweap.cfa.harvard.edu/pub/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf?T_TENSOR',tr)
 t_tensor = t_tensor[goodPeaks]
@@ -32,6 +33,7 @@ execfile( fieldAligner.toString() )
 ### SCIENCE!
 
 t_tensor_trace = bundle(t_tensor[:,0],t_tensor[:,1],t_tensor[:,2])
+t_tensor_trace = bundle(t_tensor[:,0],zeros(len(t_tensor[:,1])),t_tensor[:,2])
 t_tensor_trace.putProperty(QDataSet.DEPEND_0,time)
 
 t_tensor_trace_sc = rotateSPANiToSC(t_tensor_trace)
@@ -51,6 +53,6 @@ t_tensor_trace_q = t_tensor_trace_sc[:,0]*Qx + t_tensor_trace_sc[:,1]*Qy + t_ten
 spani_anisotropy = sqrt(t_tensor_trace_p**2 + t_tensor_trace_q**2) / t_tensor_trace_n  # T_perp/T_para
 spani_anisotropy.putProperty(QDataSet.VALID_MIN,1E-30)
 
-plot(15,spani_anisotropy,ylog=True,color='magenta',renderType='scatter',symbolSize=4)
+plot(0,spani_anisotropy,ylog=True,color='magenta',renderType='scatter',symbolSize=4)
 #plot(2,Nx)
 

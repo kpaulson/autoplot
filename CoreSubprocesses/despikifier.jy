@@ -1,0 +1,39 @@
+
+def despikifier(ds,spread=3,maxSigma=6,fill_or_mean='fill'):
+    '''
+    Subroutine that will remove spikiness in data caused by single outlying 
+    points. This will perform a median filter to identify large deviations 
+    and either replace with fill or a local mean value.
+    
+    input:
+        ds            = rank1 input data
+        spread        = integer number of points over which to identify spikes (3 corresponds to single point)
+        maxSigma      = integer number of standard deviations to call bad
+        fill_or_mean  = ['fill','mean'] strings defining whether to replace bad values with fill or local mean
+        
+    output:
+        ds_despiked   = rank1 dataset with spikiness removed
+    '''
+    
+    validPoints = where(valid(ds))
+    
+    ds_filtered = medianFilter(ds[validPoints],spread)
+    difference = ds[validPoints] - ds_filtered
+    
+    sigma = stddev(ds[validPoints])
+    
+    ds_despiked = copy(ds[validPoints])
+    badPoints = where(gt(abs(difference/sigma),maxSigma))
+    goodPoints = where(lt(abs(difference/sigma),maxSigma))
+    
+    print ds[validPoints][badPoints][0]
+    if fill_or_mean == 'fill':
+        ds_despiked[badPoints] = -1E38
+    elif fill_or_mean == 'mean':
+        ds_despiked[badPoints] = smooth(ds[validPoints][goodPoints],spread-1)[badPoints]
+ 
+    ds_despiked.putProperty(QDataSet.FILL_VALUE,-1E38)
+    ds_despiked = merge(ds_despiked,ds)
+    
+    return ds_despiked
+

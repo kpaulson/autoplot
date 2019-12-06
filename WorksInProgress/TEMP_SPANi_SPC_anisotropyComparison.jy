@@ -1,0 +1,59 @@
+
+tr = '2019-04-04 through 2019-04-06'
+tr = '2019-04-06'
+
+jia_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter2_anisotropy_Jia.cdf?anisotropy moment')
+
+spc_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.3.cdf?Anisotropy',tr)
+time_spc = spc_anisotropy.property(QDataSet.DEPEND_0)
+
+flowAngle = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?flow_angle&where=MODE_FLAG.eq(0)',tr)
+time_flowAngle = flowAngle.property(QDataSet.DEPEND_0)
+
+findx = findex(time_flowAngle,time_spc)
+azimuth = interpolate(flowAngle[:,0],findx)
+elevation = interpolate(flowAngle[:,1],findx)
+
+jia_anisotropy = synchronize(spc_anisotropy,jia_anisotropy)
+
+plot(0,jia_anisotropy,spc_anisotropy,renderType='scatter')
+
+spani_anisotropy_mcmannis = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/McMannis_Method/SPANi_Anisotropy_L1_$Y-$m-$d_v$(v,sep).txt?depend0=Epoch&column=data&timeFormat=$Y-$m-$dT$H:$M:$SZ',tr)
+time_mcmannis = spani_anisotropy_mcmannis.property(QDataSet.DEPEND_0)
+#time_mcmannis = convertUnitsTo(time_mcmannis,Units.cdfTT2000)
+#spani_anisotropy_mcmannis.putProperty(QDataSet.DEPEND_0,time_mcmannis)
+
+#spani_anisotropy_mcmannis = synchronize(spc_anisotropy,spani_anisotropy_mcmannis)
+findx = findex(time_mcmannis,time_spc)
+spani_anisotropy_mcmannis = interpolate(spani_anisotropy_mcmannis,findx)
+
+goodSpanView = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_2019-04-04.txt?depend0=Epoch&column=VDF_Peak_Obs')
+findx = findex(goodSpanView.property(QDataSet.DEPEND_0),time_spc)
+goodSpanView = interpolate(goodSpanView,findx)
+#plot(0,ceil(goodSpanView))
+#stop
+
+r = where(eq(ceil(goodSpanView),0))
+
+plot(0,spani_anisotropy_mcmannis[r],spc_anisotropy[r],azimuth[r],xtitle='SPANi McMannis',renderType='colorScatter',symbolSize=4,xlog=True)
+
+stop
+
+spani_anisotropy_rotation = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/Base_Rotation/SPANi_Anisotropy_L1_$Y-$m-$d_v$(v,sep).txt?depend0=Epoch&column=data',tr)
+time_rotation = spani_anisotropy_rotation.property(QDataSet.DEPEND_0)
+#time_mcmannis = convertUnitsTo(time_mcmannis,Units.cdfTT2000)
+#spani_anisotropy_mcmannis.putProperty(QDataSet.DEPEND_0,time_mcmannis)
+
+#spani_anisotropy_mcmannis = synchronize(spc_anisotropy,spani_anisotropy_mcmannis)
+findx = findex(time_rotation,time_spc)
+spani_anisotropy_rotation = interpolate(spani_anisotropy_rotation,findx)
+#spani_anisotropy_rotation = synchronize(spc_anisotropy,spani_anisotropy_rotation)
+
+#plot(2,spani_anisotropy_rotation,spc_anisotropy,azimuth,xtitle='SPANi Rotation',renderType='colorScatter')
+plot(2,jia_anisotropy,spani_anisotropy_mcmannis,xtitle='jia',ytitle='SPANi',renderType='scatter')
+stop
+
+#plot(3,spani_anisotropy_rotation,spani_anisotropy_mcmannis)
+
+#plot(4,spani_anisotropy_rotation)
+#plot(5,spani_anisotropy_mcmannis,color='red')

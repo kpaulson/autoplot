@@ -1,0 +1,100 @@
+
+
+
+
+tr = '2018-10-25 to 2018-11-20'
+tr = '2018-09-09 to 2018-12-16'
+
+local_w3sweap_spc_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?where=DQF[:,0].eq(0)'
+
+# SI Constants
+k    = 1.3807E-23
+mu_0 = PI*4E-7
+mp   = 1.6726E-27
+au_in_km = 1.496e+8
+au_in_cm = 1.496e+8*1E5
+eV_in_k = 1.1604e4
+
+def despikifier(ds,spread=3,maxSigma=6,fill_or_mean='fill'):
+    '''
+    Subroutine that will remove spikiness in data caused by single outlying 
+    points. This will perform a median filter to identify large deviations 
+    and either replace with fill or a local mean value.
+    
+    input:
+        ds            = rank1 input data
+        spread        = integer number of points over which to identify spikes (3 corresponds to single point)
+        maxSigma      = integer number of standard deviations to call bad
+        fill_or_mean  = ['fill','mean'] strings defining whether to replace bad values with fill or local mean
+        
+    output:
+        ds_despiked   = rank1 dataset with spikiness removed
+    '''
+    
+    validPoints = where(valid(ds))
+    
+    ds_filtered = medianFilter(ds[validPoints],spread)
+    difference = ds[validPoints] - ds_filtered
+    
+    sigma = stddev(ds[validPoints])
+    print 'sigma:',sigma
+    
+    ds_despiked = copy(ds[validPoints])
+    badPoints = where(gt(abs(difference/sigma),maxSigma))
+    goodPoints = where(lt(abs(difference/sigma),maxSigma))
+    
+    if fill_or_mean == 'fill':
+        ds_despiked[badPoints] = -1E38
+    elif fill_or_mean == 'mean':
+        ds_despiked[badPoints] = smooth(ds[validPoints][goodPoints],spread-1)[badPoints]
+ 
+    ds_despiked.putProperty(QDataSet.FILL_VALUE,-1E38)
+    ds_despiked = merge(ds_despiked,ds)
+    
+    return ds_despiked
+
+
+
+vp_moment_r = getDataSet(local_w3sweap_spc_file+'&vp_moment_RTN&slice1=0',tr)
+wp_moment = getDataSet(local_w3sweap_spc_file+'&vp_moment_RTN&slice1=0',tr)
+sc_pos_HCI_x = getDataSet(local_w3sweap_spc_file+'&sc_pos_HCI&slice1=0',tr)
+sc_pos_HCI_y = getDataSet(local_w3sweap_spc_file+'&sc_pos_HCI&slice1=1',tr)
+sc_pos_HCI_z = getDataSet(local_w3sweap_spc_file+'&sc_pos_HCI&slice1=2',tr)
+spc_time =  getDataSet(local_w3sweap_spc_file+'&Epoch',tr)
+
+vp_moment_r = despikifier(vp_moment_r,maxSigma=1,fill_or_mean='fill')
+
+
+distance_au = magnitude(bundle(sc_pos_HCI_x,sc_pos_HCI_y,sc_pos_HCI_z))/(au_in_km)
+distance_au.putProperty(QDataSet.DEPEND_0,spc_time)
+
+T_expected = dblarr(len(vp_moment_r))
+
+v_lessThan500 = where(lt(vp_moment_r,500))
+v_greaterThan500 = where(ge(vp_moment_r,500))
+
+T_expected[v_lessThan500] = ((0.0106*vp_moment_r[v_lessThan500] - 0.278)**3) / distance_au[v_lessThan500]
+T_expected[v_greaterThan500] = (0.77*vp_moment_r[v_greaterThan500] - 265) / distance_au[v_greaterThan500]
+T_expected.putProperty(QDataSet.DEPEND_0,spc_time)
+T_expected.putProperty(QDataSet.VALID_MIN,1E-10)
+
+
+
+Tp_moment = 0.5*((wp_moment*1E3)**2)*(mp/k)
+Tp_moment.putProperty(QDataSet.NAME,'Tp')
+Tp_moment.putProperty(QDataSet.UNITS,Units.kelvin)
+
+plot(0,Tp_moment)
+plot(1,T_expected,color='red')
+
+plot(2,Tp_moment/T_expected,ytitle='Tp/T!Bexp.!N')
+plot(3,distance_au,ytitle='S/C R (AU)')
+
+
+
+
+
+
+
+
+

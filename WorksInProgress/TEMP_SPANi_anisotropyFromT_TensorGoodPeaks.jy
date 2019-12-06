@@ -53,6 +53,6 @@ t_tensor_trace_q = t_tensor_trace_sc[:,0]*Qx + t_tensor_trace_sc[:,1]*Qy + t_ten
 spani_anisotropy = sqrt(t_tensor_trace_p**2 + t_tensor_trace_q**2) / t_tensor_trace_n  # T_perp/T_para
 spani_anisotropy.putProperty(QDataSet.VALID_MIN,1E-30)
 
-plot(0,spani_anisotropy,ylog=True,color='magenta',renderType='scatter',symbolSize=4)
+plot(1,spani_anisotropy,ylog=True,color='magenta',renderType='scatter',symbolSize=4)
 #plot(2,Nx)
 

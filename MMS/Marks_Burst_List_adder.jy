@@ -1,0 +1,29 @@
+month = getParam('Month' , 'September' , 'Which Month do you Want to Plot?' , ['April','May','June','July','August','September','October','November','December'])
+year = getParam('Year' , '2015' , 'What year?' , ['2015','2016'] )
+
+timerange=month+' '+year
+if( month == 'October' ):
+    timerange='Oct'+' '+year
+
+
+TEMP_burst_file = 'vap+txt:http://mmsburst.sr.unh.edu/%s$Y?timeFormat=$Y$m$d+$H$M$S&timerange=%s'%(month,timerange)
+print TEMP_burst_file+'&column=field0'
+TEMP_burst_start = getDataSet(TEMP_burst_file+'&time=field0&column=field0')
+burst_start = TEMP_burst_start.property(QDataSet.DEPEND_0)
+
+TEMP_burst_end = getDataSet(TEMP_burst_file+'&time=field2&column=field2')
+burst_end = TEMP_burst_end.property(QDataSet.DEPEND_0)
+
+for i in xrange( len(burst_start) ):
+    try:
+        if( 'burst_list' not in globals() ):
+            burst_list = createEvent(str(datum(burst_start[i]))+' to '+str(datum(burst_end[i])),0xFF0000,'Burst')
+        else:
+          try:
+            burst_list = createEvent(burst_list,str(datum(burst_start[i]))+' to '+str(datum(burst_end[i])),0xFF0000,'Burst')
+          except:
+            continue
+    except(java.lang.IllegalArgumentException):
+        continue
+formatDataSet(burst_list,'C:/Users/Kristoff/Desktop/TEMP.txt')
+plotx(9,burst_list,renderType='eventsBar')

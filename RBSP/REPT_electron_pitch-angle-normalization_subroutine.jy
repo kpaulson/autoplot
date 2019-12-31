@@ -1,0 +1,42 @@
+SPACECRAFT = 'A'
+spacecraft = SPACECRAFT.lower()
+
+timerange = '2015-07-04'#'2014-01-05'
+
+REPT_file = 'http://www.rbsp-ect.lanl.gov/data_pub/rbsp'+spacecraft+'/rept/level3/rbsp'+spacecraft+'_rel03_ect-rept-sci-L3_$Y$m$d_v$(v,sep).cdf?timerange='+timerange
+
+electron_data = getDataSet( REPT_file+'&FEDU' )
+
+normalized_electron_data = dblarr( len(electron_data[:,0,0]) , len(electron_data[0,:,0]) , len(electron_data[0,0,:]) )
+for i in xrange( len(electron_data[0,:,0]) ):
+    normalized_electron_data[:,i,:] = electron_data[:,i,:]/electron_data[:,8,:]
+
+normalized_electron_data.putProperty( QDataSet.VALID_MIN , 1E-10 )
+normalized_electron_data.putProperty( QDataSet.DEPEND_0 , electron_data.property(QDataSet.DEPEND_0) )
+normalized_electron_data.putProperty( QDataSet.DEPEND_1 , electron_data.property(QDataSet.DEPEND_1) )
+electron_data.property(QDataSet.DEPEND_2)
+
+#reset()
+plotx( 0 , electron_data[:,:,2] , renderType='nnSpectrogram' )
+plotx( 1 , normalized_electron_data[:,:,0] , renderType='nnSpectrogram' , yrange=[0,180] , zrange=[0.5,1] , zlog=False , ztitle=str(electron_data.property(QDataSet.DEPEND_2)[0].value())+'MeV' )
+plotx( 2 , normalized_electron_data[:,:,1] , renderType='nnSpectrogram' , yrange=[0,180] , zrange=[0.5,1] , zlog=False , ztitle=str(electron_data.property(QDataSet.DEPEND_2)[1].value())+'MeV' )
+plotx( 3 , normalized_electron_data[:,:,2] , renderType='nnSpectrogram' , yrange=[0,180] , zrange=[0.5,1] , zlog=False , ztitle=str(electron_data.property(QDataSet.DEPEND_2)[2].value())+'MeV' )
+plotx( 4 , normalized_electron_data[:,:,3] , renderType='nnSpectrogram' , yrange=[0,180] , zrange=[0.5,1] , zlog=False , ztitle=str(electron_data.property(QDataSet.DEPEND_2)[3].value())+'MeV' )
+
+
+
+dom.plots[0].xaxis.drawTickLabels = 0
+
+dom.plots[1].xaxis.drawTickLabels = 0
+dom.plots[1].displayTitle = 0
+
+dom.plots[2].xaxis.drawTickLabels = 0
+dom.plots[2].displayTitle = 0
+
+dom.plots[3].xaxis.drawTickLabels = 0
+dom.plots[3].displayTitle = 0
+
+dom.plots[4].displayTitle = 0
+
+
+fixLayout()

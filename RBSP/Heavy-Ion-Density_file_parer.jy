@@ -1,0 +1,286 @@
+
+# SEE THE MOUIKIS HOPE MOMENT DOCUMENT FOR THE DERIVATIONS. DENSITY IS EQ1
+
+#timerange= getParam( 'timerange', '2013-03-20 08:15 to 09:15', 'timerange to load' ) WHAMP event from AGU 2017
+#timerange= getParam( 'timerange', '2016-04-16 16:00 to 17:20', 'timerange to load' )
+#timerange= getParam( 'timerange', '2016-04-16 to 2016-04-18', 'timerange to load' )
+#timerange = '2012-11-14 00:00 to 08:00'
+
+
+#######################################################
+
+def getHOPEIonDensities( spacecraft_list , timeranges ):
+
+    for spacecraft in spacecraft_list:
+        
+        spacecraft = spacecraft.lower()
+        SPACECRAFT = spacecraft.upper()
+            
+        # Pull old files
+        output_dir = 'D:/Research/RBSP/Heavy Ion Densities/'
+        output_file = 'RBSP%s_Ion-Density-List.txt'%(spacecraft)
+        
+        if( write_to_single_file == 'T' ):
+            try:    
+                H_thermal_old = getDataSet(output_dir+output_file+'?depend0=field0&column=field1')
+                He_thermal_old = getDataSet(output_dir+output_file+'?depend0=field0&column=field2')
+                O_thermal_old = getDataSet(output_dir+output_file+'?depend0=field0&column=field3')
+                H_hot_old = getDataSet(output_dir+output_file+'?depend0=field0&column=field4')
+                He_hot_old = getDataSet(output_dir+output_file+'?depend0=field0&column=field5')
+                O_hot_old = getDataSet(output_dir+output_file+'?depend0=field0&column=field6')
+                old_time = H_thermal_old.property(QDataSet.DEPEND_0)
+                
+                H_thermal_old.putProperty(QDataSet.UNITS,Units.pcm3)
+                He_thermal_old.putProperty(QDataSet.UNITS,Units.pcm3)
+                O_thermal_old.putProperty(QDataSet.UNITS,Units.pcm3)
+                H_hot_old.putProperty(QDataSet.UNITS,Units.pcm3)
+                He_hot_old.putProperty(QDataSet.UNITS,Units.pcm3)
+                O_hot_old.putProperty(QDataSet.UNITS,Units.pcm3)
+            except:
+                pass
+        
+        index=0
+        monitor.setTaskSize( len(timeranges) )
+        monitor.started()
+        
+        for timerange in timeranges:  
+            try:
+                monitor.setTaskProgress( index )
+                monitor.setLabel( 'S/C '+str(SPACECRAFT) )
+                monitor.setProgressMessage( str(timerange) )
+                
+                # Get new data
+                hope_level2_spinav_file = 'https://www.rbsp-ect.lanl.gov/data_pub/rbsp%s/hope/level2/spinaverage/$Y/rbsp%s_rel03_ect-hope-sci-L2SA_$Y$m$d_v$(v,sep).cdf?timerange=%s'%(spacecraft,spacecraft,timerange)
+                
+                protons   = trim(getDataSet(hope_level2_spinav_file+'&FPSA' ),timerange)*1E-3
+                helium    = trim(getDataSet(hope_level2_spinav_file+'&FHESA'),timerange)*1E-3
+                oxygen    = trim(getDataSet(hope_level2_spinav_file+'&FOSA' ),timerange)*1E-3
+                electrons = trim(getDataSet(hope_level2_spinav_file+'&FESA' ),timerange)*1E-3
+                
+                protons.putProperty(QDataSet.UNITS,None)
+                
+                ion_energy = getDataSet(hope_level2_spinav_file+'&HOPE_ENERGY_Ion' )
+                ion_energy_diff = dblarr(len(ion_energy[:,0]),len(ion_energy[0,:]))
+                for i in xrange(len(ion_energy)):
+                    ion_energy_diff[i,:] = concatenate( diff(ion_energy[i,:]) , diff(ion_energy[i,-1]) )
+                    
+                H_factor  = 4*PI/((4.377E7)/sqrt(1*1E3))
+                He_factor = 4*PI/((4.377E7)/sqrt(4.03*1E3))
+                O_factor  = 4*PI/((4.377E7)/sqrt(15.89*1E3))
+                
+                hope_time = protons.property(QDataSet.DEPEND_0)
+                
+                low_energy_range = datumRange('0 to 500',Units.eV)
+    #            r_H  = where(protons.property(QDataSet.DEPEND_1).ge(low_energy_range.min()).and(protons.property(QDataSet.DEPEND_1).le(low_energy_range.max())))
+    #            r_He = where( helium.property(QDataSet.DEPEND_1).ge(low_energy_range.min()).and( helium.property(QDataSet.DEPEND_1).le(low_energy_range.max())))
+    #            r_O  = where( oxygen.property(QDataSet.DEPEND_1).ge(low_energy_range.min()).and( oxygen.property(QDataSet.DEPEND_1).le(low_energy_range.max())))
+                
+                low_energy_mask = within(protons.property(QDataSet.DEPEND_1),low_energy_range)
+                r_h  = protons*low_energy_mask
+                r_he = helium*low_energy_mask
+                r_o  = oxygen*low_energy_mask
+                
+                protons_thermal =  H_factor*dataset(total(  r_h*ion_energy_diff/ sqrt(ion_energy) , 1 ))
+                helium_thermal  = He_factor*dataset(total( r_he*ion_energy_diff/ sqrt(ion_energy) , 1 ))
+                oxygen_thermal  =  O_factor*dataset(total(  r_o*ion_energy_diff/ sqrt(ion_energy) , 1 ))
+                
+                protons_thermal.putProperty(QDataSet.NAME,'H!U+!N '+str(low_energy_range))
+                protons_thermal.putProperty(QDataSet.UNITS,Units.pcm3)
+                helium_thermal.putProperty(QDataSet.NAME,'He!U+!N '+str(low_energy_range))
+                helium_thermal.putProperty(QDataSet.UNITS,Units.pcm3)
+                oxygen_thermal.putProperty(QDataSet.NAME,'O!U+!N '+str(low_energy_range))
+                oxygen_thermal.putProperty(QDataSet.UNITS,Units.pcm3)
+                
+                high_energy_range = datumRange('8 to 30',Units.keV)
+                
+                high_energy_mask = within(protons.property(QDataSet.DEPEND_1),high_energy_range)
+                r_H  = protons*high_energy_mask
+                r_He = helium*high_energy_mask
+                r_O  = oxygen*high_energy_mask
+                
+                protons_hot =  H_factor*dataset(total(  r_H*ion_energy_diff/ sqrt(ion_energy) , 1 ))
+                helium_hot  = He_factor*dataset(total( r_He*ion_energy_diff/ sqrt(ion_energy) , 1 ))
+                oxygen_hot  =  O_factor*dataset(total(  r_O*ion_energy_diff/ sqrt(ion_energy) , 1 ))
+    
+                protons_hot.putProperty(QDataSet.NAME,'H!U+!N '+str(high_energy_range))
+                protons_hot.putProperty(QDataSet.UNITS,Units.pcm3)
+                helium_hot.putProperty(QDataSet.NAME,'He!U+!N '+str(high_energy_range))
+                helium_hot.putProperty(QDataSet.UNITS,Units.pcm3)
+                oxygen_hot.putProperty(QDataSet.NAME,'O!U+!N '+str(high_energy_range))
+                oxygen_hot.putProperty(QDataSet.UNITS,Units.pcm3)
+                
+                #r_e  = where( electrons.property(QDataSet.DEPEND_1).ge(energy_range.min()).and( electrons.property(QDataSet.DEPEND_1).le(energy_range.max())))
+                #uniqueTime = uniq(r_e[:,0])
+                #electrons_thermal  = zeros(0)
+                #r = where(electrons.property(QDataSet.DEPEND_1).ge(energy_range.min()).and(electrons.property(QDataSet.DEPEND_1).le(energy_range.max())))
+                #electrons_thermal = total(electrons[:,r],1)
+                
+                
+                if( write_stuff_yn == 'T' ):
+                    if( write_to_single_file == 'T' ):
+                    
+                        if 'H_thermal_old' in locals():
+                            protons_thermal = concatenate(protons_thermal,H_thermal_old)
+                            helium_thermal  = concatenate(helium_thermal,He_thermal_old)
+                            oxygen_thermal  = concatenate(oxygen_thermal,O_thermal_old)
+                            protons_hot = concatenate(protons_hot,H_hot_old)
+                            helium_hot  = concatenate(helium_hot,He_hot_old)
+                            oxygen_hot  = concatenate(oxygen_hot,O_hot_old)
+                            
+                        if 'protons_thermal_out' in locals():
+                            protons_thermal_out = concatenate(protons_thermal,protons_thermal_out)
+                            helium_thermal_out  = concatenate(helium_thermal,helium_thermal_out)
+                            oxygen_thermal_out  = concatenate(oxygen_thermal,oxygen_thermal_out)
+                            protons_hot_out = concatenate(protons_hot,protons_hot_out)
+                            helium_hot_out  = concatenate(helium_hot,helium_hot_out)
+                            oxygen_hot_out  = concatenate(oxygen_hot,oxygen_hot_out)
+                            
+                        else:
+                            protons_thermal_out = protons_thermal
+                            helium_thermal_out  = helium_thermal
+                            oxygen_thermal_out  = oxygen_thermal
+                            protons_hot_out = protons_hot
+                            helium_hot_out  = helium_hot
+                            oxygen_hot_out  = oxygen_hot
+                            
+                        
+                        output_time = protons_thermal_out.property(QDataSet.DEPEND_0)
+                        
+                        u = uniq(output_time)
+                        protons_thermal_out = protons_thermal_out[u]
+                        helium_thermal_out = helium_thermal_out[u]
+                        oxygen_thermal_out = oxygen_thermal_out[u]
+                        protons_hot_out = protons_hot_out[u]
+                        helium_hot_out = helium_hot_out[u]
+                        oxygen_hot_out = oxygen_hot_out[u]
+                        output_time = output_time[u]
+                        
+                        s = sort(output_time)
+                        protons_thermal_out = protons_thermal_out[s]
+                        helium_thermal_out = helium_thermal_out[s]
+                        oxygen_thermal_out = oxygen_thermal_out[s]
+                        protons_hot_out = protons_hot_out[s]
+                        helium_hot_out = helium_hot_out[s]
+                        oxygen_hot_out = oxygen_hot_out[s]
+                        output_time = output_time[s]
+                            
+                        protons_thermal_out.putProperty(QDataSet.NAME,'H!U+!N '+str(low_energy_range))
+                        protons_thermal_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        helium_thermal_out.putProperty(QDataSet.NAME,'He!U+!N '+str(low_energy_range))
+                        helium_thermal_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        oxygen_thermal_out.putProperty(QDataSet.NAME,'O!U+!N '+str(low_energy_range))
+                        oxygen_thermal_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        
+                        protons_hot_out.putProperty(QDataSet.NAME,'H!U+!N '+str(high_energy_range))
+                        protons_hot_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        helium_hot_out.putProperty(QDataSet.NAME,'He!U+!N '+str(high_energy_range))
+                        helium_hot_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        oxygen_hot_out.putProperty(QDataSet.NAME,'O!U+!N '+str(high_energy_range))
+                        oxygen_hot_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                            
+                        
+                        output = bundle(protons_thermal_out,helium_thermal_out,oxygen_thermal_out)
+                        output = bundle(output,protons_hot_out,helium_hot_out,oxygen_hot_out)
+                        output = link(output_time,output)
+                        
+                        output_dir = 'D:/Research/RBSP/Heavy Ion Densities/'
+                        output_file = 'RBSP%s_Ion-Density-List.txt'%(spacecraft)
+                        print
+                        #output_file = 'RBSP%s_Ion-Density-List_%s.txt'%(rbsp_sc.lower(),timerange)
+                        formatDataSet(output,output_dir+output_file+'?header=rich')
+                
+                    elif( write_to_single_file == 'F' ):
+                        
+                        protons_thermal_out = protons_thermal
+                        helium_thermal_out  = helium_thermal
+                        oxygen_thermal_out  = oxygen_thermal
+                        protons_hot_out = protons_hot
+                        helium_hot_out  = helium_hot
+                        oxygen_hot_out  = oxygen_hot
+                            
+                        
+                        output_time = protons_thermal_out.property(QDataSet.DEPEND_0)
+                        
+                        u = uniq(output_time)
+                        protons_thermal_out = protons_thermal_out[u]
+                        helium_thermal_out = helium_thermal_out[u]
+                        oxygen_thermal_out = oxygen_thermal_out[u]
+                        protons_hot_out = protons_hot_out[u]
+                        helium_hot_out = helium_hot_out[u]
+                        oxygen_hot_out = oxygen_hot_out[u]
+                        output_time = output_time[u]
+                        
+                        s = sort(output_time)
+                        protons_thermal_out = protons_thermal_out[s]
+                        helium_thermal_out = helium_thermal_out[s]
+                        oxygen_thermal_out = oxygen_thermal_out[s]
+                        protons_hot_out = protons_hot_out[s]
+                        helium_hot_out = helium_hot_out[s]
+                        oxygen_hot_out = oxygen_hot_out[s]
+                        output_time = output_time[s]
+                            
+                        protons_thermal_out.putProperty(QDataSet.NAME,'H!U+!N '+str(low_energy_range))
+                        protons_thermal_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        helium_thermal_out.putProperty(QDataSet.NAME,'He!U+!N '+str(low_energy_range))
+                        helium_thermal_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        oxygen_thermal_out.putProperty(QDataSet.NAME,'O!U+!N '+str(low_energy_range))
+                        oxygen_thermal_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        
+                        protons_hot_out.putProperty(QDataSet.NAME,'H!U+!N '+str(high_energy_range))
+                        protons_hot_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        helium_hot_out.putProperty(QDataSet.NAME,'He!U+!N '+str(high_energy_range))
+                        helium_hot_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                        oxygen_hot_out.putProperty(QDataSet.NAME,'O!U+!N '+str(high_energy_range))
+                        oxygen_hot_out.putProperty(QDataSet.UNITS,Units.pcm3)
+                            
+                        
+                        output = bundle(protons_thermal_out,helium_thermal_out,oxygen_thermal_out)
+                        output = bundle(output,protons_hot_out,helium_hot_out,oxygen_hot_out)
+                        output = link(output_time,output)
+                        
+                        output_dir = 'D:/Research/RBSP/Heavy Ion Densities/'
+                        output_file = 'RBSP%s_Ion-Density-List_%s.txt'%(spacecraft,timerange)
+                        
+                        formatDataSet(output,output_dir+output_file+'?header=rich')
+                
+                if( plot_stuff_yn == 'T' ):
+                    #plot(0,total(protons,1))
+                    plot(0,hope_time[0:len(  protons_thermal)],medianFilter(  protons_thermal,5))
+                    plot(1,hope_time[0:len(   helium_thermal)],medianFilter(   helium_thermal,5))
+                    plot(2,hope_time[0:len(   oxygen_thermal)],medianFilter(   oxygen_thermal,5), ytitle=str(low_energy_range)+' (cm!U-3!N)')
+                    #plot(3,hope_time[0:len(electrons_thermal)],medianFilter(electrons_thermal,5))
+                    
+                    
+                    plot(3,hope_time[0:len(  protons_hot)],medianFilter(  protons_hot,5))
+                    plot(4,hope_time[0:len(   helium_hot)],medianFilter(   helium_hot,5))
+                    plot(5,hope_time[0:len(   oxygen_hot)],medianFilter(   oxygen_hot,5), ytitle=str(high_energy_range)+' (cm!U-3!N)')
+                
+                index+=1
+            except(java.io.FileNotFoundException):
+                pass
+        del(protons_thermal_out , helium_thermal_out , oxygen_thermal_out , protons_hot_out , helium_hot_out , oxygen_hot_out)
+
+###############################################################
+          
+###
+### DEFINE TIMERANGE AND RUN SUBSCRIPT
+###                
+
+import java
+
+input_timerange = getParam( 'Timerange to be added in' , '2013-03-20' , 'This should append the given timerange onto the old dataset' )
+SCA_yn = getParam( 'S/C A' , 'T' , 'Run script with respect to S/C A?' , [ 'T' , 'F' ] )
+SCB_yn = getParam( 'S/C B' , 'T' , 'Run script with respect to S/C B?' , [ 'T' , 'F' ] )
+
+write_stuff_yn = 'T'
+write_to_single_file = 'F'
+plot_stuff_yn = 'F'
+
+spacecraft_list = list()
+if (SCA_yn == 'T'):
+    spacecraft_list.append('A')
+if (SCB_yn == 'T'):
+    spacecraft_list.append('B')
+    
+timeranges= generateTimeRanges('$Y-$m-$d',input_timerange )#'2012-08 through 2014-09')
+getHOPEIonDensities( spacecraft_list , timeranges )

@@ -1,0 +1,92 @@
+# ##################################################################################
+
+def mms_ephemerizer( mms_sc , starttime_input , endtime_input , plot_number ):
+    """Subroutine to add MMS Magnetic Ephemeris ticks to a plot. 
+    
+    Parameters:
+        mms_sc = The MMS spacecraft in question (eg 'mms1'). [string]
+        starttime_input = Start time of aggregation. [string or Autoplot Timestamp]
+        endtime_input = End time of aggregation. [string or Autoplot Timestamp]
+        plot_number = The plot to which ephemeris ticks will be added. [integer]"""
+    
+    timerange = str(starttime_input)+' through '+str(endtime_input)
+    
+    try:
+        ds_root_lasp = 'https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/ephts04d/$Y/$m/'%mms_sc
+        mms_pos_sm = getDataSet(ds_root_lasp+'%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_sm&timerange=%s'%(mms_sc,mms_sc,timerange))
+        
+        ephem_time = mms_pos_sm.property(QDataSet.DEPEND_0)
+        
+        uniqueness = uniq(ephem_time)
+        mms_pos_sm = mms_pos_sm[uniqueness]
+        ephem_time = ephem_time[uniqueness]
+        
+        Re = 6378.137
+        mms_r = magnitude(mms_pos_sm)/Re
+        theta = asin(mms_pos_sm[:,2]/magnitude(mms_pos_sm))
+        phi = atan2(mms_pos_sm[:,1],mms_pos_sm[:,0])
+        L_dipole_dwell = (magnitude(mms_pos_sm)/Re)/(cos(theta)**2)
+        if( (phi+PI).gt(0) ):
+            MLT_dwell = mod((phi+PI)*12/PI,dataset(24))#(phi+PI)*12/PI
+        elif( (phi+PI).le(0) ):
+            MLT_dwell = mod(-(phi+PI)*12/PI,dataset(24))#-(phi+PI)*12/PI
+            
+    except:
+        #raise java.io.fileNotFound
+        mms_pos_sm = getDataSet('http://mmsdata.sr.unh.edu/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_sm&timerange=%s'%(mms_sc,mms_sc,mms_sc,timerange))
+        print'http://mmsdata.sr.unh.edu/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_sm&timerange=%s'%(mms_sc,mms_sc,mms_sc,timerange)
+        ephem_time = mms_pos_sm.property(QDataSet.DEPEND_0)
+        
+        uniqueness = uniq(ephem_time)
+        mms_pos_sm = mms_pos_sm[uniqueness]
+        ephem_time = ephem_time[uniqueness]
+        
+        Re = 6378.137
+        mms_r = magnitude(mms_pos_sm)/Re
+        theta = asin(mms_pos_sm[:,2]/magnitude(mms_pos_sm))
+        phi = atan2(mms_pos_sm[:,1],mms_pos_sm[:,0])
+        L_dipole_dwell = (magnitude(mms_pos_sm)/Re)/(cos(theta)**2)
+        if( (phi+PI).gt(0) ):
+            MLT_dwell = mod((phi+PI)*12/PI,dataset(24))#(phi+PI)*12/PI
+        elif( (phi+PI).le(0) ):
+            MLT_dwell = mod(-(phi+PI)*12/PI,dataset(24))#-(phi+PI)*12/PI  
+    
+
+        
+    mms_MLat = round(toDegrees(theta),3)
+    mms_MLT = round(copy(MLT_dwell),3)
+    mms_r = round(copy(mms_r),3)
+    mms_MLT.putProperty(QDataSet.NAME,'MLT')
+    mms_MLat.putProperty(QDataSet.NAME,'MLat')
+    mms_r.putProperty(QDataSet.NAME,'Re')
+    mms_MLT.putProperty(QDataSet.LABEL,'MLT')
+    mms_MLat.putProperty(QDataSet.LABEL,'MLat')
+    mms_r.putProperty(QDataSet.LABEL,'R!De!N')
+    
+    #r = where(mms_MLT.ge(0.).and(mms_MLT.le(24.)))
+    #print r
+    #mms_MLT = mms_MLT[r]
+    #mms_MLat = mms_MLat[r]
+    #mms_r = mms_r[r]
+    
+    mms_ephem = bundle(mms_MLT,mms_MLat,mms_r)
+    mms_ephem.putProperty(QDataSet.DEPEND_0,ephem_time)
+    mms_ephem.putProperty(QDataSet.NAME,'mms_ephem')
+    
+    filename = 'C:/Users/krist/Desktop/TEMP.txt'
+    formatDataSet(mms_ephem,filename+'?header=rich&tformat=seconds')
+    dom.plots[plot_number].setTicksURI('')
+    dom.plots[plot_number].setTicksURI(filename+'?bundle=field1-field3&depend0=field0')
+
+# ##################################################################################
+    
+starttime_input = getParam( 'Start Date and Time' , str(dom.plots[len(dom.getPlots())-1].xaxis.range.min()) , 'Any format you want, really' )
+endtime_input = getParam( 'End Date and Time' , str(dom.plots[len(dom.getPlots())-1].xaxis.range.max()) , 'End of wave activity' )
+#starttime_input = getParam( 'Start Date and Time' , str(dom.plots[3].xaxis.range.min()) , 'Any format you want, really' )
+#endtime_input = getParam( 'End Date and Time' , str(dom.plots[3].xaxis.range.max()) , 'End of wave activity' )
+    
+mms_sc = getParam( 'MMS S/C' , 'mms1' , 'Which spacecraft do you want data from?' , ['mms1','mms2','mms3','mms4'] )
+
+plot_number = getParam( 'Plot Number' , len(dom.getPlots())-1 , 'Which plot do you want to add ephem data to?' )
+
+mms_ephemerizer( mms_sc , starttime_input , endtime_input , plot_number )

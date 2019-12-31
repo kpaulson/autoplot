@@ -1,0 +1,843 @@
+
+#########################################################
+###                                                   ###
+###     Transform GSM files to FA and calculate       ###    
+###              Polarization Parameters              ###
+###                                                   ###
+#########################################################
+
+
+import java
+from org.das2.math.filter import Butterworth
+from org.virbo.dsops.Ops import FFTFilterType
+from org.das2.datum.Units import *
+from org.virbo.dsutil import LinFit
+from org.das2.graph.DasColorBar.Type import *
+from org.virbo.autoplot.RenderType import *
+
+
+# ###
+# ### USER INPUT PARAMETERS
+# ###
+
+
+SC = getParam( 'S/C', 'A', 'the spacecraft name', ['A','B'] )
+
+#starttime_input = '2012-10-16 02:15'
+#endtime_input = '2012-10-16 2:35'
+#'2016-04-16 16:00 to 17:30'
+starttime_input = getParam( 'Start Date and Time' , '2013-03-20 08:15' , 'Any format you want, really' )
+endtime_input = getParam( 'End Date and Time' , '2013-03-20 08:55' , 'End of wave activity' )
+
+
+freq_min = getParam( 'Minimum Frequency' , 1.7, 'The minimum frequency kept after the fft of the data is taken' )
+freq_max = getParam( 'Maximum Frequency' , 3.0 , 'The maximum frequency kept after the fft of the data is taken' )
+
+window = getParam('FFT WIndow Size' , 2048 , 'The number of points in the fft window' , [128,512,1024,2048,4096,8192,16384] )
+slide = getParam('Slide' , 8 , 'The reciprocal of the fraction of the window that is not overlapped by the previous fft' , [1,2,4,8,16,32] )
+
+freq_avg = getParam( 'Frequency Averaging Size' , 3 , 'The number of frequency bins averaged to determine relative coherency' , [3,5,7,9,11,13] )
+
+logyn = getParam( 'Logarithmic yes/no', 'F' , 'Whether or not to display the frequency axis in logarithmic scale' , ['T' , 'F'] )
+
+
+# ###
+# ### INPUT DEFINITIONS
+# ###
+
+power_min = getParam( 'WavePower Min' , 0.003 , 'Minimum Wave power value to be kept (discards background data)')
+power_max = 2.
+
+sample = 64 # number of samples per second in data (64 for hires rbsp)
+wave_power_min = power_min # probably controversial, throws out points with no wave power - set to 0 to disable
+
+random_power = 0# probably stupid, adds random noise to the data set to make polarizations standout and cut down on bleeding - set to 0 to disable
+
+spacecraft = SC.lower()
+SPACECRAFT = SC.upper()
+
+tp= TimeParser.create('$Y-$m-$dT$H:$M:$S.$(milli)$(micro)')
+tp_title= TimeParser.create('$Y-$m-$dT$H:$M')
+starttime =  timegen(starttime_input,'1 ns',1)[0]
+endtime =  timegen(endtime_input,'1 ns',1)[0]
+file_start = starttime_input
+file_end = endtime_input
+
+low_freq = freq_min
+high_freq = freq_max
+
+level = 'L3'
+#level = 'Quick-Look'
+
+# ###
+# ### FILENAMES AND LOCATIONS
+# ###
+
+mag_root = 'http://emfisis.physics.uiowa.edu/Flight/RBSP-'+SPACECRAFT+'/L3/$Y/$m/$d/'
+mag_file = mag_root+'rbsp-'+spacecraft+'_magnetometer_hires-gse_emfisis-L3_$Y$m$d_v$(v,sep).cdf?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+
+spinning_mag_root = 'http://emfisis.physics.uiowa.edu/Flight/RBSP-'+SPACECRAFT+'/L2/$Y/$m/$d/'
+spinning_mag_file = spinning_mag_root+'rbsp-'+spacecraft+'_magnetometer_uvw_emfisis-L2_$Y$m$d_v$(v,sep).cdf?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+
+bckg_root = 'http://emfisis.physics.uiowa.edu/Flight/RBSP-'+SPACECRAFT+'/L3/$Y/$m/$d/'
+bckg_file = bckg_root+'rbsp-'+spacecraft+'_magnetometer_4sec-gse_emfisis-L3_$Y$m$d_v$(v,sep).cdf?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+
+#ephem_root =  'http://www.rbsp-ect.lanl.gov/data_pub/rbsp'+spacecraft+'/MagEphem/def/$Y/'
+ephem_root =  'http://emfisis.physics.uiowa.edu/Flight/RBSP-'+SPACECRAFT+'/LANL/MagEphem/$Y/'
+ephem_file = ephem_root+'rbsp'+spacecraft+'_def_MagEphem_TS04D_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+ephem_file_T89D = ephem_root+'rbsp'+spacecraft+'_def_MagEphem_T89D_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+ephem_file_T89Q = ephem_root+'rbsp'+spacecraft+'_def_MagEphem_T89Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+ephem_file_OP77Q = ephem_root+'rbsp'+spacecraft+'_def_MagEphem_OP77Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+ephem_file_backup = ephem_root+'rbsp'+spacecraft+'_def_MagEphem_T89Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
+
+
+#############################################################################################
+
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+        
+        
+#############################################################################################   
+
+def RBSP_FAC( bckg_file , ephem_file , Btime , lead_time , excess_time):    
+       
+    # ###
+    # ### FEED IN LOW-CADENCE MAG DATA
+    # ###
+    
+    
+    Bx_GSE_bckg = getDataSet(bckg_file+'&Mag&slice1=0')
+    By_GSE_bckg = getDataSet(bckg_file+'&Mag&slice1=1')
+    Bz_GSE_bckg = getDataSet(bckg_file+'&Mag&slice1=2')
+    Bmag_GSE_bckg = getDataSet(bckg_file+'&Magnitude')
+    
+    Btimelow = Bmag_GSE_bckg.property(QDataSet.DEPEND_0)
+    
+    if ( len(Btimelow) != len(uniq(Btimelow)) ):
+        low_mag_uniqueness = uniq(Btimelow)
+        Bx_GSE_bckg = Bx_GSE_bckg[low_mag_uniqueness]
+        By_GSE_bckg = By_GSE_bckg[low_mag_uniqueness]
+        Bz_GSE_bckg = Bz_GSE_bckg[low_mag_uniqueness]
+        Bmag_GSE_bckg = Bmag_GSE_bckg[low_mag_uniqueness]
+        
+    
+    # ###
+    # ### TAKE AVERAGES
+    # ###
+    
+    monitor.setProgressMessage('Smoothing 4-second MAG Data')
+    
+    seconds = 12 #number of seconds over which field is averaged to create background field (use multiples of 4)
+    points = seconds / 4
+    
+    TEMP_Bx_GSE_bckg_smooth = smooth ( Bx_GSE_bckg , points )
+    TEMP_By_GSE_bckg_smooth = smooth ( By_GSE_bckg , points )
+    TEMP_Bz_GSE_bckg_smooth = smooth ( Bz_GSE_bckg , points )
+    TEMP_Bmag_smooth = smooth ( Bmag_GSE_bckg , points )
+    
+    del ( [ Bx_GSE_bckg , By_GSE_bckg , Bz_GSE_bckg , Bmag_GSE_bckg ] )
+      
+    r = where( Btimelow.ge( lead_time ).and( Btimelow.le( excess_time ) ) ) #Defines subset of data based on timestamps
+    
+    Bx_GSE_bckg_smooth = TEMP_Bx_GSE_bckg_smooth[r]
+    By_GSE_bckg_smooth = TEMP_By_GSE_bckg_smooth[r]
+    Bz_GSE_bckg_smooth = TEMP_Bz_GSE_bckg_smooth[r]
+    Bmag_smooth = TEMP_Bmag_smooth[r]
+    Btimelow = Bmag_smooth.property(QDataSet.DEPEND_0)
+    
+    del ( [ TEMP_Bx_GSE_bckg_smooth , TEMP_By_GSE_bckg_smooth , TEMP_Bz_GSE_bckg_smooth , TEMP_Bmag_smooth ] )
+        
+        
+    # ###
+    # ### DEFINE FIELD-ALIGNED VECTOR
+    # ###
+    
+    monitor.setProgressMessage('Defining the Field-aligned vector')
+    
+    Nx_low = Bx_GSE_bckg_smooth / Bmag_smooth
+    Ny_low = By_GSE_bckg_smooth / Bmag_smooth
+    Nz_low = Bz_GSE_bckg_smooth / Bmag_smooth
+      
+    
+    # ###
+    # ### DOWNLOAD EPHEMERIS AND CALCULATE FIELD-ALIGNED COORDINATE VECTORS
+    # ###
+    
+    monitor.setProgressMessage('Downloading Ephemeris Data')
+    
+    try:
+          TEMP_Rx_GSE = getDataSet(ephem_file+'&column=Rgse_x') # should be pointing radially outward?
+          TEMP_Ry_GSE = getDataSet(ephem_file+'&column=Rgse_y')
+          TEMP_Rz_GSE = getDataSet(ephem_file+'&column=Rgse_z')
+    except:
+        try:
+            TEMP_Rx_GSE = getDataSet(ephem_file_T89D+'&column=Rgse_x') # should be pointing radially outward?
+            TEMP_Ry_GSE = getDataSet(ephem_file_T89D+'&column=Rgse_y')
+            TEMP_Rz_GSE = getDataSet(ephem_file_T89D+'&column=Rgse_z')
+        except:
+            try:
+                TEMP_Rx_GSE = getDataSet(ephem_file_T89Q+'&column=Rgse_x') # should be pointing radially outward?
+                TEMP_Ry_GSE = getDataSet(ephem_file_T89Q+'&column=Rgse_y')
+                TEMP_Rz_GSE = getDataSet(ephem_file_T89Q+'&column=Rgse_z')
+            except:
+                try:
+                    TEMP_Rx_GSE = getDataSet(ephem_file_OP77Q+'&column=Rgse_x') # should be pointing radially outward?
+                    TEMP_Ry_GSE = getDataSet(ephem_file_OP77Q+'&column=Rgse_y')
+                    TEMP_Rz_GSE = getDataSet(ephem_file_OP77Q+'&column=Rgse_z')
+        #                  TEMP_Rx_GSE = getDataSet(ephem_file_backup+'&column=Rgse_x') # should be pointing radially outward?
+        #                  TEMP_Ry_GSE = getDataSet(ephem_file_backup+'&column=Rgse_y')
+        #                  TEMP_Rz_GSE = getDataSet(ephem_file_backup+'&column=Rgse_z')
+                except:
+                    TEMP_Rx_GSE = ones(len(Btime))# Eventually just give up and choose (1,0,0), since the polarizations will be field-aligned anyway (just won't have sensical p,q directions)
+                    TEMP_Ry_GSE = dblarr(len(Btime))
+                    TEMP_Rz_GSE = dblarr(len(Btime))
+                    TEMP_Rx_GSE.putProperty(QDataSet.DEPEND_0,Btime)
+                    print 'E R R O R!!! - no MagEphem data found, incorrect radial vector used (polarization results still valid, but time series data is not necessarily in eastward direction)'
+    
+    ephem_time = TEMP_Rx_GSE.property(QDataSet.DEPEND_0)
+    Rmag = sqrt( TEMP_Rx_GSE**2 + TEMP_Ry_GSE**2 + TEMP_Rz_GSE**2 )
+    
+    monitor.setProgressMessage('Interpolating Ephemeris up to full cadence')
+    
+    try:
+        ephem_to_b_time_ratio = findex( ephem_time , Btime ) # Interpolate onto mag cadence
+        
+    except(java.lang.IllegalArgumentException):
+        uniqueness = uniq( ephem_time )
+        
+        ephem_time = ephem_time[uniqueness]
+        TEMP_Rx_GSE = TEMP_Rx_GSE[uniqueness]
+        TEMP_Ry_GSE = TEMP_Ry_GSE[uniqueness]
+        TEMP_Rz_GSE = TEMP_Rz_GSE[uniqueness]
+        Rmag = Rmag[uniqueness]
+        
+        ephem_to_b_time_ratio = findex( ephem_time , Btime ) # Interpolate onto mag cadence
+    
+        
+    Rx_GSE =  interpolate ( ( TEMP_Rx_GSE / Rmag ) , ephem_to_b_time_ratio ) #No need to take subset, since this interpolation will throw out excess data. BUT it may save a little time if we do it 10 lines up
+    Ry_GSE =  interpolate ( ( TEMP_Ry_GSE / Rmag ) , ephem_to_b_time_ratio )
+    Rz_GSE =  interpolate ( ( TEMP_Rz_GSE / Rmag ) , ephem_to_b_time_ratio )
+    
+    del ( [ TEMP_Rx_GSE , TEMP_Ry_GSE , TEMP_Rz_GSE , Rmag ] )
+    
+    monitor.setProgressMessage('Creating Radial and Azimuthal vectors')
+    
+    low_to_raw_ratio = findex( Btimelow , Btime )
+    Nx = interpolate( Nx_low , low_to_raw_ratio ) #Interpolating field-aligned vector to mag cadence
+    Ny = interpolate( Ny_low , low_to_raw_ratio )
+    Nz = interpolate( Nz_low , low_to_raw_ratio )
+    
+    TEMP_Px = -( Ny * Rz_GSE ) + ( Nz * Ry_GSE )
+    TEMP_Py = -( Nz * Rx_GSE ) + ( Nx * Rz_GSE )
+    TEMP_Pz = -( Nx * Ry_GSE ) + ( Ny * Rx_GSE )
+          
+    
+    Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity
+    
+    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Eastward direction
+    Py = TEMP_Py / Pmag
+    Pz = TEMP_Pz / Pmag
+    
+    del( [ TEMP_Px , TEMP_Py , TEMP_Pz , Pmag ] )
+    
+    Qx = -( Py * Nz ) + ( Pz * Ny ) # ~radial - positive is outward
+    Qy = -( Pz * Nx ) + ( Px * Nz )
+    Qz = -( Px * Ny ) + ( Py * Nx )
+    
+    return ( Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz , Btimelow )
+
+
+#############################################################################################
+
+def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    
+    
+    ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    
+    trimmed_ds = trim(ds,int(leading_points),int(len(ds)))
+    trimmed_ds.putProperty( QDataSet.DEPEND_0 , trim(ds_time,int(leading_points),int(len(ds))) )
+    
+    processed_ds_too = hanning( trimmed_ds , window )
+    processed_ds_too.putProperty( QDataSet.DEPEND_1 , ds.property(QDataSet.DEPEND_1) )
+    
+    processed_ds_time = processed_ds.property( QDataSet.DEPEND_0 )
+    processed_ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
+    
+    result = merge( processed_ds , processed_ds_too )
+    
+    return( result )
+
+
+# ############################################################################################
+
+def Hanningfft( ds , freq_min , freq_max , window , slide ):
+    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        freq_max = Upper end of frequency range.
+        window = Length of window to be taken measured in number of data points.
+        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+        
+    Returns:
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    
+    ds_time = ds.property(QDataSet.DEPEND_0)
+    
+    ds_cadence = convertUnitsTo((ds_time[1]-ds_time[0]),Units.seconds)
+    per_sec = int(1./ds_cadence)
+    T = float( window * 1. / per_sec )
+    
+    processed_ds = hanning(ds,window)
+
+    for i in xrange( slide ):
+        try:
+            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        except( java.lang.ArrayIndexOutOfBoundsException ):
+            pass
+
+    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+
+    for i in xrange( len(processed_ds[:,0]) ):
+        processed_ds_fft = fft( processed_ds[i,:] )
+        TEMP_waveform_fft[i,:,:] = processed_ds_fft
+
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , processed_ds.property(QDataSet.DEPEND_0) )
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , processed_ds_fft[:,0].property(QDataSet.DEPEND_0)*per_sec )
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+
+    frequency_range = where( TEMP_waveform_fft.property(QDataSet.DEPEND_1).ge(freq_min).and(TEMP_waveform_fft.property(QDataSet.DEPEND_1).le(freq_max)) )
+    waveform_fft = TEMP_waveform_fft[:,frequency_range,:]*sqrt(T)*1.155
+    waveform_fft.putProperty( QDataSet.DEPEND_1 , TEMP_waveform_fft.property(QDataSet.DEPEND_1)[frequency_range] )
+    del ( TEMP_waveform_fft )
+    
+    uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+    waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+    waveform_fft = waveform_fft[uniqueness,:,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+    
+    return ( waveform_fft )
+        
+
+# ############################################################################################ 
+
+def Butterworth_Bandpassify( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject ):
+    Component_bandpass_coefficients = Butterworth( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject )
+    Component_bandpass = Component_bandpass_coefficients.filter()
+    
+    return ( Component_bandpass )
+      
+      
+#############################################################################################   
+
+def Butterworth_Bandpassify_zeroPhase( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject ):
+    Component_bandpass_coefficients = Butterworth( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject )
+    Component_bandpass = Component_bandpass_coefficients.filter()
+    Component_bandpass_reversed = copy(reverse(Component_bandpass))
+    Component_bandpass_reversed.putProperty(QDataSet.DEPEND_0,Component.property(QDataSet.DEPEND_0))
+    Component_bandpass_coefficients = Butterworth( Component_bandpass_reversed , polynomial_order , low_frequency , high_frequency , pass_or_reject )
+    Component_bandpass = copy(reverse(Component_bandpass_coefficients.filter()))
+    Component_bandpass.putProperty(QDataSet.DEPEND_0,Component.property(QDataSet.DEPEND_0))
+    
+    return ( Component_bandpass )
+      
+      
+#############################################################################################    
+        
+def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
+  
+    ###
+    ### DEFINE J_PRIME (INPUT) MATRIX ELEMENTS
+    ###
+
+
+    monitor.setProgressMessage('Defining J-Prime Matrix Components')
+
+    Jxx_prime = ( (Bp_fft[:,:,0]*Bp_fft[:,:,0]) + (Bp_fft[:,:,1]*Bp_fft[:,:,1]) )
+    Jyy_prime = ( (Bq_fft[:,:,0]*Bq_fft[:,:,0]) + (Bq_fft[:,:,1]*Bq_fft[:,:,1]) )
+    Jzz_prime = ( (Bn_fft[:,:,0]*Bn_fft[:,:,0]) + (Bn_fft[:,:,1]*Bn_fft[:,:,1]) )
+
+    Jxy_prime_real = ( (Bp_fft[:,:,0]*Bq_fft[:,:,0]) + (Bp_fft[:,:,1]*Bq_fft[:,:,1]) )
+    Jxy_prime_img = ( (Bq_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bq_fft[:,:,1]) )
+
+    Jxz_prime_real = ( (Bp_fft[:,:,0]*Bn_fft[:,:,0]) + (Bp_fft[:,:,1]*Bn_fft[:,:,1]) )
+    Jxz_prime_img = ( (Bn_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bn_fft[:,:,1]) )
+
+    Jyz_prime_real = ( (Bn_fft[:,:,0]*Bq_fft[:,:,0]) + (Bn_fft[:,:,1]*Bq_fft[:,:,1]) )
+    Jyz_prime_img = ( (Bq_fft[:,:,0]*Bn_fft[:,:,1]) - (Bn_fft[:,:,0]*Bq_fft[:,:,1]) )
+
+    fft_time = Jxx_prime.property(QDataSet.DEPEND_0)
+    frequency_axis = Jxx_prime.property(QDataSet.DEPEND_1)
+
+
+    ###
+    ### DEFINE K-HAT VECTOR (MEANS - IMAGINARY COMPONENTS)
+    ###
+
+    monitor.setProgressMessage('Finding Wave-Normal Direction (Means)')
+
+    img_mag = sqrt( Jxy_prime_img**2 + Jxz_prime_img**2 + Jyz_prime_img**2 )
+
+    trace = Jxx_prime + Jyy_prime + Jzz_prime
+    
+#    kx =  Jyz_prime_img / img_mag #kp
+#    ky = -Jxz_prime_img / img_mag #kq
+#    kz =  Jxy_prime_img /
+    kx =  abs(Jyz_prime_img / img_mag) #kp
+    ky = -abs(Jxz_prime_img / img_mag) #kq
+    kz =      Jxy_prime_img / img_mag  #kn
+    
+    kx_linear = sqrt( Jxx_prime / trace )
+    ky_linear = Jxy_prime_real / ( trace * Jxx_prime )
+    kz_linear = Jxz_prime_real / ( trace * Jxx_prime )
+    
+    r = where(lt( abs(img_mag) , 1E-5 )) # linear polarizations will have zero off-diagonal imaginary components
+    kx[r] = kx_linear[r]
+    ky[r] = ky_linear[r]
+    kz[r] = kz_linear[r]
+
+    trace.putProperty ( QDataSet.DEPEND_0 , fft_time )
+    trace.putProperty ( QDataSet.DEPEND_1 , frequency_axis )
+    
+    del ( img_mag )
+
+    lowering_ratio = findex( Nx.property( QDataSet.DEPEND_0 ) , fft_time )
+
+    Nx_fftcadence = interpolate ( Nx , lowering_ratio )
+    Ny_fftcadence = interpolate ( Ny , lowering_ratio )
+    Nz_fftcadence = interpolate ( Nz , lowering_ratio )
+
+    Nx_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    Ny_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    Nz_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+
+    for j in xrange( len( kx[1,:] ) ): # magnetic field direction is same at all times, so turn vector into an array where DEPEND_1 is constant
+          Nx_fftarray[:,j] = Nx_fftcadence
+          Ny_fftarray[:,j] = Ny_fftcadence
+          Nz_fftarray[:,j] = Nz_fftcadence
+
+    del ( [ Nx_fftcadence , Ny_fftcadence , Nz_fftcadence ] )
+
+    Nx_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
+    Nx_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    Ny_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
+    Ny_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    Nz_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
+    Nz_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
+
+    r = where(lt(kz,0)) #This is necessary because the direction of k is ambiguous, but the definition of wave polarization is specifically relative to |B| (Look up the Means paper if confused, this took a while to understand)
+    kx[r] = -kx[r] # Basically, aligns the ambiguity of k so that we look at it relative to the magnetic field direction
+    ky[r] = -ky[r]
+    kz[r] = -kz[r]
+                
+    ###
+    ### DEFINE WAVE-NORMAL COORDINATES AND ROTATE J-PRIME - DEFINE J MATRIX IN _|_ DIRECTIONS
+    ###
+
+    monitor.setProgressMessage('Creating Wave-Normal Coordinate System')
+     
+    theta = acos( kz ) #Fixed from previous, kz is the Nth component (is really kn)
+    factor = sin( theta )
+
+    r = where(gt(theta,(PI/2.)))
+    theta[r] = PI - theta[r]
+    
+
+#    Rx = (ky * ones(len(kx))) / factor # R_hat = k_hat x N_hat so is perpendicular to plane of wave normal and magnetic field
+#    Ry = -(kx * ones(len(kx))) / factor # This is also a correct choice. I thought it was wrong, but that was due to the improper rotation from J' to J below. Fixed now.
+#    Rz = zeros(len(kx))
+    
+    Rx = -(ky * ones(len(kx))) / factor # R_hat = N_hat x k_hat so is perpendicular to plane of wave normal and magnetic field
+    Ry = (kx * ones(len(kx))) / factor
+    Rz = zeros(len(kx))
+    
+    Sx = -(Ry * kz) + (Rz * ky)# S_hat = k_hat x R_hat so is in plane of wave normal and magnetic field
+    Sy = -(Rz * kx) + (Rx * kz)
+    Sz = -(Rx * ky) + (Ry * kx)
+    
+#    Jxx = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+#    Jyy = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+#    Jzz = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+#    Jxy_real = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+#    Jxy_img = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+
+    monitor.setProgressMessage('Rotating J-Prime into Wave-Normal')
+
+    ###
+    ### BELOW ROTATION VECTOR TAKES UNIT VECTORS  AS COLUMNS  - correct, worked out on paper several times (rotation the other way gives the same result for diagonal elements)
+    ###
+
+#    Jxx = (Jxx_prime * (Rx**2)) + (Jyy_prime * (Sx**2)) + (Jzz_prime * (kx**2)) + 2*(Jxy_prime_real*Rx*Sx + Jxz_prime_real*Rx*kx + Jyz_prime_real*Sx*kx) # THIS IS WRONG... It fucked up a lot of things and results from taking [J]=[r][J'][r]^-1 instead of [J]=[r]^-1[J'][r] (or vice versa, I can't remember now)
+#    Jyy = (Jxx_prime * (Ry**2)) + (Jyy_prime * (Sy**2)) + (Jzz_prime * (ky**2)) + 2*(Jxy_prime_real*Ry*Sy + Jxz_prime_real*Ry*ky + Jyz_prime_real*Sy*ky)
+#    Jzz = (Jxx_prime * (Rz**2)) + (Jyy_prime * (Sz**2)) + (Jzz_prime * (kz**2)) + 2*(Jxy_prime_real*Rz*Sz + Jxz_prime_real*Rz*kz + Jyz_prime_real*Sz*kz)
+
+    Jxx = (Jxx_prime * (Rx**2)) + (Jyy_prime * (Ry**2)) + (Jzz_prime * (Rz**2)) + 2*(Jxy_prime_real*Rx*Ry + Jxz_prime_real*Rx*Rz + Jyz_prime_real*Ry*Rz)
+    Jyy = (Jxx_prime * (Sx**2)) + (Jyy_prime * (Sy**2)) + (Jzz_prime * (Sz**2)) + 2*(Jxy_prime_real*Sx*Sy + Jxz_prime_real*Sx*Sz + Jyz_prime_real*Sy*Sz)
+    Jzz = (Jxx_prime * (kx**2)) + (Jyy_prime * (ky**2)) + (Jzz_prime * (kz**2)) + 2*(Jxy_prime_real*kx*ky + Jxz_prime_real*kx*kz + Jyz_prime_real*ky*kz)
+
+    Jxy_real = Jxx_prime*Rx*Ry + Jyy_prime*Sx*Sy + Jzz_prime*kx*ky + Jxy_prime_real*(Rx*Sy + Sx*Ry) + Jxz_prime_real*(Rx*ky + Ry*kx) + Jyz_prime_real*(ky*Sx + Sy*kx) # These two parts of the rotation are the same no matter what
+    Jxy_img = Jxy_prime_img*(Rx*Sy - Sx*Ry) + Jxz_prime_img*(Rx*ky - kx*Ry) + Jyz_prime_img*(ky*Sx - Sy*kx)
+
+    Wave_Power = Jxx + Jyy
+
+    del ( [ factor , kx , ky , kz , Nx , Ny , Nz , Rx , Ry , Rz , Sx , Sy , Sz , Jxy_prime_real , Jxz_prime_real , Jyz_prime_real , Jxy_prime_img , Jxz_prime_img , Jyz_prime_img ] )
+
+    ###
+    ### SMOOTHING OVER FREQUENCY BINS (NECESSARY FOR POLARIZATION COMPARISON ANALYSIS)
+    ###
+
+    monitor.setProgressMessage('Smoothing Across Frequency Bins')
+
+    TEMP_Jxx = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
+    TEMP_Jyy = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
+    TEMP_Jzz = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
+    TEMP_Jxy_real = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
+    TEMP_Jxy_img = dblarr( len( Jxx[1,:] ) , len( Jxx[:,1] ) )
+    
+    
+    if ( len( Jxx[1,:] ) < 5 ):
+          freq_avg = 3 #number of frequency bins to average over for polarization, must be odd (is 5 too much? Its is what is in Means paper)
+    else:
+          freq_avg = 5
+
+    for i in xrange( len(Jxx[:,1]) ): #This is a pretty dumb way to do it, but I don't think boxcar average across y-axis is a function yet.
+          TEMP_Jxx[:,i] = smooth( transpose( Jxx )[:,i] , freq_avg )
+          TEMP_Jyy[:,i] = smooth( transpose(Jyy)[:,i] , freq_avg )
+          TEMP_Jzz[:,i] = smooth( transpose(Jzz)[:,i] , freq_avg )
+          TEMP_Jxy_real[:,i] = smooth( transpose(Jxy_real)[:,i] , freq_avg )
+          TEMP_Jxy_img[:,i] = smooth( transpose(Jxy_img)[:,i] , freq_avg )
+
+
+    Jxx = transpose( TEMP_Jxx )
+    Jyy = transpose( TEMP_Jyy )
+    Jzz = transpose( TEMP_Jzz )
+    Jxy_real = transpose( TEMP_Jxy_real )
+    Jxy_img = transpose( TEMP_Jxy_img )
+    
+    del ( [ TEMP_Jxx , TEMP_Jyy , TEMP_Jzz , TEMP_Jxy_real , TEMP_Jxy_img ] )
+
+    putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_0, fft_time )
+    putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_1, frequency_axis )
+
+    
+    J_det =  ( Jxx*Jyy - (Jxy_real*Jxy_real + Jxy_img*Jxy_img) )
+
+    ###
+    ### POWER IN MAGNETIC FIELD DIRECTIONS
+    ###
+
+    #monitor.setProgressMessage('Defining Wave Intensity')
+
+    #Power_compressional = Jzz_prime
+    #Power_perp = sqrt(Jxx**2 + Jyy**2) 
+    #Power_transverse = Jxx_prime + Jyy_prime # upon recommendation from Chuck, this is the wave intensity rather than magnitude of diagonal elements
+                
+
+
+    ###
+    ### DEFINE POLARIZATION PARAMETERS USING J MATRIX
+    ###
+          
+    #monitor.setProgressMessage('Calculating Degree of Polarization')
+    #Deg_Polarization = sqrt ( 1 - ( (4 * J_det) / ( (Jxx + Jyy)**2 ) ) )
+    #Deg_Polarization.putProperty ( QDataSet.VALID_MIN , 0 )
+
+    #monitor.setProgressMessage('Calculating Coherency')
+    Coherency = sqrt( (Jxy_real*Jxy_real + Jxy_img*Jxy_img) / (Jxx * Jyy) )
+    Coherency.putProperty ( QDataSet.VALID_MIN , 0 )
+
+    #Angle_Polarization = toDegrees( 0.5 * atan((2 * Jxx) / (Jxx - Jyy)) ) # sure Jxx isn't supposed to be Jxy_real?
+
+    monitor.setProgressMessage('Calculating Ellipticity and Handedness')
+    Handedness = ( (1 * (2 * Jxy_img) / sqrt( (Jxx + Jyy)**2 - (4 * J_det) ) ))
+    Ellipticity = ( tan ( 0.5 * asin( Handedness ) ))
+    Ellipticity.putProperty ( QDataSet.VALID_MIN , -1 )
+
+    monitor.setProgressMessage('Definining Wave-Normal angle relative to |B|')
+    Angle_Normal = toDegrees( theta )
+    Angle_Normal.putProperty ( QDataSet.VALID_MIN , 0 )
+    
+    
+    del ( [ Jxx , Jyy , Jzz , Jxy_real , Jxy_img , theta ] )
+
+
+    ###
+    ### ONLY KEEPING TERMS WITH WAVE POWER ASSOCIATED
+    ###
+    
+    monitor.setProgressMessage('Throwing out Values of Low Wave Power')
+    if ( wave_power_min > 0 ): # this executes a step function zero-ing out spectra where there are no waves (to make it easier to see what is happening) 
+        r = where(lt(Wave_Power,wave_power_min))
+        Angle_Normal[r] = -1
+        Ellipticity[r]  = -2
+        Coherency[r]    = -1
+
+    
+    ###
+    ### SPIT OUT RESULTS
+    ###
+    
+    return ( Coherency , Ellipticity , Angle_Normal , Wave_Power )#, Deg_Polarization, Angle_polarization ) #I took these out, since I won't be using them
+
+
+###################################################################################    
+
+
+monitor.started()
+#reset()
+    
+          
+# ###  
+# ### GET DESPUN MAG DATA
+# ###
+
+diff_seconds = (((window)/2)*(1.0/64.0)) #Defines the number of seconds on either side of desired data subset to perform a full fft
+starttime.putProperty( QDataSet.UNITS , None )
+endtime.putProperty( QDataSet.UNITS , None )
+    
+lead_time =  tp.format( Units.us2000.createDatum(QDataSet.value( starttime - diff_seconds*1E6 )) , None )
+excess_time =  tp.format( Units.us2000.createDatum(QDataSet.value( endtime + diff_seconds*1E6 )) , None )
+ 
+monitor.setProgressMessage('Downloading Hi-res MAG Data')
+
+TEMP_Bx_GSE_raw = getDataSet(mag_file+'&Mag&slice1=0') #Pull raw Bx data
+TEMP_By_GSE_raw = getDataSet(mag_file+'&Mag&slice1=1')
+TEMP_Bz_GSE_raw = getDataSet(mag_file+'&Mag&slice1=2')
+Btime_total = TEMP_Bx_GSE_raw.property(QDataSet.DEPEND_0)
+
+
+# ###  
+# ### PERFORM BUTTERWORTH FILTER & PULL SUBSET OF VALUES
+# ###
+
+TEMP_Bx_GSE_detrend = Butterworth_Bandpassify_zeroPhase( TEMP_Bx_GSE_raw , 2 , datum( str(freq_min)+' Hz' ) , datum( str(freq_max)+' Hz' ) , True )# Detrends data for fft use
+TEMP_By_GSE_detrend = Butterworth_Bandpassify_zeroPhase( TEMP_By_GSE_raw , 2 , datum( str(freq_min)+' Hz' ) , datum( str(freq_max)+' Hz' ) , True )
+TEMP_Bz_GSE_detrend = Butterworth_Bandpassify_zeroPhase( TEMP_Bz_GSE_raw , 2 , datum( str(freq_min)+' Hz' ) , datum( str(freq_max)+' Hz' ) , True )
+   
+r = where( Btime_total.ge( lead_time ).and( Btime_total.le( excess_time ) ) )
+Bx_GSE_detrend = TEMP_Bx_GSE_detrend[r]
+By_GSE_detrend = TEMP_By_GSE_detrend[r]
+Bz_GSE_detrend = TEMP_Bz_GSE_detrend[r]
+Btime = Btime_total[r]
+
+putProps( [ Bx_GSE_detrend , By_GSE_detrend , Bz_GSE_detrend ] , QDataSet.DEPEND_0 , Btime )
+
+#Bx_GSE_raw = TEMP_Bx_GSE_raw[r]# Hold on to raw data for E*B=0 calculation
+#By_GSE_raw = TEMP_By_GSE_raw[r]
+#Bz_GSE_raw = TEMP_Bz_GSE_raw[r]
+#putProps( [ Bx_GSE_raw , By_GSE_raw , Bz_GSE_raw ] , QDataSet.DEPEND_0 , Btime )
+
+del( [ TEMP_Bx_GSE_raw , TEMP_By_GSE_raw , TEMP_Bz_GSE_raw , TEMP_Bx_GSE_detrend , TEMP_By_GSE_detrend , TEMP_Bz_GSE_detrend ] )
+
+if ( len(Btime) != len(uniq(Btime)) ):# This is used to solve the problem of two 00:00 timestamps when spanning multiple days
+    raw_mag_uniqueness = uniq( Btime )
+    Btime = Btime[raw_mag_uniqueness]
+    Bx_GSE_detrend = Bx_GSE_detrend[raw_mag_uniqueness]
+    By_GSE_detrend = By_GSE_detrend[raw_mag_uniqueness]
+    Bz_GSE_detrend = Bz_GSE_detrend[raw_mag_uniqueness]
+    
+else:
+    pass
+    
+
+# ###
+# ### DEFINE FIELD-ALIGNED VECTOR
+# ###
+    
+( Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz , Btimelow ) = RBSP_FAC( bckg_file , ephem_file , Btime , lead_time , excess_time)
+
+
+# ###
+# ### FIELD-ALIGN  DATA
+# ###
+
+monitor.setProgressMessage('Rotating into Field-Aligned Coordinates')
+
+Bn = (Bx_GSE_detrend * Nx) + (By_GSE_detrend * Ny) + (Bz_GSE_detrend * Nz)
+Bp = (Bx_GSE_detrend * Px) + (By_GSE_detrend * Py) + (Bz_GSE_detrend * Pz)
+Bq = (Bx_GSE_detrend * Qx) + (By_GSE_detrend * Qy) + (Bz_GSE_detrend * Qz)
+
+Bn.putProperty ( QDataSet.LABEL , 'B!D||' )
+Bp.putProperty ( QDataSet.LABEL , 'B!D&perp;az' )
+Bq.putProperty ( QDataSet.LABEL , 'B!D&perp;rad' )
+
+putProps( [ Bn , Bp , Bq ] , QDataSet.DEPEND_0 , Btime )
+putProps( [ Bn , Bp , Bq ] , QDataSet.UNITS , Units.nT )
+
+
+# ###
+# ### GENERATE MAG FFTS
+# ###
+
+Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
+Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
+Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
+
+fft_time = Bn_fft.property(QDataSet.DEPEND_0)
+frequency_axis = Bn_fft.property(QDataSet.DEPEND_1)
+
+
+# ###  
+# ### RUN POLARIZATION
+# ###
+
+( Coherency , Ellipticity , Angle_Normal , Wave_Power ) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min)
+
+Power_perp = ( (Bp_fft[:,:,0]**2 + Bp_fft[:,:,1]**2) + (Bq_fft[:,:,0]**2 + Bq_fft[:,:,1]**2) ) / 2
+Power_par = (Bn_fft[:,:,0]**2 + Bn_fft[:,:,1]**2)
+
+
+# ###
+# ### PREPARE STUFF
+# ###
+
+starttitle =  tp_title.format( Units.us2000.createDatum(QDataSet.value(starttime)) , None )
+endtitle =  tp_title.format( Units.us2000.createDatum(QDataSet.value(starttime)) , None )
+
+background_grey = java.awt.Color(216,216,216,255)
+
+if ( logyn == 'T'):
+  logfreq = 1
+else:
+  logfreq = 0
+
+from org.das2.graph.DasColorBar.Type import APL_RAINBOW_BLACK0
+from org.das2.graph.DasColorBar.Type import BLUE_WHITE_RED_WEDGE
+from org.das2.graph.DasColorBar.Type import GRAYSCALE
+from org.das2.graph.DasColorBar.Type import INVERSE_GRAYSCALE
+from org.das2.graph.LegendPosition import *
+
+putProps([Bp, Bq, Bn ] , QDataSet.VALID_MAX , 1E10 )
+putProps([Bp, Bq, Bn ] , QDataSet.VALID_MIN , -1E10 )
+
+###
+### PLOT STUFF
+###
+
+monitor.setProgressMessage('Plotting Parameters')
+
+r = where(Bp.ge(-1E10).and(Bp.ge(-1E10)).and(Bp.le(1E10).and(Bp.le(1E10))))
+#Bp = Bp[r]
+#Bn = Bn[r]
+#Btime = Btime[r]
+
+y_max = 1.1 * max( max(abs(Bp[r])) , max(abs(Bn[r])) )
+
+setLayoutOverplot(2)
+plotx ( 0 , Btime , Bp , yrange=[-y_max,y_max] , renderType='series' , title = 'Polarization parameters for RBSP-'+SPACECRAFT , ytitle='Field!CComponents' )
+plotx ( 1 , Btime , Bn , yrange=[-y_max,y_max] , renderType='series' )
+dom.plotElements[0].setDisplayLegend(True)
+dom.plotElements[1].style.color= Color.BLUE
+dom.plotElements[1].setDisplayLegend(True)
+
+plotx ( 2 , Wave_Power , ytitle='Frequency (Hz)', ylog=logfreq , yrange=[freq_min, freq_max] , zlog=1, zrange=[power_min , power_max], ztitle='Wave Intensity!C     (nT!U2!N/Hz)' )#, title = 'Polarization parameters for RBSP S/C-'+SC_upper+' - '+start_date+'T'+str(start_hour))
+plotx ( 3 , Coherency , ylog=logfreq , yrange=[freq_min, freq_max] , ztitle='Coherency', zlog=0, zrange=[0,1] )
+plotx ( 4 , Angle_Normal , ylog=logfreq , yrange=[freq_min, freq_max] , ztitle='Wave-Normal!CRelative to |B|', zrange=[0, 90])
+plotx ( 5 , Ellipticity , ylog=logfreq , yrange=[freq_min, freq_max] , zrange=[-1 , 1], ztitle='     Ellipticity!CRH               LH')#, ztitle='              Ellipticity!C!BRight                         Left!C!BHand                       Hand!N' )
+
+monitor.setProgressMessage('Tweaking Plots')
+waitUntilIdle()
+
+dom.plots[0].xaxis.drawTickLabels = 0
+dom.plots[0].controller.dasColorBar.setFillColor(background_grey)
+dom.plots[0].setDisplayLegend(True)
+dom.plots[0].setLegendPosition(OutsideNE)
+
+dom.plots[1].xaxis.drawTickLabels = 0
+dom.plots[1].displayTitle = 0
+dom.plots[1].setColortable(APL_RAINBOW_BLACK0)
+dom.plots[1].controller.dasColorBar.setFillColor(background_grey)
+
+dom.plots[2].xaxis.drawTickLabels = 0
+dom.plots[2].displayTitle = 0
+dom.plots[2].setColortable(GRAYSCALE)
+dom.plots[2].controller.dasColorBar.setFillColor(background_grey)
+
+dom.plots[3].xaxis.drawTickLabels = 0
+dom.plots[3].displayTitle = 0
+dom.plots[3].setColortable(INVERSE_GRAYSCALE)
+dom.plots[3].controller.dasColorBar.setFillColor(background_grey)
+
+dom.plots[4].displayTitle = 0
+dom.plots[4].setColortable(BLUE_WHITE_RED_WEDGE)
+dom.plots[4].controller.dasColorBar.setFillColor(background_grey)
+dom.plots[4].ticksURI = 'vap+das2server:http://emfisis.physics.uiowa.edu/das/das2Server?dataset=rbsp/ephemeris'+SPACECRAFT+'.dsdf&timerange='+str(starttitle)+' through '+str(endtitle)+'&interval=60'
+
+waitUntilIdle()
+fixLayout()
+
+dom.plots[0].controller.dasPlot.row.ptMaximum = 10 #closes in gaps between windows after "Fix Layout" to be a little more compact
+dom.plots[1].controller.dasPlot.row.ptMaximum = 10
+dom.plots[2].controller.dasPlot.row.ptMaximum = 10
+dom.plots[3].controller.dasPlot.row.ptMaximum = 10
+dom.plots[4].controller.dasPlot.row.ptMaximum = 10
+
+dom.controller.bind( dom.plots[2].yaxis, dom.plots[2].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE ) #adds binding along frequency axis between plots
+dom.controller.bind( dom.plots[3].yaxis, dom.plots[3].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+dom.controller.bind( dom.plots[4].yaxis, dom.plots[4].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+
+dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[1].xaxis, dom.plots[1].xaxis.PROP_RANGE ) #adds binding along time axis between plots
+dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[2].xaxis, dom.plots[2].xaxis.PROP_RANGE )
+dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[3].xaxis, dom.plots[3].xaxis.PROP_RANGE )
+dom.controller.bind( dom.plots[0].xaxis, dom.plots[0].xaxis.PROP_RANGE,  dom.plots[4].xaxis, dom.plots[4].xaxis.PROP_RANGE )
+
+
+
+###
+### WRITE STUFF
+###
+
+Btime.putProperty(QDataSet.NAME,'Bfield_time')
+fft_time.putProperty(QDataSet.NAME,'FFT_time')
+frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
+
+tempOutputFile = 'C:/Users/Kristoff/Desktop/TEMP_polarization'#.cdf'
+b_wna = bundle(Bp, Bq, Bn)
+b_wna.putProperty(QDataSet.NAME,'Bfield_wna')
+b_wna.putProperty(QDataSet.TITLE,'Magnetic Field in wave-normal coordinates')
+b_wna.putProperty(QDataSet.VALID_MIN,-1E10)
+b_wna.putProperty(QDataSet.VALID_MAX, 1E10)
+b_wna.putProperty(QDataSet.DEPEND_0, Btime)
+
+failedToWrite = True
+write_fail_counter = 0
+while failedToWrite == True:
+    try:
+        formatDataSet(b_wna,tempOutputFile+'.cdf')
+        failedToWrite = False
+    except:
+        write_fail_counter+=1
+        tempOutputFile = tempOutputFile+str(write_fail_counter)
+tempOutputFile = tempOutputFile+'.cdf'
+
+Coherency.putProperty(QDataSet.NAME,'Coherency')
+Coherency.putProperty(QDataSet.VALID_MIN,0)
+Coherency.putProperty(QDataSet.VALID_MAX,1)
+Ellipticity.putProperty(QDataSet.NAME,'Ellipticity')
+Ellipticity.putProperty(QDataSet.VALID_MIN,-1)
+Ellipticity.putProperty(QDataSet.VALID_MAX,1)
+Angle_Normal.putProperty(QDataSet.NAME,'Angle_Normal')
+Angle_Normal.putProperty(QDataSet.VALID_MIN,0)
+Angle_Normal.putProperty(QDataSet.VALID_MAX,90)
+Power_perp.putProperty(QDataSet.NAME,'Power_Perp')
+Power_perp.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
+Power_perp.putProperty(QDataSet.VALID_MIN,0)
+Power_perp.putProperty(QDataSet.VALID_MAX,1E10)
+Power_par.putProperty(QDataSet.NAME,'Power_Par')
+Power_par.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
+Power_par.putProperty(QDataSet.VALID_MIN,0)
+Power_par.putProperty(QDataSet.VALID_MAX,1E10)
+
+putProps([Coherency, Ellipticity, Angle_Normal, Power_perp, Power_par] , QDataSet.DEPEND_0 , fft_time )
+putProps([Coherency, Ellipticity, Angle_Normal, Power_perp, Power_par] , QDataSet.DEPEND_1 , frequency_axis )
+
+formatDataSet(Power_perp,tempOutputFile+'?append=T')
+formatDataSet(Power_par,tempOutputFile+'?append=T')
+formatDataSet(Coherency,tempOutputFile+'?append=T')
+formatDataSet(Ellipticity,tempOutputFile+'?append=T')
+formatDataSet(Angle_Normal,tempOutputFile+'?append=T')
+
+monitor.finished()

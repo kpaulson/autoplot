@@ -1,0 +1,174 @@
+
+import java
+
+timerange = '2012-08 to 2017-04'
+output_dir = 'file:/D:/Research/RBSP/Plasmapause Crossings/'
+
+SC= getParam( 'SC', 'B', 'Which Spacecraft?',['A','B','both'] )
+sc_list = list()
+if SC == 'A':
+    sc_list.append('a')
+elif SC == 'B':
+    sc_list.append('b')
+elif SC == 'both':
+    sc_list.append('a')
+    sc_list.append('b')
+
+rbspa_orbits = getDataSet('vap+dat:http://www-pw.physics.uiowa.edu/rbsp/orbits/rbspa_pp')
+rbspb_orbits = getDataSet('vap+dat:http://www-pw.physics.uiowa.edu/rbsp/orbits/rbspb_pp')
+#density_a = getDataSet('vap+cdaweb:ds=RBSPA_EFW-L3&id=density&timerange=%s'%timerange)
+#density_b = getDataSet('vap+cdaweb:ds=RBSPB_EFW-L3&id=density&timerange=%s'%timerange)
+L_a = getDataSet('file:/D:/Research/RBSP/Ephem Data/RBSP_a_ephemeris.txt?column=Lsimple&depend0=time')
+L_b = getDataSet('file:/D:/Research/RBSP/Ephem Data/RBSP_b_ephemeris.txt?column=Lsimple&depend0=time')
+
+#orbitList_a = trim(rbspa_orbits,timerange)
+#orbitList_b = trim(rbspb_orbits,timerange)
+
+Lspan = putProperty(dataset(0.6),QDataSet.UNITS,L_a.property(QDataSet.UNITS))
+densityDropFactor = 5
+oneSec = putProperty(ones(1),QDataSet.UNITS,Units.seconds)
+
+for sc in sc_list:
+    if sc=='a' :
+        orbitList = trim(rbspa_orbits,timerange)
+        #density = density_a
+        L = L_a
+    elif sc=='b' :
+        orbitList = trim(rbspb_orbits,timerange)
+        #density = density_b
+        L = L_b
+        
+#    plasmapauseData = getDataSet(output_dir+'RBSP%s_Plasmapause-Crossing-List.txt?eventListColumn=Event'%sc)
+#    for event in xrange(len(plasmapauseData)):
+#        previousOrbits = append(previousOrbits,plasmapauseData[0,3][-4:])
+#    stop
+    monitor.setTaskSize( len(orbitList) )
+    monitor.started()
+        
+    plasmapauseCrossings = None
+    succesfulInboundOrbits = None
+    succesfulOutboundOrbits = None
+    i = 0
+    for orbit in orbitList:
+        orbitTimes = orbitList.property(QDataSet.DEPEND_0)[i]
+        print 'orbit:',orbit
+        print 'orbitTimes;',orbitTimes
+            
+        monitor.setTaskProgress( i )
+        monitor.setLabel( 'S/C '+str(sc.upper()) )
+        monitor.setProgressMessage( str(orbitTimes) )
+            
+        try:
+            density = getDataSet('vap+cdaweb:ds=RBSP%s_EFW-L3&id=density&timerange=%s'%(sc.upper(),orbitTimes))
+            density_orbit = trim(density,orbitTimes)
+            
+            if (len(density_orbit) == 0) or ('density_orbit' not in locals()) or (density==None) :
+                raise java.lang.NullPointerException
+                
+            uniqueness = uniq(density_orbit.property(QDataSet.DEPEND_0))
+            density_orbit = density_orbit[uniqueness]
+                
+            validPoints = where(eq(valid(density_orbit),1))
+            density_orbit = density_orbit[validPoints]
+            
+            if (len(density_orbit) == 0) or ('density_orbit' not in locals()) or (density==None) :
+                raise java.lang.NullPointerException
+            
+            L_orbit = trim(L,orbitTimes)
+            L_orbit = synchronize(density_orbit,L_orbit)
+            orbitTime = density_orbit.property(QDataSet.DEPEND_0)
+            
+            L_apogee_index = imax(L_orbit) #Define orbit halves by L_apogee
+            
+            outbound = where(le(orbitTime,orbitTime[L_apogee_index]))
+            inbound = where(gt(orbitTime,orbitTime[L_apogee_index]))
+            
+            # Find point where outbound density drops by factor of 5 in L=0.5
+            if len(density_orbit[outbound]) >= 20 :
+                crawlPoint=0
+                while crawlPoint < len(density_orbit[outbound]):
+                    try:
+                        increasingL = sort(L_orbit[outbound]) #This is only necessary for the inbound pass, but I use it here to make sure everything is working properly.
+                        smoothDensity = medianFilter(density_orbit[outbound][increasingL],10)
+                        #smoothDensity = smooth(density_orbit[outbound][increasingL],10)
+                        r = where(ge(L_orbit[outbound][increasingL],(L_orbit[outbound][increasingL][crawlPoint]+Lspan)))
+                        r_0 = r[0]
+                        densityDiffRatio = (smoothDensity[crawlPoint]-smoothDensity[r][0])/smoothDensity[r][0]
+                        
+                        if densityDiffRatio >= densityDropFactor and smoothDensity[r][0] < 100 :
+                            linearL = putProperty(linspace(1.,10.,100),QDataSet.UNITS,L_orbit.property(QDataSet.UNITS))
+                            try:
+                                TEMP_ratio = findex(L_orbit[outbound][increasingL][crawlPoint:r[0]+20],linearL)
+                                TEMP_denisty = interpolate(smoothDensity[crawlPoint:r[0]+20],TEMP_ratio)
+                                maxSlope = imin(diff(TEMP_denisty))
+                                maxSlope = imin(abs(subtract(L_orbit[outbound][increasingL][crawlPoint:r[0]+20],linearL[maxSlope])))
+                            except:
+                                TEMP_ratio = findex(L_orbit[outbound][increasingL][crawlPoint:r[0]],linearL)
+                                TEMP_denisty = interpolate(smoothDensity[crawlPoint:r[0]],TEMP_ratio)
+                                maxSlope = imin(diff(TEMP_denisty))
+                                maxSlope = imin(abs(subtract(L_orbit[outbound][increasingL][crawlPoint:r[0]],linearL[maxSlope])))
+    #                        try:
+    #                            maxSlope = imax((diff(smoothDensity[crawlPoint:r[0]+10])))
+    #                        except:
+    #                            maxSlope = imax((diff(smoothDensity[crawlPoint:r[0]])))
+                            plasmapauseTime = putProperty(copy(orbitTime[outbound][increasingL][maxSlope+crawlPoint]),QDataSet.NAME,None)
+                            plasmapauseCrossings = append(plasmapauseCrossings,createEvent(str(plasmapauseTime)[0:-5]+' to '+str(plasmapauseTime+oneSec[0])[0:-5],0xFF0000,'Outbound Crossing - Orbit #%s'%str(putProperty(orbit,QDataSet.NAME,None))))
+                            succesfulOutboundOrbits = append(succesfulOutboundOrbits,putProperty(orbit,QDataSet.NAME,None))
+                            crawlPoint=len(density_orbit[outbound])
+                        crawlPoint += 1
+                    except(java.lang.ArrayIndexOutOfBoundsException,java.lang.IllegalArgumentException):
+                        crawlPoint += 1
+                        continue
+                             
+                    
+            # Find point where inbound density drops by factor of 5 in L=0.5
+            if len(density_orbit[inbound]) >= 20 :
+                crawlPoint=0
+                while crawlPoint < len(density_orbit[inbound]):
+                    try:
+                        increasingL = sort(L_orbit[inbound])
+                        smoothDensity = medianFilter(density_orbit[inbound][increasingL],10)
+                        #smoothDensity = smooth(density_orbit[inbound][increasingL],10)
+                        r = where(ge(L_orbit[inbound][increasingL],(L_orbit[inbound][increasingL][crawlPoint]+Lspan)))
+                        r_0 = r[0]
+                        densityDiffRatio = (smoothDensity[crawlPoint]-smoothDensity[r][0])/smoothDensity[r][0]
+                        
+                        if densityDiffRatio >= densityDropFactor and smoothDensity[r][0] < 100 :
+                            linearL = putProperty(linspace(1.,10.,100),QDataSet.UNITS,L_orbit.property(QDataSet.UNITS))
+                            
+                            try:
+                                TEMP_ratio = findex(L_orbit[inbound][increasingL][crawlPoint:r[0]+20],linearL)
+                                TEMP_denisty = interpolate(smoothDensity[crawlPoint:r[0]+20],TEMP_ratio)
+                                maxSlope = imin(diff(TEMP_denisty))
+                                maxSlope = imin(abs(subtract(L_orbit[inbound][increasingL][crawlPoint:r[0]+20],linearL[maxSlope])))
+                            except:
+                                TEMP_ratio = findex(L_orbit[inbound][increasingL][crawlPoint:r[0]],linearL)
+                                TEMP_denisty = interpolate(smoothDensity[crawlPoint:r[0]],TEMP_ratio)
+                                maxSlope = imin(diff(TEMP_denisty))
+                                maxSlope = imin(abs(subtract(L_orbit[inbound][increasingL][crawlPoint:r[0]],linearL[maxSlope])))
+                            
+    #                    if densityDiffRatio >= densityDropFactor :
+    #                        try:
+    #                            maxSlope = imax((diff(smoothDensity[crawlPoint:r[0]+10])))
+    #                        except:
+    #                            maxSlope = imax((diff(smoothDensity[crawlPoint:r[0]])))
+                            plasmapauseTime = putProperty(copy(orbitTime[inbound][increasingL][maxSlope+crawlPoint]),QDataSet.NAME,None)
+                            plasmapauseCrossings = append(plasmapauseCrossings,createEvent(str(plasmapauseTime)[0:-5]+' to '+str(plasmapauseTime+oneSec[0])[0:-5],0x0000FF,'Inbound Crossing - Orbit #%s'%str(putProperty(orbit,QDataSet.NAME,None))))
+                            succesfulInboundOrbits = append(succesfulInboundOrbits,putProperty(orbit,QDataSet.NAME,None))
+                            crawlPoint=len(density_orbit[inbound])
+                            
+                        crawlPoint += 1
+                    except(java.lang.ArrayIndexOutOfBoundsException,java.lang.IllegalArgumentException):
+                        crawlPoint += 1
+                        continue
+                    
+            #plot(3,plasmapauseCrossings)
+            #plasmapauseCrossings
+
+            formatDataSet(plasmapauseCrossings,output_dir+'RBSP%s_Plasmapause-Crossing-List.txt'%sc)
+            i+=1
+        except(java.lang.NullPointerException):#,java.lang.ArrayIndexOutOfBoundsException):
+            print 'No Data in Selected Orbit'
+            i+=1
+
+

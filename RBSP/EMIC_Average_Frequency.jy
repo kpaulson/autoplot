@@ -1,0 +1,346 @@
+
+###
+### USER INPUT PARAMETERS
+###
+
+
+SC = getParam( 'S/C', 'A', 'the spacecraft name', ['A','B'] )
+
+timerange = getParam( 'Timerange', '2013-01-01', 'Timerange to load' )
+
+start_hour = getParam('Starting Hour',12.0,'The starting hour of period of interest')#,[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36])
+end_hour = getParam('Ending Hour',13.0,'The ending hour of period of interest (must be larger than Starting Hour)')#,[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37])
+
+freq_min = getParam( 'Minimum Frequency' , 0.4 , 'The minimum frequency kept after the fft of the data is taken' )
+freq_max = getParam( 'Maximum Frequency' , 7.0 , 'The maximum frequency kept after the fft of the data is taken' )
+
+window = getParam('FFT WIndow Size' , 8192 , 'The number of points in the fft window' , [128,512,1024,2048,4096,8192,16384] )
+slide = getParam('Slide' , 2 , 'The reciprocal of the fraction of the window that is not overlapped by the previous fft' , [1,2,4,8,16,32] )
+
+power_min = getParam('Minimum Power',0.1,'The minimum wave power scanned for wave activity')
+power_max = 500
+
+pearlyn = getParam('Pearl Wave','No','Is the current wave under analysis a Pc1 Pearl Wave?',['Yes','No'])
+
+gyro_lines = getParam('Add Gyrofrequency Lines','No','The first time this is run, click yes so it adds the gyrofrequency lines to the plot',['Yes','No'])
+
+add_slope = getParam('Add to Slopes','No','Do you want to add this one to the slopes file?',['Yes','No']
+
+###
+
+
+sample = 64 # number of samples per second in data (64 for hires rbsp)
+wave_power_min = power_min # probably controversial, throws out points with no wave power - set to 0 to disable
+
+random_power = 1E-1# probably stupid, adds random noise to the data set to make polarizations standout and cut down on bleeding - set to 0 to disable
+
+SC_lower = SC.lower()
+SC_upper = SC.upper()
+
+level = 'L2'
+#level = 'Quick-Look'
+
+emfisis_root = 'http://emfisis.physics.uiowa.edu/Flight/RBSP-'+SC_upper+'/'+level+'/$Y/$m/$d/'
+ephem_root = 'http://www.rbsp-ect.lanl.gov/data_pub/rbsp'+SC_lower+'/MagEphem/def/'
+
+output_root = 'C:\Users\Kristoff\Desktop\EMIC-PEARL_frequency_comparison\\'
+
+monitor.started()
+monitor.setTaskProgress(1)
+
+###  
+### GET DATA FOR EMIC
+###
+
+monitor.setTaskProgress(15)
+monitor.setProgressMessage('Downloading Hi-res MAG Data')
+
+aEMICfilename =  emfisis_root+'rbsp-'+SC_lower+'_magnetometer_uvw_emfisis-'+level+'_$Y$m$d_v$(v,sep).cdf'
+
+aBmag =  getDataSet(aEMICfilename+'?Magnitude&timerange='+timerange)
+aBx = getDataSet(aEMICfilename+'?Mag&slice1=2&timerange='+timerange)
+monitor.setTaskProgress(16)
+
+bBx = aBx - smooth(aBx,533)
+
+###
+### PULL EPHEMERIS DATA
+###
+
+monitor.setTaskProgress(17)
+monitor.setProgressMessage('Downloading Ephemeris Data')
+
+ephemfilename = ephem_root+'rbsp'+SC_lower+'_def_MagEphem_TS04D_$Y$m$d_v$(v,sep).txt'
+
+
+MLatdega = getDataSet(ephemfilename+'?time=IsoDateTime&column=EDMAG_MLAT&timerange='+timerange)
+Lstara = getDataSet(ephemfilename+'?time=IsoDateTime&column=Lstar_90&timerange='+timerange)
+
+from org.das2.datum.Units import hertz
+
+TimeBa = aBmag.property(QDataSet.DEPEND_0)
+TimeLata = MLatdega.property(QDataSet.DEPEND_0)
+
+MLata = MLatdega*3.14159/180
+
+findxa= findex(TimeLata, TimeBa) 
+MLatBa = interpolate(MLata, findxa)
+LstarBa = interpolate(Lstara, findxa)
+
+CMLata = cos(MLatBa)
+SMLata = sin(MLatBa)
+
+Beqa = aBmag*((CMLata)**6)/sqrt(1+3*((SMLata)**2))
+
+ah_line = Beqa * 0.015248
+
+ah_line.putProperty(QDataSet.DEPEND_0, TimeBa)
+ah_line.putProperty(QDataSet.UNITS, hertz)
+
+
+###
+### PULL SUBSET OF ABOVE VALUES - THIS CAN BE STREAMLINED BY PULLING SUBSET ABOVE
+###
+
+monitor.setTaskProgress(19)
+monitor.setProgressMessage('Creating subset of desired data')
+
+start_subset = start_hour * 230400
+end_subset = end_hour * 230400 # (one full day = 5529600 records  -  one hour = 230400 records)
+
+Bx = bBx[ start_subset : end_subset ]
+Bmag = aBmag[ start_subset : end_subset ]
+h_line = ah_line[ start_subset : end_subset ]
+aLstarBa = LstarBa[ start_subset : end_subset ]
+
+atime = Bx.property(QDataSet.DEPEND_0)
+
+del ( aBx )
+del ( bBx )
+
+
+###
+### RUN FFT
+###
+
+monitor.setTaskProgress(30)
+monitor.setProgressMessage('Running FFT')
+
+low_freq = int( (freq_min * window) / sample )
+high_freq = int( (freq_max * window) / sample )
+
+from org.virbo.dsops.Ops import FFTFilterType
+
+aBxfft = fft( Bx, windowFunction( FFTFilterType.Hanning, window ), slide, monitor.getSubtaskMonitor(27,36,'Running FFT of Field-Aligned component') ) #gives real and imaginary parts of fft in 3D array, Hanning window applied
+
+Bxfft = (2*PI)*aBxfft[:,low_freq:high_freq,:] # throws out all points outside of previously defined frequency window
+del ( aBxfft )
+
+T = float( window * float(1.0/64.0) )
+scale = float( 1.0 / T ) * 2
+
+Power = scale * ( (Bxfft[:,:,0]*Bxfft[:,:,0]) + (Bxfft[:,:,1]*Bxfft[:,:,1]) )
+
+fft_time = Power.property(QDataSet.DEPEND_0)
+frequency_axis = Power.property(QDataSet.DEPEND_1)
+
+lowering_ratio = findex( atime , fft_time )
+
+h_line_subset = interpolate ( h_line , lowering_ratio )
+Lstar = interpolate ( aLstarBa , lowering_ratio )
+
+
+###
+### ONLY KEEPING TERMS WITH WAVE POWER ASSOCIATED (IS THIS EVEN ALLOWED)
+###
+
+monitor.setTaskProgress(40)
+monitor.setProgressMessage('Frequency Notch Filter')
+
+for i in xrange( len(Power[:,1]) ):
+  if (SC == 'A'):
+    if (freq_max > 4.47): # Removes the heater signal harmonic from S/C-A Spectra
+      if (freq_min < 4.43):
+        Power[i,int( (4.43 * window) / sample )-int( (freq_min * window) / sample ):int( (4.48 * window) / sample )-int( (freq_min * window) / sample )] = 0
+    if (freq_max > 1.52): # Removes the heater signal from S/C-A Spectra
+      if (freq_min < 1.45):
+        Power[i,int( (1.42 * window) / sample )-int( (freq_min * window) / sample ):int( (1.54 * window) / sample )-int( (freq_min * window) / sample )] = 0
+  if (freq_max > 0.2): # Removes spin tones from both S/C
+    if (freq_min < 0.18):
+      Power[i,int( (0.18 * window) / sample )-int( (freq_min * window) / sample ):int( (0.2 * window) / sample )-int( (freq_min * window) / sample )] = 0
+  if (freq_max > 0.16):
+    if (freq_min < 0.13):
+      Power[i,int( (0.13 * window) / sample )-int( (freq_min * window) / sample ):int( (0.16 * window) / sample )-int( (freq_min * window) / sample )] = 0
+
+from org.das2.datum.Units import dimensionless
+
+weighted_value = dblarr( len(Power[:,1]) , len(Power[1,:]) )
+wave_Power = dblarr( len(Power[:,1]) , len(Power[1,:]) )
+mean_freq = dblarr( len(Power[:,1]) )
+
+  
+monitor.setTaskProgress(80)
+monitor.setProgressMessage('Throwing out Values of Minimal Wave Power')
+if ( wave_power_min > 0 ): # this executes a step function zero-ing out poynting flux where there are no waves, since I am plotting it as a factor of total flux
+  for i in xrange( len(Power[:,1]) ):
+    for j in xrange( len(Power[1,:]) ):
+      if ( Power[i,j] > wave_power_min):
+          wave_Power[i,j] = Power[i,j]
+          weighted_value[i,j] = Power[i,j] * frequency_axis[j]
+ #   mean_freq[i] = total(weighted_value[i],0) / total(Power[i,:],0)
+
+for i in xrange( len(Power[:,1]) ):
+  if gt( total(wave_Power,1)[i] , 0.01 ):
+      if gt(total(weighted_value,1)[i] , 0.01):
+        mean_freq[i] = total(weighted_value,1)[i] / total(wave_Power,1)[i]
+  else:
+      mean_freq[i] = 0.0
+
+
+for i in xrange( len(Power[:,1]) ):
+##  print total(wave_Power,1)[i]
+  if ( mean_freq[i] == -1.0E38 ):
+    mean_freq[i] = 0
+
+weighted_value.putProperty(QDataSet.DEPEND_0,fft_time)
+weighted_value.putProperty(QDataSet.DEPEND_1,frequency_axis)
+weighted_value.putProperty(QDataSet.UNITS,hertz)
+
+mean_freq.putProperty(QDataSet.DEPEND_0,fft_time)
+mean_freq.putProperty(QDataSet.DEPEND_1,frequency_axis)
+mean_freq.putProperty(QDataSet.UNITS,hertz)
+
+normalized=dblarr( len(Power[:,1]) , 3 )
+
+normalized[:,0] = Lstar
+normalized[:,1] = mean_freq/h_line_subset
+normalized[:,2] = mean_freq
+
+normalized.putProperty(QDataSet.DEPEND_0,fft_time)
+normalized.putProperty(QDataSet.DEPEND_1,labels(['TS04D L*90','f/fci', 'f']) )
+
+normalized[:,0].putProperty(QDataSet.NAME,'TS04D L*90')
+normalized[:,1].putProperty(QDataSet.UNITS,dimensionless)
+normalized[:,1].putProperty(QDataSet.NAME,'f / fci')
+
+normalized[:,2].putProperty(QDataSet.UNITS,hertz)
+normalized[:,2].putProperty(QDataSet.NAME,'f')
+
+dom.plots[0].xaxis.setAutoRange(True)
+
+plotx(0,Power, title='RBSP S/C-'+SC+' '+timerange+'!C Normalized Mean Frequency of EMIC Wave as a Function of L!A*!N' , ytitle='Frequency (Hz)', yrange=[freq_min,freq_max] , ztitle='Power (nT!U2!N)')
+plotx(1,mean_freq)
+plotx(2,normalized[:,0],normalized[:,1], xtitle='L!A*!N 90!Uo!N - TS04D' , xrange=[1,6] , ytitle='f / f!Bci!N', yrange=[0.03,1.1], ylog=1)
+
+dom.plotElements[1].controller.renderer.setLineWidth(3.0)
+dom.plotElements[1].style.color=Color.WHITE
+dom.plotElements[2].controller.dataSourceFilter.setValidRange('0.0001 to 1')
+
+if (pearlyn == 'Yes'):
+    formatDataSet(normalized , output_root+'Pearl_'+timerange+'_RBSP-'+SC+'_'+str(start_hour)+'-'+str(end_hour)+'-Hrs_'+str(freq_min)+'-'+str(freq_max)+'-Hz.txt')
+else:
+    formatDataSet(normalized , output_root+timerange+'_RBSP-'+SC+'_'+str(start_hour)+'-'+str(end_hour)+'-Hrs_'+str(freq_min)+'-'+str(freq_max)+'-Hz.txt')
+
+
+writeToPng(output_root+timerange+'_RBSP-'+SC+'_'+str(start_hour)+'-'+str(end_hour)+'-Hrs_'+str(freq_min)+'-'+str(freq_max)+'-Hz.png')
+
+
+### RUN BELOW THE FIRST TIME TO PUT IN GYROLINES
+
+if (gyro_lines == 'Yes'):
+
+    xx = linspace(1,6,6)
+    
+    fci=dblarr(len(xx))
+    fche=dblarr(len(xx))
+    fco=dblarr(len(xx))
+    
+    for i in xrange(len(xx)):
+        fci[i] = 1.0
+        fche[i] = 1.0 / 4.0
+        fco[i] = 1.0 / 16.0
+    
+    plotx(3 , xx , fci  , color='red' )
+    plotx(4,xx,fche,color='red' )
+    plotx(5,xx,fco,color='red')
+    
+    dom.plotElements[3].controller.renderer.setLineWidth(3.0)
+    dom.plotElements[4].controller.renderer.setLineWidth(3.0)
+    dom.plotElements[5].controller.renderer.setLineWidth(3.0)
+
+###
+### RUN BELOW TO ADD THE ENTRY INTO THE SLOPES FILE
+###    
+
+if (add_slope == 'Yes'):
+
+      slopes = getDataSet(directory+'Frequency%20slopes.txt?skipLines=2&column=field0')
+      #slopes_filename = getDataSet(directory+'Frequency%20slopes.txt?skipLines=2&column=field1')
+      #print str(slopes_filename[0])
+      #pslopes = getDataSet(directory+'Pearl Frequency slopes.txt')
+
+      
+      if (pearlyn == 'Yes'):
+            ds = getDataSet(output_root+'Pearl_'+timerange+'_RBSP-'+SC+'_'+str(start_hour)+'-'+str(end_hour)+'-Hrs_'+str(freq_min)+'-'+str(freq_max)+'-Hz.txt?depend0=field1&column=field2')
+      elif (pearlyn == 'No'):
+            ds = getDataSet(output_root+timerange+'_RBSP-'+SC+'_'+str(start_hour)+'-'+str(end_hour)+'-Hrs_'+str(freq_min)+'-'+str(freq_max)+'-Hz.txt?depend0=field1&column=field2')
+
+      lstar = ds.property(QDataSet.DEPEND_0)
+
+
+      icount = 0
+      for i in xrange( len(ds)  ):
+        if ( ds[i] > 0.0 ):
+          icount = icount + 1
+          
+      normalized = dblarr( icount  )
+      normalized_lstar = dblarr( icount  )
+
+      jcount = 0
+      for j in xrange( len(ds) ):
+        if ( ds[j] > 0.0 ):
+          normalized[jcount] = ds[j]
+          normalized_lstar[jcount] = lstar[j]
+          jcount = jcount + 1
+
+      normalized.putProperty(QDataSet.DEPEND_0, normalized_lstar)
+
+
+      from org.virbo.dsutil import LinFit
+      line = LinFit( normalized_lstar , normalized )
+
+      a= line.getA()
+      b= line.getB()
+
+
+      if (pearlyn == 'no'):
+        slopes_temp = slopes
+        slopes_filename_temp = slopes_filename
+        slopes = dblarr( len(slopes_temp)+1 , 2 )
+        
+        for i in xrange(len(slopes_temp)):
+            slopes[i] = slopes_temp[i]
+      #      slopes[i,1] = str(slopes_filename_temp[i])
+            
+        slopes[len(slopes_temp),0] = b
+        slopes[len(slopes_temp),1] = str(filename)
+        formatDataSet( slopes , directory+'Frequency slopes.txt' )
+        
+        plotx( plot_number, normalized_lstar, normalized_lstar*b + a, color='black', ytitle=filename , title='CURRENT PLOT NUMBER = '+str(plot_number)+'!C'+filename )
+        #plotx( 0, slopes, color='black', ytitle=filename, renderType='scatter')
+        
+      else:
+        pslopes_temp = pslopes
+        pslopes = dblarr(len(pslopes_temp)+1)
+        
+        for i in xrange(len(pslopes_temp)):
+            pslopes[i] = pslopes_temp[i]
+            
+        pslopes[len(pslopes_temp)] = b
+        formatDataSet( pslopes , directory+'Pearl Frequency slopes.txt' )
+        
+        plotx( plot_number, normalized_lstar, normalized_lstar*b + a, color='blue', ytitle=filename , title='CURRENT PLOT NUMBER = '+str(plot_number)+'!C'+filename )
+        #plotx( 1, pslopes, color='blue', ytitle=filename, renderType='scatter')
+        
+
+          

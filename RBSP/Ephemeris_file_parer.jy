@@ -1,0 +1,226 @@
+
+
+##############################
+
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+
+
+##################################   
+
+def getEphem( ds_file , timerange ):
+    try:
+        MLT_file = getDataSet( ds_file+'&column=EDMAG_MLT' )
+        MLat_file = getDataSet( ds_file+'&column=EDMAG_MLAT' )
+        Lstar_file = getDataSet( ds_file+'&column=Lstar_90' )
+        Lsimple_file = getDataSet( ds_file+'&column=Lsimple' ) 
+        
+        return( MLT_file , MLat_file , Lstar_file , Lsimple_file )
+    except:
+        raise(java.io.FileNotFoundException)
+    
+    
+################################## 
+
+def ephemerify( spacecraft_list , timeranges ):
+    
+    
+    for spacecraft in spacecraft_list:
+    
+        spacecraft = spacecraft.lower()
+        SPACECRAFT = spacecraft.upper()
+        
+        local_Ephem_root = 'file:/D:/Research/RBSP/Ephem Data/'
+        
+        try:
+            MLT = getDataSet( local_Ephem_root+'RBSP_'+spacecraft+'_ephemeris.txt?depend0=field0&column=field1' )
+            MLat = getDataSet( local_Ephem_root+'RBSP_'+spacecraft+'_ephemeris.txt?depend0=field0&column=field2' )
+            Lstar = getDataSet( local_Ephem_root+'RBSP_'+spacecraft+'_ephemeris.txt?depend0=field0&column=field3' )
+            Lsimple = getDataSet( local_Ephem_root+'RBSP_'+spacecraft+'_ephemeris.txt?depend0=field0&column=field4' )
+            model = getDataSet( local_Ephem_root+'RBSP_'+spacecraft+'_ephemeris.txt?depend0=field0&column=field5' )
+            Time = getDataSet( local_Ephem_root+'RBSP_'+spacecraft+'_ephemeris.txt?column=field0' )
+        except:
+            MLT = dblarr(0)
+            MLat = dblarr(0)
+            Lstar = dblarr(0)
+            Lsimple = dblarr(0)
+            Time = dblarr(0)
+        
+        Time = MLT.property( QDataSet.DEPEND_0 )
+        
+        index=0
+        monitor.setTaskSize( len(timeranges) )
+        monitor.started()
+        
+        for timerange in timeranges:  
+            monitor.setTaskProgress( index )
+            monitor.setLabel( 'S/C '+str(SPACECRAFT) )
+            monitor.setProgressMessage( str(timerange) )
+            
+            print 'S/C '+str(SPACECRAFT)+' '+str(timerange)
+            index += 1
+            old_model_present = False
+            
+            new_time = timegen(str(timerange),'5 min',12*24)
+            
+            already_there = where( Time.ge(new_time[0]).and(Time.le(new_time[len(new_time)-1])) )
+            everything_else = where( Time.lt(new_time[0]).or(Time.gt(new_time[len(new_time)-1])) )
+            
+            if( ( len(already_there) > 2 ) ):
+                if( model[already_there][1].gt(1.0) ):
+                    old_model_present = True
+            
+            if( ( len(already_there) <= 2 ) or (old_model_present == True) ):
+                monitor.setProgressMessage( str(timerange)+' - Have to Replace' )
+                
+                MLT = MLT[everything_else]
+                MLat = MLat[everything_else]
+                Lstar = Lstar[everything_else]
+                Lsimple = Lsimple[everything_else]
+                model = model[everything_else]
+                Time = Time[everything_else]
+                
+        
+            
+                ds_root = 'vap+txt:http://www.rbsp-ect.lanl.gov/data_pub/rbsp'+spacecraft+'/MagEphem/def/$Y/'
+                ds_root_iowa = 'vap+txt:http://emfisis.physics.uiowa.edu/Flight/RBSP-'+SPACECRAFT+'/LANL/MagEphem/$Y/'
+                try:
+                  try:
+                    ds_file = ds_root+'rbsp'+spacecraft+'_def_MagEphem_TS04D_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                    ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                  except:
+                    ds_file = ds_root_iowa+'rbsp'+spacecraft+'_def_MagEphem_TS04D_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                    ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                    
+                  TEMP_model_file = 1
+                    
+                except(java.io.FileNotFoundException,java.lang.ArrayIndexOutOfBoundsException,java.lang.IllegalArgumentException):
+                    try:
+                      try:
+                        ds_file = ds_root+'rbsp'+spacecraft+'_def_MagEphem_T89D_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                        ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                      except:
+                        ds_file = ds_root_iowa+'rbsp'+spacecraft+'_def_MagEphem_T89D_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                        ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                        
+                      TEMP_model_file = 2
+                        
+                    except(java.io.FileNotFoundException,java.lang.ArrayIndexOutOfBoundsException,java.lang.IllegalArgumentException):
+                        try:
+                          try:
+                            ds_file = ds_root+'rbsp'+spacecraft+'_def_MagEphem_T89Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                            ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                          except:
+                            ds_file = ds_root_iowa+'rbsp'+spacecraft+'_def_MagEphem_T89Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                            ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                        
+                          TEMP_model_file = 3
+                            
+                        except(java.io.FileNotFoundException,java.lang.ArrayIndexOutOfBoundsException,java.lang.IllegalArgumentException):
+                            try:
+                              try:
+                                ds_file = ds_root+'rbsp'+spacecraft+'_def_MagEphem_OP77Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                                ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                              except:
+                                ds_file = ds_root_iowa+'rbsp'+spacecraft+'_def_MagEphem_OP77Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+timerange
+                                ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Lstar_file , TEMP_Lsimple_file ) = getEphem( ds_file , timerange )
+                            
+                              TEMP_model_file = 4
+                                    
+                            except:
+                                continue
+                
+                #if( MLT_file in globals() ):
+                MagEphem_time_to_new_time_ratio = findex( TEMP_MLT_file.property(QDataSet.DEPEND_0) , new_time )
+                MLT_file = interpolate( TEMP_MLT_file , MagEphem_time_to_new_time_ratio )
+                MLat_file = interpolate( TEMP_MLat_file , MagEphem_time_to_new_time_ratio )
+                Lstar_file = interpolate( TEMP_Lstar_file , MagEphem_time_to_new_time_ratio )
+                Lsimple_file = interpolate( TEMP_Lsimple_file , MagEphem_time_to_new_time_ratio )
+                
+                model_file = dblarr( len(MLT_file) )
+                for i in xrange( len(model_file) ):
+                    model_file[i] = TEMP_model_file
+                
+                MLT.putProperty( QDataSet.UNITS , TEMP_MLT_file.property(QDataSet.UNITS) )
+                MLat.putProperty( QDataSet.UNITS , TEMP_MLat_file.property(QDataSet.UNITS) )
+                Lstar.putProperty( QDataSet.UNITS , TEMP_Lstar_file.property(QDataSet.UNITS) )
+                Lsimple.putProperty( QDataSet.UNITS , TEMP_Lsimple_file.property(QDataSet.UNITS) )
+                                
+                if ( len(MLT) == 0 ):
+                    MLT = MLT_file
+                    MLat = MLat_file
+                    Lstar = Lstar_file
+                    Lsimple = Lsimple_file
+                    model = model_file
+                    Time = MLT_file.property(QDataSet.DEPEND_0)
+                elif( len(MLT) > 0 ):
+                    MLT = append( MLT , MLT_file ) 
+                    MLat = append( MLat , MLat_file ) 
+                    Lstar = append( Lstar , Lstar_file )
+                    Lsimple = append( Lsimple , Lsimple_file )
+                    model = append( model , model_file )
+                    Time = append( Time , MLT_file.property(QDataSet.DEPEND_0) )
+                
+                full_MLT = dataset(24)
+                full_MLT.putProperty(QDataSet.UNITS,TEMP_MLT_file.property(QDataSet.UNITS))
+        
+                MLT_name = MLT.property( QDataSet.NAME )
+                MLT_time = MLT.property( QDataSet.DEPEND_0 )
+                MLT_units = MLT.property( QDataSet.UNITS )
+                MLT = mod( MLT , full_MLT )
+                MLT.putProperty( QDataSet.NAME , MLT_name )
+                MLT.putProperty( QDataSet.DEPEND_0 , MLT_time )
+                MLT.putProperty( QDataSet.UNITS , MLT_units )
+                    
+                MLT.putProperty( QDataSet.NAME , 'MLT' )
+                MLat.putProperty( QDataSet.NAME , 'MLat' )
+                Lstar.putProperty( QDataSet.NAME , 'Lstar' )
+                Lsimple.putProperty( QDataSet.NAME , 'Lsimple' )
+                model.putProperty( QDataSet.NAME , 'Model_Used (1=TS04D_2=T89D_3=T89Q_4=OP77Q)' )
+                
+                bindle = dblarr( len(MLT) , 5 )
+                
+                bindle = bundle( MLT , MLat , Lstar )
+                bindle = bundle( bindle , Lsimple , model )
+                
+                bindle.putProperty( QDataSet.DEPEND_0 , Time )
+                
+                s = sort( bindle.property(QDataSet.DEPEND_0) )
+                bindle = bindle[s]
+                uniqueness = uniq( bindle.property(QDataSet.DEPEND_0) )
+                bindle = bindle[uniqueness]
+                
+                formatDataSet( bindle , local_Ephem_root+'RBSP_'+spacecraft+'_ephemeris.txt' )
+                
+            else:
+                pass
+       
+###############################    
+          
+###
+### DEFINE TIMERANGE AND RUN SUBSCRIPT
+###                
+
+import java
+from org.das2.math.filter import Butterworth
+from org.virbo.dsops.Ops import FFTFilterType
+from org.das2.datum.Units import *
+from org.virbo.dsutil import LinFit
+from org.das2.graph.DasColorBar.Type import *
+from org.virbo.autoplot.RenderType import *
+from org.das2.datum import *
+
+input_timerange = getParam( 'Timerange to be added in' , '2015-06-08' , 'This should append the given timerange onto the old dataset' )
+SCA_yn = getParam( 'S/C A' , 'T' , 'Run script with respect to S/C A?' , [ 'T' , 'F' ] )
+SCB_yn = getParam( 'S/C B' , 'T' , 'Run script with respect to S/C B?' , [ 'T' , 'F' ] )
+
+spacecraft_list = list()
+if (SCA_yn == 'T'):
+    spacecraft_list.append('A')
+if (SCB_yn == 'T'):
+    spacecraft_list.append('B')
+    
+timeranges= generateTimeRanges('$Y-$m-$d',input_timerange )#'2012-08 through 2014-09')
+ephemerify( spacecraft_list , timeranges )
+

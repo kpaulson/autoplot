@@ -1,0 +1,359 @@
+
+
+# ############################################################################################
+
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+
+# ############################################################################################
+
+def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    """Integral part of Hanningfft subroutine, makes the slide function possible by trimming off the beginning of the data set and reapplying the Hanning windowing function, then resorting the result back into the dataset. 
+    
+    Parameters:
+        ds = The rank1 dataset upon which to perform trimming and windowing.
+        ds_time = The DEPEND_0 component of ds (often stripped off when performing the Hanningfft routine).
+        processed_ds = The already windowed rank2 version of ds from previous iterations.
+        window = Size of window to be taken measured in number of data points.
+        leading_points = The number of points to be trimmed from beginning of ds (typically iterated over window*(i+1)/slide)
+        
+    Outputs:
+        result = merged processed rank2 version of ds."""
+    
+    ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    
+    trimmed_ds = trim(ds,int(leading_points),int(len(ds)))
+    trimmed_ds.putProperty( QDataSet.DEPEND_0 , trim(ds_time,int(leading_points),int(len(ds))) )
+    
+    processed_ds_too = hanning( trimmed_ds , window )
+    processed_ds_too.putProperty( QDataSet.DEPEND_1 , ds.property(QDataSet.DEPEND_1) )
+    
+    processed_ds_time = processed_ds.property( QDataSet.DEPEND_0 )
+    processed_ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
+    
+    result = merge( processed_ds , processed_ds_too )
+    return( result )
+
+# ############################################################################################
+
+def Hanningfft( ds , freq_min , freq_max , window , slide ):
+    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        freq_max = Upper end of frequency range.
+        window = Length of window to be taken measured in number of data points.
+        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+        
+    Returns:
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    
+    ds_time = ds.property(QDataSet.DEPEND_0)
+    
+    ds_cadence = convertUnitsTo((ds_time[1]-ds_time[0]),Units.seconds)
+    per_sec = int(1./ds_cadence)
+    
+    processed_ds = hanning(ds,window)
+
+    for i in xrange( slide ):
+        try:
+            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        except( java.lang.ArrayIndexOutOfBoundsException ):
+            pass
+
+    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+
+    for i in xrange( len(processed_ds[:,0]) ):
+        processed_ds_fft = 2 * fft( processed_ds[i,:] )
+        TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/per_sec) / 1.725
+
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , processed_ds.property(QDataSet.DEPEND_0) )
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , processed_ds_fft[:,0].property(QDataSet.DEPEND_0)*per_sec )
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+
+    frequency_range = where( TEMP_waveform_fft.property(QDataSet.DEPEND_1).ge(freq_min).and(TEMP_waveform_fft.property(QDataSet.DEPEND_1).le(freq_max)) )
+    waveform_fft = TEMP_waveform_fft[:,frequency_range,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_1 , TEMP_waveform_fft.property(QDataSet.DEPEND_1)[frequency_range] )
+    del ( TEMP_waveform_fft )
+    
+    uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+    waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+    waveform_fft = waveform_fft[uniqueness,:,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+    
+    return ( waveform_fft )
+        
+
+# ############################################################################################ 
+
+def fft_power( ds_fft , fft_time , frequency_axis ):
+    ds_fft_power = ds_fft[:,:,0]**2 + ds_fft[:,:,1]**2
+    ds_fft_power.putProperty(QDataSet.DEPEND_0,fft_time)
+    ds_fft_power.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    
+    return(ds_fft_power)
+
+# ############################################################################################ 
+
+
+def vectorDotProduct(AA,BB):
+    ''' Using two [:,3] vector arrays AA, BB, finds the [:,1] 
+    vector dot product AA*BB '''
+    if len(AA) != len(BB):
+        raise arraysOfDifferentLengthsError
+    if AA.rank() == 1 :
+        result = AA[0]*BB[0] + AA[1]*BB[1] + AA[2]*BB[2]
+    else:
+        result = dblarr(len(AA),1)
+        result[:,0] =  AA[:,0]*BB[:,0] + AA[:,1]*BB[:,1] + AA[:,2]*BB[:,2]
+    return result
+
+
+def vectorCrossProduct(AA,BB):
+    '''Using two [:,3] vector arrays AA, BB, finds the [:,3] vector 
+    cross product AAxBB'''
+    if len(AA) != len(BB):
+        raise arraysOfDifferentLengthsError
+    
+    if AA.rank() == 1 :
+        result = dblarr(3)
+        result[0] =  ( AA[1]*BB[2] - AA[2]*BB[1] )
+        result[1] = -( AA[0]*BB[2] - AA[2]*BB[0] )
+        result[2] =  ( AA[0]*BB[1] - AA[1]*BB[0] )
+    else:
+        result = dblarr(len(AA),3)
+        result[:,0] =  ( AA[:,1]*BB[:,2] - AA[:,2]*BB[:,1] )
+        result[:,1] = -( AA[:,0]*BB[:,2] - AA[:,2]*BB[:,0] )
+        result[:,2] =  ( AA[:,0]*BB[:,1] - AA[:,1]*BB[:,0] )
+    
+    return(result)
+
+
+def reciprocalVectorsMMS(pos_mms1,pos_mms2,pos_mms3,pos_mms4):
+    ''' This routine calculates the reciprocal vectors for a tetrahedron 
+    formation over a period of time using the [:,3]-dimensional position 
+    vectors. Make sure things are synchronized before running this, there 
+    are no checks yet. Uses vectorCrossProduct() and vectorDotProduct() routines.'''
+
+    pos_difference_12 = pos_mms2 - pos_mms1
+    pos_difference_13 = pos_mms3 - pos_mms1
+    pos_difference_14 = pos_mms4 - pos_mms1
+    
+    pos_difference_23 = pos_mms3 - pos_mms2
+    pos_difference_24 = pos_mms4 - pos_mms2
+    
+    pos_difference_34 = pos_mms4 - pos_mms3
+    
+    
+    # The reciprocal vector at each spacecraft making up a tetrahedron is defined as 
+    # the vector normal to the surface opposite the spacecraft. Here we find those normals
+    normal_1 = vectorCrossProduct(pos_difference_23,pos_difference_24)
+    normal_2 = vectorCrossProduct(pos_difference_13,pos_difference_14)
+    normal_3 = vectorCrossProduct(pos_difference_12,pos_difference_14)
+    normal_4 = vectorCrossProduct(pos_difference_23,pos_difference_13)
+    
+    # This normal must be normalized by the volume of the tetrahedron, which is calculated
+    # as the normal dotted with the position difference between the spacecraft in question 
+    # and the common point used for the cross product above.
+    reciprocal_vector_1 = normal_1 / vectorDotProduct(pos_difference_12,normal_1)
+    reciprocal_vector_2 = normal_2 / vectorDotProduct(pos_difference_12,normal_2)
+    reciprocal_vector_3 = normal_3 / vectorDotProduct(pos_difference_13,normal_3)
+    reciprocal_vector_4 = normal_4 / vectorDotProduct(pos_difference_34,normal_4)
+    
+    return(reciprocal_vector_1,reciprocal_vector_2,reciprocal_vector_3,reciprocal_vector_4)
+
+def getMMSPositionData(mms_sc,timestamp):
+    ''' Import position vectors of individual MMS spacecraft at a particular timestamp '''
+    
+    from org.autoplot.tca import UriTcaSource
+    try:
+        #raise 'AAARRGH!'
+        pos_mms_file = 'https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_gse'%(mms_sc,mms_sc,mms_sc)
+        pos_mms_data = getDataSet( pos_mms_file+'&timerange=%s'%timestamp[0:10] )
+        pos_mms_data.putProperty(QDataSet.VALID_MIN,-1E30)
+        pos_mms_data.putProperty(QDataSet.VALID_MAX,1E30)
+        tempRatio = findex(pos_mms_data.property(QDataSet.DEPEND_0),dataset(timestamp))
+        pos_mms = interpolate(pos_mms_data,tempRatio)
+        #pos_mms_data = UriTcaSource( pos_mms_file )
+        #pos_mms = pos_mms_data.value( bundle( dataset(timestamp) ) )[0:3]
+        #print pos_mms
+        #if eq(valid(pos_mms),0):
+        #    print 'UHOH'
+            #raise 'TharBeFillValuesHere!'
+    except:
+        try:
+            print 'trying eph89d'
+            pos_mms_file = 'https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/epht89d/$Y/$m/%s_mec_srvy_l2_epht89d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_gse'%(mms_sc,mms_sc,mms_sc)
+            pos_mms_data = UriTcaSource( pos_mms_file+'&timerange=%s'%timestamp[0:10] )
+            pos_mms_data.putProperty(QDataSet.VALID_MIN,-1E30)
+            pos_mms_data.putProperty(QDataSet.VALID_MAX,1E30)
+            tempRatio = findex(pos_mms_data.property(QDataSet.DEPEND_0),dataset(timestamp))
+            pos_mms = interpolate(pos_mms_data,tempRatio)
+            #pos_mms = pos_mms_data.value( bundle( dataset(timestamp) ) )[0:3]
+            #print pos_mms
+        except:
+            try:
+                print 'trying fgm'
+                pos_mms_file = 'http://cdaweb.gsfc.nasa.gov/istp_public/data/mms/%s/fgm/brst/l2/$Y/$m/%s_fgm_brst_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_r_gse_brst_l2'%(mms_sc,mms_sc,mms_sc)
+                pos_mms_data = UriTcaSource( pos_mms_file+'&timerange=%s'%timestamp[0:10] )
+                pos_mms_data.putProperty(QDataSet.VALID_MIN,-1E30)
+                pos_mms_data.putProperty(QDataSet.VALID_MAX,1E30)
+                tempRatio = findex(pos_mms_data.property(QDataSet.DEPEND_0),dataset(timestamp))
+                pos_mms = interpolate(pos_mms_data,tempRatio)
+                #pos_mms = pos_mms_data.value( bundle( dataset(timestamp) ) )[0:3]
+                #print pos_mms
+            except:
+                try:
+                    pos_mms_file = 'http://cdaweb.gsfc.nasa.gov/istp_public/data/mms/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_r_gse_srvy_l2'%(mms_sc,mms_sc,mms_sc)
+                    pos_mms_data = UriTcaSource( pos_mms_file+'&timerange=%s'%timestamp[0:10] )
+                    pos_mms_data.putProperty(QDataSet.VALID_MIN,-1E30)
+                    pos_mms_data.putProperty(QDataSet.VALID_MAX,1E30)
+                    tempRatio = findex(pos_mms_data.property(QDataSet.DEPEND_0),dataset(timestamp))
+                    pos_mms = interpolate(pos_mms_data,tempRatio)
+                    #pos_mms = pos_mms_data.value( bundle( dataset(timestamp) ) )[0:3]
+                except:
+                    raise('noPositionDataAvailable')
+    
+    #print 'position file used:',pos_mms_file
+    return dataset([pos_mms[0],pos_mms[1],pos_mms[2]])
+    #return pos_mms
+
+
+def timingAnlysisMMS(time_mms1,time_mms2,time_mms3,time_mms4):
+    ''' Takes in timestamps from object crossing all four mms spacecraft as strings 
+    and pulls position vectors to calculate a constant velocity vector to account
+    for relative object movement.
+    
+    Uses:
+        getMMSPositionData()'''
+    
+    from org.apache.commons.math.linear import Array2DRowRealMatrix 
+    from org.apache.commons.math.linear import DecompositionSolver
+    from org.apache.commons.math.linear import LUDecompositionImpl
+    
+    D = Array2DRowRealMatrix(3,3) # This will be the 3x3 position difference matrix
+    T = Array2DRowRealMatrix(3,1) # This will be the 3x1 time difference vector
+    
+    
+    # Import relevant S/C position vectors
+    pos_mms1 = getMMSPositionData('mms1',time_mms1)
+    print 'pos_mms1:',(pos_mms1[0],pos_mms1[1],pos_mms1[2])
+    #print pos_mms1
+    pos_mms2 = getMMSPositionData('mms2',time_mms2)
+    print 'pos_mms2:',(pos_mms2[0],pos_mms2[1],pos_mms2[2])
+    pos_mms3 = getMMSPositionData('mms3',time_mms3)
+    print 'pos_mms3:',(pos_mms3[0],pos_mms3[1],pos_mms3[2])
+    pos_mms4 = getMMSPositionData('mms4',time_mms4)
+    print 'pos_mms4:',(pos_mms4[0],pos_mms4[1],pos_mms4[2])
+
+    
+    # To solve for object velocity V, we must solve Dm=T for m=n_hat/V
+    # First we define the Spatial Separation matrix D=[(r2-r1),(r3-r1),(r4-r1)]
+    pos_difference_12 = convertUnitsTo((pos_mms2 - pos_mms1),Units.kiloMeters) # This value is given in kilometers
+    pos_difference_13 = convertUnitsTo((pos_mms3 - pos_mms1),Units.kiloMeters)
+    pos_difference_14 = convertUnitsTo((pos_mms4 - pos_mms1),Units.kiloMeters)
+    
+    D.setEntry(0,0,pos_difference_12[0].value())
+    D.setEntry(0,1,pos_difference_12[1].value())
+    D.setEntry(0,2,pos_difference_12[2].value())
+    D.setEntry(1,0,pos_difference_13[0].value())
+    D.setEntry(1,1,pos_difference_13[1].value())
+    D.setEntry(1,2,pos_difference_13[2].value())
+    D.setEntry(2,0,pos_difference_14[0].value())
+    D.setEntry(2,1,pos_difference_14[1].value())
+    D.setEntry(2,2,pos_difference_14[2].value())
+    print 'D:',D
+    
+    
+    # Then we define the Temporal Separation matrix T=[(t2-t1),(t3-t1),(t4-t1)]
+    time_difference_12 = convertUnitsTo((dataset(time_mms2) - dataset(time_mms1)),Units.seconds) # This value given in seconds
+    time_difference_13 = convertUnitsTo((dataset(time_mms3) - dataset(time_mms1)),Units.seconds)
+    time_difference_14 = convertUnitsTo((dataset(time_mms4) - dataset(time_mms1)),Units.seconds)
+    
+    T.setEntry(0,0,time_difference_12.value())
+    T.setEntry(1,0,time_difference_13.value())
+    T.setEntry(2,0,time_difference_14.value())
+    print 'T:',T
+    
+    
+    # Now Solve for N_hat/m
+    solver = LUDecompositionImpl(D).getSolver()
+    
+    D_inverse = solver.getInverse()
+    m = D_inverse.multiply(T)
+    print 'm:',m
+    
+    m_array = [m.getEntry(0,0),m.getEntry(1,0),m.getEntry(2,0)]
+    speed = 1./magnitude(m_array)
+    n_hat = speed*m_array
+    
+    return speed,n_hat
+
+
+
+# Define timestamps of object observation
+time_mms1 = '2017-07-11 22:34:02.9996'
+time_mms2 = '2017-07-11 22:34:03.0026'
+time_mms3 = '2017-07-11 22:34:02.9362'
+time_mms4 = '2017-07-11 22:34:03.0375'
+
+#time_mms1 = '2015-10-16 13:07:02.808' # Use this as test.. should give:
+#time_mms2 = '2015-10-16 13:07:02.402' #           V = 22.178 km/s
+#time_mms3 = '2015-10-16 13:07:02.398' #       n_hat = (-0.84 , -0.46 , 0.29 )
+#time_mms4 = '2015-10-16 13:07:02.324' #
+
+#(speed,n_hat) = timingAnlysisMMS(time_mms1,time_mms2,time_mms3,time_mms4)
+
+#print 'Velocity in GSE = ',(round(speed*n_hat[0],2),round(speed*n_hat[1],2),round(speed*n_hat[2],2))
+#print 'Total Speed =',speed,' km/s'
+#print 'Normal Direction = ',(round(n_hat[0],2),round(n_hat[1],2),round(n_hat[2],2))
+
+timerange = '2016-12-06 0:29 to 1:07'
+
+freq_min = 0.1
+freq_max = 0.8
+window = 1024
+slide = 8
+
+mms1_fgm = getDataSet('vap+cdaweb:ds=MMS1_FGM_SRVY_L2&id=mms1_fgm_b_gse_srvy_l2&slice1=0&timerange=%s'%(timerange))
+mms2_fgm = getDataSet('vap+cdaweb:ds=MMS2_FGM_SRVY_L2&id=mms2_fgm_b_gse_srvy_l2&slice1=0&timerange=%s'%(timerange))
+
+mms1_fgm = trim(mms1_fgm,timerange)
+mms2_fgm = trim(mms2_fgm,timerange)
+
+  
+def interpolateFGMTo16SamplePerSecond( mms_fgm ):
+    time = putProperty(mms_fgm.property(QDataSet.DEPEND_0),QDataSet.NAME,None)
+    duration = convertUnitsTo(time[-1]-time[0],Units.seconds)
+    new_time = timegen(str(time[0]),'0.0625 sec',int(duration.value()/0.0625))
+    
+    temp_ratio = findex(time,new_time)
+    mms_fgm = interpolate(mms_fgm,temp_ratio)
+    
+    return(mms_fgm)
+
+mms1_fgm = interpolateFGMTo16SamplePerSecond( mms1_fgm )
+mms2_fgm = interpolateFGMTo16SamplePerSecond( mms2_fgm )
+
+mms1_fgm_fft = Hanningfft( mms1_fgm , freq_min , freq_max , window , slide )
+mms2_fgm_fft = Hanningfft( mms2_fgm , freq_min , freq_max , window , slide )
+
+mms1_phi = mms1_fgm_fft[:,:,1]/mms1_fgm_fft[:,:,0]
+mms2_phi = mms2_fgm_fft[:,:,1]/mms2_fgm_fft[:,:,0]
+
+mms1_phi.putProperty(QDataSet.VALID_MIN,-2*PI)
+mms1_phi.putProperty(QDataSet.VALID_MAX, 2*PI)
+mms2_phi.putProperty(QDataSet.VALID_MIN,-2*PI)
+mms2_phi.putProperty(QDataSet.VALID_MAX, 2*PI)
+
+plot(0,mms1_phi)
+plot(1,mms2_phi)
+
+plot(2,mms1_phi-mms2_phi)
+
+
+
+

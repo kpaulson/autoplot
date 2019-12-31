@@ -1,0 +1,347 @@
+
+
+##############################
+
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+
+
+##################################   
+
+
+def getEphem( ephem_model , spacecraft , timerange ):
+    
+    spacecraft = spacecraft.lower()
+    SPACECRAFT = spacecraft.upper()
+    mms_sc = spacecraft
+    MMS_SC = SPACECRAFT
+        
+    #ds_file = 'http://mmsdata.sr.unh.edu/%s/mec/srvy/l2/%s/$Y/$m/%s_mec_srvy_l2_%s_$Y$m$d_v$(v,sep).cdf'%(mms_sc,ephem_model,mms_sc,ephem_model)
+    ds_file = 'https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/%s/$Y/$m/%s_mec_srvy_l2_%s_$Y$m$d_v$(v,sep).cdf'%(mms_sc,ephem_model,mms_sc,ephem_model)
+    #print 'ephem_file:',ds_file
+    mms_pos_sm = getDataSet(ds_file+'?%s_mec_r_sm&timerange=%s'%(mms_sc,timerange))
+    #print 'mms_pos_sm:',ds_file+'?%s_mec_r_sm&timerange=%s'%(mms_sc,timerange)
+    ephem_time = mms_pos_sm.property(QDataSet.DEPEND_0)
+    
+    uniqueness = uniq(ephem_time)
+    mms_pos_sm = mms_pos_sm[uniqueness]
+    ephem_time = ephem_time[uniqueness]
+    
+    Re = 6378.137
+    mms_r = magnitude(mms_pos_sm)/Re
+    theta = asin(mms_pos_sm[:,2]/magnitude(mms_pos_sm))
+    phi = atan2(mms_pos_sm[:,1],mms_pos_sm[:,0])
+    L_dipole_dwell = (magnitude(mms_pos_sm)/6371.)/(cos(theta)**2)
+    
+    MLT_dwell = dblarr(len(phi))
+    greater = where( (phi+PI).gt(0) )
+    MLT_dwell[greater] = mod((phi[greater]+PI)*12/PI,dataset(24))
+    lesser = where( (phi+PI).le(0) )
+    MLT_dwell[lesser] = mod((phi[lesser]+PI)*12/PI,dataset(24))
+    MLT_dwell.putProperty(QDataSet.DEPEND_0,ephem_time)
+    
+    # Below was removed because it would case this subroutine to fail (I assume the rules for booleans changed)
+#    if( (phi+PI).gt(0) ):
+#        MLT_dwell = mod((phi+PI)*12/PI,dataset(24))#(phi+PI)*12/PI
+#    elif( (phi+PI).le(0) ):
+#        MLT_dwell = mod(-(phi+PI)*12/PI,dataset(24))#-(phi+PI)*12/PI
+
+    
+    #MLT_dwell = getDataSet(ds_file+'?%s_mec_mlt&timerange=%s'%(mms_sc,timerange))
+        
+    return( round(MLT_dwell,3) , round(toDegrees(theta),3) , round(mms_r,3) , round(L_dipole_dwell,3) )
+    
+    
+################################## 
+
+def ephemerify( spacecraft_list , timeranges ):
+    
+    
+    for spacecraft in spacecraft_list:
+    
+        spacecraft = spacecraft.lower()
+        SPACECRAFT = spacecraft.upper()
+        mms_sc = spacecraft
+        MMS_SC = SPACECRAFT
+        
+        
+        local_Ephem_root = 'file:/D:/Research/MMS/Ephem_Data/'
+        
+        try:
+            MLT = getDataSet( local_Ephem_root+SPACECRAFT+'_ephemeris.txt?depend0=data0&column=MLT' )
+            MLat = getDataSet( local_Ephem_root+SPACECRAFT+'_ephemeris.txt?depend0=data0&column=MLat' )
+            Re = getDataSet( local_Ephem_root+SPACECRAFT+'_ephemeris.txt?depend0=data0&column=Re' )
+            Ldipole = getDataSet( local_Ephem_root+SPACECRAFT+'_ephemeris.txt?depend0=data0&column=Ldipole' )
+            model = getDataSet( local_Ephem_root+SPACECRAFT+'_ephemeris.txt?depend0=data0&column=Model_Used' )
+            Time = getDataSet( local_Ephem_root+SPACECRAFT+'_ephemeris.txt?column=data0' )
+            print 'found files'
+        except:
+            MLT = dblarr(0)
+            MLat = dblarr(0)
+            Re = dblarr(0)
+            Ldipole = dblarr(0)
+            Time = dblarr(0)
+            MLT.putProperty(QDataSet.DEPEND_0,Time)
+        
+        Time = MLT.property( QDataSet.DEPEND_0 )
+        
+        index=0
+        monitor.setTaskSize( len(timeranges) )
+        monitor.started()
+        
+        for timerange in timeranges:  
+            monitor.setTaskProgress( index )
+            monitor.setLabel( str(SPACECRAFT) )
+            monitor.setProgressMessage( str(timerange) )
+            
+            index += 1
+            old_model_present = False
+            
+            new_time = timegen(str(timerange),'5 min',12*24)
+            
+            try:
+                already_there = where( Time.ge(new_time[0]).and(Time.le(new_time[len(new_time)-1])) )
+                everything_else = where( Time.lt(new_time[0]).or(Time.gt(new_time[len(new_time)-1])) )
+            except:
+                already_there = dblarr(0)
+                everything_else = where(new_time.eq(new_time))
+            
+            if( ( len(already_there) > 2 ) ):
+                if( model[already_there][1].gt(1.0) ):
+                    old_model_present = True
+            
+            if( ( len(already_there) <= 2 ) or (old_model_present == True) ):
+                monitor.setProgressMessage( str(timerange)+' - Have to Replace' )
+                
+                print str(SPACECRAFT)+' '+str(timerange)
+                MLT = MLT[everything_else]
+                MLat = MLat[everything_else]
+                Re = Re[everything_else]
+                Ldipole = Ldipole[everything_else]
+                model = model[everything_else]
+                Time = Time[everything_else]
+                
+        
+            
+                #ds_root = 'http://mmsdata.sr.unh.edu/%s/mec/srvy/l2/'%(mms_sc)
+                #ds_root = 'https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/'%(mms_sc)
+                
+                try:
+                    ephem_model = 'ephts04d'
+                   
+                    ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Re_file , TEMP_Ldipole_file ) = getEphem( ephem_model , spacecraft , timerange )
+                    
+                    TEMP_model_file = 1
+                    
+                except(java.io.FileNotFoundException,java.lang.ArrayIndexOutOfBoundsException,java.lang.IllegalArgumentException):
+                    print 'Couldn\'t find TS-04 version'
+                    try:
+                        ephem_model = 'epht89d'
+                       
+                        ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Re_file , TEMP_Ldipole_file ) = getEphem( ephem_model , spacecraft , timerange )
+                        
+                        TEMP_model_file = 2
+                        
+                    except(java.io.FileNotFoundException,java.lang.ArrayIndexOutOfBoundsException,java.lang.IllegalArgumentException):
+                        print 'Couldn\'t find TS-89D version'
+                        try:
+                            ephem_model = 'epht89q'
+                       
+                            ( TEMP_MLT_file , TEMP_MLat_file , TEMP_Re_file , TEMP_Ldipole_file ) = getEphem( ephem_model , spacecraft , timerange )
+                            
+                            TEMP_model_file = 3
+                            
+                        except:
+                            print 'Couldn\'t find TS-89Q version'
+                            continue
+                
+                TEMP_MLT_file.putProperty(QDataSet.UNITS,Units.hours)
+                TEMP_MLat_file.putProperty(QDataSet.UNITS,Units.degrees)
+                TEMP_Re_file.putProperty(QDataSet.UNITS,re)
+                TEMP_Ldipole_file.putProperty(QDataSet.UNITS,Units.dimensionless)
+    
+                #if( MLT_file in globals() ):
+                MagEphem_time_to_new_time_ratio = findex( TEMP_MLT_file.property(QDataSet.DEPEND_0) , new_time )
+                MLT_file = interpolate( TEMP_MLT_file , MagEphem_time_to_new_time_ratio )
+                MLat_file = interpolate( TEMP_MLat_file , MagEphem_time_to_new_time_ratio )
+                Re_file = interpolate( TEMP_Re_file , MagEphem_time_to_new_time_ratio )
+                Ldipole_file = interpolate( TEMP_Ldipole_file , MagEphem_time_to_new_time_ratio )
+                
+                model_file = dblarr( len(MLT_file) )
+                for i in xrange( len(model_file) ):
+                    model_file[i] = TEMP_model_file
+                
+                MLT.putProperty( QDataSet.UNITS , TEMP_MLT_file.property(QDataSet.UNITS) )
+                MLat.putProperty( QDataSet.UNITS , TEMP_MLat_file.property(QDataSet.UNITS) )
+                Re.putProperty( QDataSet.UNITS , TEMP_Re_file.property(QDataSet.UNITS) )
+                Ldipole.putProperty( QDataSet.UNITS , TEMP_Ldipole_file.property(QDataSet.UNITS) )
+                                
+                if ( len(MLT) == 0 ):
+                    MLT = MLT_file
+                    MLat = MLat_file
+                    Re = Re_file
+                    Ldipole = Ldipole_file
+                    model = model_file
+                    Time = MLT_file.property(QDataSet.DEPEND_0)
+                elif( len(MLT) > 0 ):
+                    MLT = append( MLT , MLT_file ) 
+                    MLat = append( MLat , MLat_file ) 
+                    Re = append( Re , Re_file )
+                    Ldipole = append( Ldipole , Ldipole_file )
+                    model = append( model , model_file )
+                    Time = append( Time , MLT_file.property(QDataSet.DEPEND_0) )
+                
+                full_MLT = dataset(24)
+                full_MLT.putProperty(QDataSet.UNITS,TEMP_MLT_file.property(QDataSet.UNITS))
+        
+                MLT_name = MLT.property( QDataSet.NAME )
+                MLT_time = MLT.property( QDataSet.DEPEND_0 )
+                MLT_units = MLT.property( QDataSet.UNITS )
+                MLT = mod( MLT , full_MLT )
+                MLT.putProperty( QDataSet.NAME , MLT_name )
+                MLT.putProperty( QDataSet.DEPEND_0 , MLT_time )
+                MLT.putProperty( QDataSet.UNITS , Units.hours )
+                MLat.putProperty( QDataSet.UNITS , Units.degrees )
+                #Re.putProperty( QDataSet.UNITS , Units. )
+                    
+                MLT.putProperty( QDataSet.NAME , 'MLT' )
+                MLat.putProperty( QDataSet.NAME , 'MLat' )
+                Re.putProperty( QDataSet.NAME , 'Re' )
+                Ldipole.putProperty( QDataSet.NAME , 'Ldipole' )
+                model.putProperty( QDataSet.NAME , 'Model_Used' )
+                  
+                MLT.putProperty( QDataSet.LABEL , 'MLT' )
+                MLat.putProperty( QDataSet.LABEL , 'MLat' )
+                Re.putProperty( QDataSet.LABEL , 'R!De!N' )
+                Ldipole.putProperty( QDataSet.LABEL , 'L!DDipole!N' )
+                model.putProperty( QDataSet.LABEL , 'Model_Used (1=TS04D 2=T89D 3=T89Q)' )
+                
+                bindle = dblarr( len(MLT) , 5 )
+                
+                bindle = bundle( MLT , MLat , Re )
+                bindle = bundle( bindle , Ldipole , model )
+                
+                bindle.putProperty( QDataSet.DEPEND_0 , Time )
+                
+                s = sort( bindle.property(QDataSet.DEPEND_0) )
+                bindle = bindle[s]
+                uniqueness = uniq( bindle.property(QDataSet.DEPEND_0) )
+                bindle = bindle[uniqueness]
+                
+                formatDataSet( bindle , local_Ephem_root+spacecraft+'_ephemeris.txt?header=rich' )
+                
+            else:
+                pass
+       
+###############################    
+
+# ##################################################################################
+
+#def mms_ephemerizer( mms_sc , starttime_input , endtime_input , plot_number ):
+#    """Subroutine to add MMS Magnetic Ephemeris ticks to a plot.
+#
+#    Parameters:
+#        mms_sc = The MMS spacecraft in question (eg 'mms1'). [string]
+#        starttime_input = Start time of aggregation. [string or Autoplot Timestamp]
+#        endtime_input = End time of aggregation. [string or Autoplot Timestamp]
+#        plot_number = The plot to which ephemeris ticks will be added. [integer]"""
+#
+#    timerange = str(starttime_input)+' through '+str(endtime_input)
+#
+#    try:
+#        mms_pos_sm = getDataSet('http://mmsdata.sr.unh.edu/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_sm&timerange=%s'%(mms_sc,mms_sc,mms_sc,timerange))
+#        ephem_time = mms_pos_sm.property(QDataSet.DEPEND_0)
+#
+#        uniqueness = uniq(ephem_time)
+#        mms_pos_sm = mms_pos_sm[uniqueness]
+#        ephem_time = ephem_time[uniqueness]
+#
+#        Re = 6378.137
+#        mms_r = magnitude(mms_pos_sm)/Re
+#        theta = asin(mms_pos_sm[:,2]/magnitude(mms_pos_sm))
+#        phi = atan2(mms_pos_sm[:,1],mms_pos_sm[:,0])
+#        L_dipole_dwell = (magnitude(mms_pos_sm)/6371.)/(cos(theta)**2)
+#        if( (phi+PI).gt(0) ):
+#            MLT_dwell = mod((phi+PI)*12/PI,dataset(24))#(phi+PI)*12/PI
+#        elif( (phi+PI).le(0) ):
+#            MLT_dwell = mod(-(phi+PI)*12/PI,dataset(24))#-(phi+PI)*12/PI
+#    except:
+#        mms_pos_gsm = getDataSet('http://mmsdata.sr.unh.edu/%s/afg/srvy/ql/$Y/$m/%s_afg_srvy_ql_$Y$m$d_v$(v,sep).cdf?%s_ql_pos_gsm&timerange=%s'%(mms_sc,mms_sc,mms_sc,timerange))
+#        ephem_time = mms_pos_gsm.property(QDataSet.DEPEND_0)
+#
+#        uniqueness = uniq(ephem_time)
+#        mms_pos_gsm = mms_pos_gsm[uniqueness]
+#        ephem_time = ephem_time[uniqueness]
+#
+#        Re = 6378.137
+#        mms_r = mms_pos_gsm[:,3]/Re
+#        theta = asin(mms_pos_gsm[:,2]/mms_pos_gsm[:,3])
+#        phi = atan2(mms_pos_gsm[:,1],mms_pos_gsm[:,0])
+#        L_dipole_dwell = (mms_pos_gsm[:,3]/6371.)/(cos(theta)**2)
+#        if( (phi+PI).gt(0) ):
+#            MLT_dwell = mod((phi+PI)*12/PI,dataset(24))#(phi+PI)*12/PI
+#        elif( (phi+PI).le(0) ):
+#            MLT_dwell = mod(-(phi+PI)*12/PI,dataset(24))#-(phi+PI)*12/PI
+#
+#
+#    mms_MLat = round(toDegrees(theta),3)
+#    mms_MLT = round(copy(MLT_dwell),3)
+#    mms_r = round(copy(mms_r),3)
+#    mms_MLT.putProperty(QDataSet.NAME,'MLT')
+#    mms_MLat.putProperty(QDataSet.NAME,'MLat')
+#    mms_r.putProperty(QDataSet.NAME,'Re')
+#    mms_MLT.putProperty(QDataSet.LABEL,'MLT')
+#    mms_MLat.putProperty(QDataSet.LABEL,'MLat')
+#    mms_r.putProperty(QDataSet.LABEL,'R!De!N')
+#
+#    r = where(mms_MLT.ge(0).and(mms_MLT.le(24)))
+#    mms_MLT = mms_MLT[r]
+#    mms_MLat = mms_MLat[r]
+#    mms_r = mms_r[r]
+#
+#    mms_ephem = bundle(mms_MLT,mms_MLat,mms_r)
+#    mms_ephem.putProperty(QDataSet.DEPEND_0,ephem_time)
+#    mms_ephem.putProperty(QDataSet.NAME,'mms_ephem')
+#
+#    filename = 'C:/Users/Kristoff/Desktop/TEMP.txt'
+#    formatDataSet(mms_ephem,filename+'?header=rich&tformat=seconds')
+#    dom.plots[plot_number].setTicksURI('')
+#    dom.plots[plot_number].setTicksURI(filename+'?bundle=field1-field3&depend0=field0')
+
+# ##################################################################################
+    
+          
+###
+### DEFINE TIMERANGE AND RUN SUBSCRIPT
+###                
+
+import java
+from org.das2.math.filter import Butterworth
+from org.virbo.dsops.Ops import FFTFilterType
+from org.das2.datum.Units import *
+from org.virbo.dsutil import LinFit
+from org.das2.graph.DasColorBar.Type import *
+from org.das2.datum import *
+from org.das2.datum import UnitsConverter
+re= Units.lookupUnits('Re')
+
+input_timerange = getParam( 'Timerange to be added in' , '2018-06-12' , 'This should append the given timerange onto the old dataset' )
+MMS1_yn = getParam( 'S/C 1' , 'T' , 'Run script with respect to S/C 1?' , [ 'T' , 'F' ] )
+MMS2_yn = getParam( 'S/C 2' , 'T' , 'Run script with respect to S/C 2?' , [ 'T' , 'F' ] )
+MMS3_yn = getParam( 'S/C 3' , 'T' , 'Run script with respect to S/C 3?' , [ 'T' , 'F' ] )
+MMS4_yn = getParam( 'S/C 4' , 'T' , 'Run script with respect to S/C 4?' , [ 'T' , 'F' ] )
+
+spacecraft_list = list()
+if (MMS1_yn == 'T'):
+    spacecraft_list.append('mms1')
+if (MMS2_yn == 'T'):
+    spacecraft_list.append('mms2')
+if (MMS3_yn == 'T'):
+    spacecraft_list.append('mms3')
+if (MMS4_yn == 'T'):
+    spacecraft_list.append('mms4')
+    
+timeranges= generateTimeRanges('$Y-$m-$d',input_timerange )#'2012-08 through 2014-09')
+ephemerify( spacecraft_list , timeranges )
+

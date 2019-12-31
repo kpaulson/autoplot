@@ -1,0 +1,84 @@
+########
+
+###
+### SET INPUT PARAMETERS AND FILENAMES
+###
+
+spacecraft = getParam( 'spacecraft' , 'mms1' , 'Which spacecraft data do you want?' , ['mms1','mms2','mms3','mms4'] )
+SPACECRAFT = spacecraft.upper()
+timerange = getParam( 'timerange', '2015-09-15' , 'Timerange for GDU1 data plotting' )
+
+slow_edi_file = 'http://mmsdata.sr.unh.edu/%s/edi/slow/l1a/amb/$Y/$m/%s_edi_slow_l1a_amb_$Y$m$d_v$(v,sep).cdf?timerange=%s'%(spacecraft,spacecraft,timerange)
+fast_edi_file = 'http://mmsdata.sr.unh.edu/%s/edi/fast/l1a/amb/$Y/$m/%s_edi_fast_l1a_amb_$Y$m$d_v$(v,sep).cdf?timerange=%s'%(spacecraft,spacecraft,timerange)
+
+vap_path = 'C:/Users/Kristoff/Desktop/'
+load(vap_path+'MMS_DFG_EDI-0s-180s.vap')
+
+###
+### IMPORT DATA
+###
+
+slow_edi_pitch_gdu1 = getDataSet(slow_edi_file+'&%s_edi_pitch_gdu1'%spacecraft)
+fast_edi_pitch_gdu1 = getDataSet(fast_edi_file+'&%s_edi_pitch_gdu1'%spacecraft)
+slow_edi_pitch_gdu2 = getDataSet(slow_edi_file+'&%s_edi_pitch_gdu2'%spacecraft)
+fast_edi_pitch_gdu2 = getDataSet(fast_edi_file+'&%s_edi_pitch_gdu2'%spacecraft)
+
+slow_edi_gdu1 = getDataSet(slow_edi_file+'&%s_edi_amb_gdu1_raw_counts1'%spacecraft)
+fast_edi_gdu1 = getDataSet(fast_edi_file+'&%s_edi_amb_gdu1_raw_counts1'%spacecraft)
+slow_edi_gdu2 = getDataSet(slow_edi_file+'&%s_edi_amb_gdu2_raw_counts1'%spacecraft)
+fast_edi_gdu2 = getDataSet(fast_edi_file+'&%s_edi_amb_gdu2_raw_counts1'%spacecraft)
+
+###
+### SPLIT THE SLOW 0S AND 180S FROM EACH GDU
+###
+
+slow_gdu1_zeros_index = where(slow_edi_pitch_gdu1.eq(0.0))
+slow_gdu1_zeros = slow_edi_gdu1[slow_gdu1_zeros_index]
+slow_gdu2_zeros_index = where(slow_edi_pitch_gdu2.eq(0.0))
+slow_gdu2_zeros = slow_edi_gdu2[slow_gdu2_zeros_index]
+
+slow_zeros = concatenate(slow_gdu1_zeros,slow_gdu2_zeros)
+
+slow_gdu1_180s_index = where(slow_edi_pitch_gdu1.eq(180.0))
+slow_gdu1_180s = slow_edi_gdu1[slow_gdu1_180s_index]
+slow_gdu2_180s_index = where(slow_edi_pitch_gdu2.eq(180.0))
+slow_gdu2_180s = slow_edi_gdu2[slow_gdu2_180s_index]
+
+slow_180s = concatenate(slow_gdu1_180s,slow_gdu2_180s)
+
+
+###
+### SPLIT THE FAST 0S AND 180S FROM EACH GDU
+###
+
+fast_gdu1_zeros_index = where(fast_edi_pitch_gdu1.eq(0.0))
+fast_gdu1_zeros = fast_edi_gdu1[fast_gdu1_zeros_index]
+fast_gdu2_zeros_index = where(fast_edi_pitch_gdu2.eq(0.0))
+fast_gdu2_zeros = fast_edi_gdu2[fast_gdu2_zeros_index]
+
+fast_zeros = concatenate(fast_gdu1_zeros,fast_gdu2_zeros)
+
+fast_gdu1_180s_index = where(fast_edi_pitch_gdu1.eq(180.0))
+fast_gdu1_180s = fast_edi_gdu1[fast_gdu1_180s_index]
+fast_gdu2_180s_index = where(fast_edi_pitch_gdu2.eq(180.0))
+fast_gdu2_180s = fast_edi_gdu2[fast_gdu2_180s_index]
+
+fast_180s = concatenate(fast_gdu1_180s,fast_gdu2_180s)
+
+total_zeros = concatenate( slow_zeros , fast_zeros )
+total_180s = concatenate( slow_180s , fast_180s )
+
+#setLayoutOverplot(2)
+plotx(4,total_zeros)
+plotx(5,total_180s,color='blue')
+
+#setLayoutOverplot(3)
+#plotx(1,fast_zeros)
+#plotx(2,slow_zeros,ytitle='0!Uo!N 500eV e-!C(Counts)')
+#plotx(3,fast_180s)
+#plotx(4,slow_180s,ytitle='180!Uo!N 500eV e-!C(Counts)')
+#
+#dom.plots[0].setTitle('%s DFG Data with EDI 0!Uo!N and 180!Uo!N 500 eV Electrons from %s'%(SPACECRAFT,timerange))
+#
+#fixLayout()
+######

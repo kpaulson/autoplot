@@ -1,0 +1,352 @@
+##################################################
+#                                                #
+#   MMS Data for Grad-Shafranov Reconstruction   #
+#                                                #
+#               Kristoff Paulson                 #
+#                   March 2017                   #
+#                                                #
+##################################################
+
+# This routine will retrieve and store daily(?) data files from MMS spacecraft
+# in a format to be read by the Grad-Shafranov routine originally geared towards
+# ACE and WIND data. It won't be pretty.
+
+start = TimeUtil.now()
+# ###
+# ### INPUT PARAMETERS
+# ###
+
+timerange = getParam('timerange','2018-01-08 6:30 to 7:00','Specify the timerange over which the data will be collated')
+mms_sc = getParam('mms s/c','mms1','Which spacecraft are you going to use?',['mms1','mms2','mms3','mms4','all'])
+#brst_or_srvy = getParam('burst or survey','survey','Do you want to use burst or fast survey-mode data (both compiled to srvy mag cadence, but brst may or may not have data for intented interval)')
+#brst_or_srvy = 'burst'
+
+mms_SC = mms_sc.upper()
+mms_sc_list = list()
+
+if( mms_sc == 'all' ):
+    mms_sc_list.append('mms1')
+    mms_sc_list.append('mms2')
+    mms_sc_list.append('mms3')
+    mms_sc_list.append('mms4')
+else:
+    mms_sc_list.append(mms_sc)
+    
+#if( brst_or_srvy == 'burst' ):
+#    fpi_brst_or_srvy = 'brst'
+#else:
+#    fpi_brst_or_srvy = 'fast'
+    
+
+dds= generateTimeRanges('$Y-$m-$d',timerange)
+
+#doy = getParams('Day of Year',,'Specify the day of ')
+
+
+for dd in dds:
+    for sc in mms_sc_list:
+        SC = sc.upper()
+        print 'Working on :',sc,dd
+
+
+        # ###
+        # ### GET S/C DATA
+        # ###
+        
+        # S/C POSITION DATA (km)
+        mms_pos = getDataSet('vap+cdaweb:ds=%s_MEC_SRVY_L2_EPHTS04D&id=%s_mec_r_gse&timerange=%s'%(SC,sc,dd))
+        
+        # FGM MAG DATA (nT)
+        try:
+            mms_fgm = getDataSet('vap+cdaweb:ds=%s_FGM_SRVY_L2&id=%s_fgm_b_gse_srvy_l2_clean&timerange=%s'%((SC,sc,dd)))
+            if mms_fgm==None:
+                raise(CDAWEB_gots_nuthin_exception)
+        except:    
+            try:
+                mms_fgm = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_bulkv_gse_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+                if mms_fgm==None or len(mms_fgm)==0:
+                    raise(LASP_gots_nuthin_exception)
+            except:
+                inst = 'afg'
+                level = 'l2pre'
+                print 'http://mms@mmsdata.sr.unh.edu/%s/%s/srvy/%s/$Y/$m/%s_%s_srvy_%s_$Y$m$d_v$(v,sep).cdf?%s_%s_srvy_%s_gse&timerange=%s'%(sc,inst,level,sc,inst,level,sc,inst,level,dd)
+                mms_fgm = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/%s/srvy/%s/$Y/$m/%s_%s_srvy_%s_$Y$m$d_v$(v,sep).cdf?%s_%s_srvy_%s_gse&timerange=%s'%(sc,inst,level,sc,inst,level,sc,inst,level,dd))
+                
+        mms_fgm = trim(mms_fgm,dd)
+        
+        
+        # ###
+        # ### TRIM THE FGM DATA BEFORE THE INTERPOLATION (LAST-DITCH EFFORT TO CUT DOWN ON PROCESSING TIME)
+        # ###
+        
+        minutesTimerange = len(generateTimeRanges('$Y-$m-$dT$H:$M:$S',timerange))
+        minutesdd        = len(generateTimeRanges('$Y-$m-$dT$H:$M:$S',dd))
+        if (minutesTimerange < minutesdd): #Set so that if we have defined the timerange as less than a full day, it will only use the subsample
+            #print 'fgm before:',mms_fgm
+            mms_fgm = trim(mms_fgm,timerange)
+            #print 'fgm after trim:',mms_fgm
+            print 'Data will be trimmed down to %s'%(timerange)
+
+        
+        time = putProperty(mms_fgm.property(QDataSet.DEPEND_0),QDataSet.NAME,None)
+        
+        
+        #
+        # FIRST GET FPI SURVEY DATA
+        #
+        
+        fpi_brst_or_srvy = 'fast'
+        # PLASMA VELOCITY DATA
+        try:
+            mms_plasma_velocity_srvy = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_bulkv_gse_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            if mms_plasma_velocity_srvy==None:
+                raise(CDAWEB_gots_nuthin_exception)
+        except:    
+            mms_plasma_velocity_srvy = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_bulkv_gse_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+
+        # FPI DENSITY DATA - changed from ion to electron (MMS is not good at solar wind ions)
+        try:
+            #mms_density_srvy = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_numberdensity_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            mms_density_srvy = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DES-MOMS&id=%s_des_numberdensity_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            if mms_density_srvy==None:
+                raise(CDAWEB_gots_nuthin_exception)
+        except:    
+            #mms_density_srvy = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_numberdensity_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            mms_density_srvy = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/des-moms/$Y/$m/%s_fpi_%s_l2_des-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_des_numberdensity_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+        
+        # FPI TEMPERATURE DATA (eV) - changed from ion to electron (MMS is not good at solar wind ions)
+        try:
+            #mms_temp_perp_srvy = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_tempperp_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            #mms_temp_para_srvy = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_temppara_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            mms_temp_perp_srvy = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DES-MOMS&id=%s_des_tempperp_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            mms_temp_para_srvy = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DES-MOMS&id=%s_des_temppara_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            if mms_temp_perp_srvy==None:
+                raise(CDAWEB_gots_nuthin_exception)
+        except:    
+            #mms_temp_perp_srvy = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_tempperp_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            #mms_temp_para_srvy = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_temppara_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            mms_temp_perp_srvy = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/des-moms/$Y/$m/%s_fpi_%s_l2_des-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_des_tempperp_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            mms_temp_para_srvy = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/des-moms/$Y/$m/%s_fpi_%s_l2_des-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_des_temppara_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+        
+        
+        #
+        # THEN GET FPI BURST DATA
+        #
+        
+        fpi_brst_or_srvy = 'brst'
+        # PLASMA VELOCITY DATA
+        try:
+            mms_plasma_velocity_brst = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_bulkv_gse_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            if mms_plasma_velocity_brst==None:
+                raise(CDAWEB_gots_nuthin_exception)
+        except:    
+            mms_plasma_velocity_brst = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/$d/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_bulkv_gse_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+
+        # FPI DENSITY DATA - changed from ion to electron (MMS is not good at solar wind ions)
+        try:
+            #mms_density_brst = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_numberdensity_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            mms_density_brst = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DES-MOMS&id=%s_des_numberdensity_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            if mms_density_brst==None:
+                raise(CDAWEB_gots_nuthin_exception)
+        except:    
+            #mms_density_brst = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/$d/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_numberdensity_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            mms_density_brst = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/des-moms/$Y/$m/$d/%s_fpi_%s_l2_des-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_des_numberdensity_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+        
+        # FPI TEMPERATURE DATA (eV) - changed from ion to electron (MMS is not good at solar wind ions)
+        try:
+            #mms_temp_perp_brst = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_tempperp_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            #mms_temp_para_brst = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_temppara_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            mms_temp_perp_brst = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DES-MOMS&id=%s_des_tempperp_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            mms_temp_para_brst = getDataSet('vap+cdaweb:ds=%s_FPI_%s_L2_DES-MOMS&id=%s_des_temppara_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+            if mms_temp_perp_brst==None:
+                raise(CDAWEB_gots_nuthin_exception)
+        except:    
+            #mms_temp_perp_brst = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/$d/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_tempperp_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            #mms_temp_para_brst = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/dis-moms/$Y/$m/$d/%s_fpi_%s_l2_dis-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_dis_temppara_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            mms_temp_perp_brst = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/des-moms/$Y/$m/$d/%s_fpi_%s_l2_des-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_des_tempperp_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+            mms_temp_para_brst = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/%s/l2/des-moms/$Y/$m/$d/%s_fpi_%s_l2_des-moms_$Y$m$d$H$M$S_v$(v,sep).cdf?%s_des_temppara_%s&timerange=%s'%(sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,sc,fpi_brst_or_srvy,dd))
+        
+        
+        # ###
+        # ### INTERPOLATE ONTO MAG CADENCE
+        # ###
+        
+        mms_srvy_plasma_data_upsampled = synchronize(mms_fgm,[mms_plasma_velocity_srvy[:,0],mms_plasma_velocity_srvy[:,1],mms_plasma_velocity_srvy[:,2],mms_density_srvy,mms_temp_perp_srvy,mms_temp_para_srvy])
+        mms_brst_plasma_data_upsampled = synchronize(mms_fgm,[mms_plasma_velocity_brst[:,0],mms_plasma_velocity_brst[:,1],mms_plasma_velocity_brst[:,2],mms_density_brst,mms_temp_perp_brst,mms_temp_para_brst])
+        
+        #TEMP_ratio = findex(mms_density.property(QDataSet.DEPEND_0),time)
+        #TEMP_velocity
+        
+        #mms_srvy_plasma_data_upsampled = synchronize(mms_fgm,[mms_plasma_velocity_srvy[:,0],mms_plasma_velocity_srvy[:,1],mms_plasma_velocity_srvy[:,2],mms_density_srvy,mms_temp_perp_srvy,mms_temp_para_srvy])
+        #mms_brst_plasma_data_upsampled = synchronize(mms_fgm,[mms_plasma_velocity_brst[:,0],mms_plasma_velocity_brst[:,1],mms_plasma_velocity_brst[:,2],mms_density_brst,mms_temp_perp_brst,mms_temp_para_brst])
+        
+        
+        #plot(1,mms_brst_plasma_data_upsampled[5])
+        #mms_density_upsampled = interpolate(mms_density,TEMP_ratio)
+        #mms_temp_upsampled = interpolate(mms_temp,TEMP_ratio)
+        
+        TEMP_ratio = findex(mms_pos.property(QDataSet.DEPEND_0),time)
+        mms_pos_x = interpolate(mms_pos[:,0],TEMP_ratio)
+        mms_pos_y = interpolate(mms_pos[:,1],TEMP_ratio)
+        mms_pos_z = interpolate(mms_pos[:,2],TEMP_ratio)
+        
+        del(mms_plasma_velocity_srvy,mms_density_srvy,mms_temp_perp_srvy,mms_temp_para_srvy)
+        del(mms_plasma_velocity_brst,mms_density_brst,mms_temp_perp_brst,mms_temp_para_brst)
+        del(mms_pos)
+        
+        
+        #
+        # THEN SWITCH BURST PERIODS IN WHERE AVAILABLE
+        #
+        
+        print 'To get to the Burst-Switcharoo took:',TimeUtil.now()-start
+        burst_availability = getDataSet('vap+cdaweb:avail=T&ds=%s_FPI_%s_L2_DIS-MOMS&id=%s_dis_numberdensity_%s&timerange=%s'%(SC,fpi_brst_or_srvy.upper(),sc,fpi_brst_or_srvy,dd))
+        #plot(0,burst_availability[27],renderType='eventsBar')
+        #stop
+        
+#            burst_times = None
+#            TEMP = ones(len(time))
+#            TEMP.putProperty(QDataSet.DEPEND_0,time)
+#            #burst_times.putProperty(QDataSet.UNITS,time.property(QDataSet.UNITS))
+#            for event in burst_availability:
+#                burst_times = append( burst_times , trim(TEMP,event) )
+#            burst_times = copy(burst_times.property(QDataSet.DEPEND_0))
+#            #burst_times.putProperty(QDataSet.UNITS,time.property(QDataSet.UNITS))
+#
+#            plot(1,within(time,burst_times))
+#            trim(element,datumRange(burst_times))
+#            mms_plasma_data_upsampled = [None,None,None,None,None,None]
+#            trim(mms_brst_plasma_data_upsampled[0],dataset(burst_times))
+#            for element in mms_brst_plasma_data_upsampled:
+#                print 'element:',element
+#                plot(0,element)
+#                r = where( eq(time,burst_times) )
+#                element = element[r]
+#                #element = trim(element,burst_times)
+#                plot(1,element)
+#                stop
+        
+        mms_plasma_data_upsampled = [None,None,None,None,None,None]
+        i=0
+        for element in mms_brst_plasma_data_upsampled:
+            last = TimeUtil.now()
+            for event in burst_availability:
+                mms_plasma_data_upsampled[i] = append( mms_plasma_data_upsampled[i] , trim(element,event) )
+            s = sort(mms_plasma_data_upsampled[i].property(QDataSet.DEPEND_0))
+            mms_plasma_data_upsampled[i] = mms_plasma_data_upsampled[i][s]
+            uniqueness = uniq(mms_plasma_data_upsampled[i].property(QDataSet.DEPEND_0)) #This had to be added in because there were some overlapping buffers in some of the data
+            mms_plasma_data_upsampled[i] = mms_plasma_data_upsampled[i][uniqueness]
+            mms_plasma_data_upsampled[i] = merge( mms_plasma_data_upsampled[i] , mms_srvy_plasma_data_upsampled[i] )
+            print 'To get through %s (%s of %s) on %s took:'%(str(element),str(i+1),str(len(mms_brst_plasma_data_upsampled)),dd),TimeUtil.now()-last
+            #stop
+            i+=1
+        
+        mms_temp_upsampled = mms_plasma_data_upsampled[4] + mms_plasma_data_upsampled[5]
+        #plot(2,burst_availability)
+        #stop
+        del(mms_brst_plasma_data_upsampled,mms_srvy_plasma_data_upsampled)
+        last = TimeUtil.now()
+        
+        # ###
+        # ### SET FILL VALUES TO SOMETHING MANAGEABLE
+        # ###
+        
+        for element in mms_plasma_data_upsampled:
+            element.putProperty(QDataSet.VALID_MIN,-1E10)
+            element.putProperty(QDataSet.VALID_MAX, 1E10)
+        mms_temp_upsampled.putProperty(QDataSet.VALID_MIN,-1E10)
+        mms_temp_upsampled.putProperty(QDataSet.VALID_MAX, 1E10)
+        
+        r = where( valid(mms_plasma_data_upsampled[0]).eq(0) )
+        mms_plasma_velocity_x = copy(mms_plasma_data_upsampled[0])
+        mms_plasma_velocity_x[r] = -9999.999
+        
+        r = where( valid(mms_plasma_data_upsampled[1]).eq(0) )
+        mms_plasma_velocity_y = copy(mms_plasma_data_upsampled[1])
+        mms_plasma_velocity_y[r] = -9999.999
+        
+        r = where( valid(mms_plasma_data_upsampled[2]).eq(0) )
+        mms_plasma_velocity_z = copy(mms_plasma_data_upsampled[2])
+        mms_plasma_velocity_z[r] = -9999.999
+        
+        Vp = magnitude(bundle(copy(mms_plasma_data_upsampled[0]),copy(mms_plasma_data_upsampled[1]),copy(mms_plasma_data_upsampled[2])))
+        r = where( valid(Vp).eq(0) )
+        Vp = copy(Vp)
+        Vp[r] = -9999.999
+        
+        r = where( valid(mms_plasma_data_upsampled[3]).eq(0) )
+        mms_density_upsampled = copy(mms_plasma_data_upsampled[3])
+        mms_density_upsampled[r] = -9999.999
+        
+        r = where( valid(mms_temp_upsampled).eq(0) )
+        mms_temp_upsampled[r] = -9999.999
+        
+        del(mms_plasma_data_upsampled)
+        print 'To reset fill values took:',TimeUtil.now()-last
+        last = TimeUtil.now()
+        
+        #lambda = toDegrees(Object)
+        
+        
+        # ###
+        # ### COMPOSE OUTPUT ARRAY
+        # ###
+
+        year  = dd[0:4]
+        month = dd[5:7]
+        day   = dd[8:10]
+
+        hours   = dblarr(len(time))
+        minutes = dblarr(len(time))
+        seconds = dblarr(len(time))
+        for i in xrange(len(time)):
+            hours[i]   = str(time[i])[11:13]
+            minutes[i] = str(time[i])[14:16]
+            seconds[i] = str(time[i])[17:23]
+        
+        doy = TimeUtil.dayOfYear(int(month),int(day),int(year))*ones(len(time))
+        doy = doy+(hours/24.)+(minutes/(60.*24.))+(seconds/(60.*60.*24.))
+        
+        output = None     
+        output = bundle(output , ones(len(mms_fgm))*year , doy , mms_density_upsampled)
+        output = bundle(output , mms_temp_upsampled , zeros(len(mms_fgm)) , Vp )
+        output = bundle(output , mms_plasma_velocity_x , mms_plasma_velocity_y , mms_plasma_velocity_z )
+        output = bundle(output , mms_fgm[:,0] , mms_fgm[:,1] , mms_fgm[:,2] )
+        output = bundle(output , mms_fgm[:,3] , zeros(len(mms_fgm)) , zeros(len(mms_fgm)) )
+        output = bundle(output , zeros(len(mms_fgm)) , mms_pos_x , mms_pos_y )
+        output = bundle(output , mms_pos_z , zeros(len(mms_fgm)) )
+        
+#        output = bundle(output,ones(len(mms_fgm))*year,ones(len(mms_fgm))*month,ones(len(mms_fgm))*day)
+#        output = bundle(output,hours,minutes,seconds)
+#        output = bundle(output,mms_pos_x,mms_pos_y,mms_pos_z)
+#        output = bundle(output,mms_fgm[:,3])
+#        output = bundle(output,mms_fgm[:,0],mms_fgm[:,1],mms_fgm[:,2])
+#        output = bundle(output,mms_density_upsampled,mms_temp_upsampled)
+#        output = bundle(output,mms_plasma_velocity_x,mms_plasma_velocity_y,mms_plasma_velocity_z)
+        
+        #output.putProperty(QDataSet.DEPEND_0,time)
+        print 'To bundle everything took:',TimeUtil.now()-last
+        last = TimeUtil.now()
+        #stop
+        
+        # ###
+        # ### WRITE DAILY FILE
+        # ###
+        
+     
+        #mms_data_directory = 'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/MMSDATA/merged_mag_plasma/'
+        mms_data_directory = 'C:/Users/Kristoff/Desktop/MMS_20180108_Shock/'
+        mms_data_file = '%s_%s_merged.txt'%(sc,dd)
+     
+        o= open(mms_data_directory+mms_data_file,'w')
+        #o.write('Year Month Day Time      Np       Tp[K]      Vp       Vx       Vy       Vz         Bx         By         Bz         Bmag') # What format was this from??
+        o.write('Year,    DOY,       Np,      Tp[K],   N_alpha/Np, Vp[km/s],Vr[km/s],Vt[km/s],Vn[km/s], Br[gamma],Bt[gamma],Bn[gamma],Bmag[gamma],lambda[deg],delta[deg],Brms[gamma], Xsc_HS[km],Ysc_HS[km],Zsc_HS[km], MAG_pts')
+        #o.write('-------------------------------------------------------------------------------------------------------------------------'
+        for d in output:
+            o.write( '%4d %11.8f %9.3f %11.3e %6.2f %8.2f %8.2f %8.2f %8.2f %10.4f %10.4f %10.4f %10.4f %6.2f %6.2f %6.2f %10.4f %10.4f %10.4f %6.2f \n' % ( d[0], d[1],d[2],d[3],d[4],d[5],d[6],d[7], d[8], d[9],d[10],d[11], d[12], d[13], d[14], d[15], d[16], d[17], d[18], d[19]) )
+        o.close()
+
+        
+        #formatDataSet(output,mms_data_directory+mms_data_file+'?format=9.4f&tformat=microseconds')
+
+        print 'Total time elapsed for %s:'%dd,TimeUtil.now()-start

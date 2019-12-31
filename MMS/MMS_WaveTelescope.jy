@@ -1,0 +1,1021 @@
+#########################
+#                       #
+#    Wave Telescope     #
+#        For MMS        #
+#                       #
+#########################
+
+import java
+
+# ############################################################################################
+
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+
+# ############################################################################################
+
+def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    """Integral part of Hanningfft subroutine, makes the slide function possible by trimming off the beginning of the data set and reapplying the Hanning windowing function, then resorting the result back into the dataset. 
+    
+    Parameters:
+        ds = The rank1 dataset upon which to perform trimming and windowing.
+        ds_time = The DEPEND_0 component of ds (often stripped off when performing the Hanningfft routine).
+        processed_ds = The already windowed rank2 version of ds from previous iterations.
+        window = Size of window to be taken measured in number of data points.
+        leading_points = The number of points to be trimmed from beginning of ds (typically iterated over window*(i+1)/slide)
+        
+    Outputs:
+        result = merged processed rank2 version of ds."""
+    
+    ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    
+    trimmed_ds = trim(ds,int(leading_points),int(len(ds)))
+    trimmed_ds.putProperty( QDataSet.DEPEND_0 , trim(ds_time,int(leading_points),int(len(ds))) )
+    
+    processed_ds_too = hanning( trimmed_ds , window )
+    processed_ds_too.putProperty( QDataSet.DEPEND_1 , ds.property(QDataSet.DEPEND_1) )
+    
+    processed_ds_time = processed_ds.property( QDataSet.DEPEND_0 )
+    processed_ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
+    
+    result = merge( processed_ds , processed_ds_too )
+    return( result )
+
+# ############################################################################################
+
+def Hanningfft( ds , freq_min , freq_max , window , slide ):
+    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    
+    Parameters:
+        ds = The rank1 time-series input data.
+        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        freq_max = Upper end of frequency range.
+        window = Length of window to be taken measured in number of data points.
+        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+        
+    Returns:
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    
+    ds_time = ds.property(QDataSet.DEPEND_0)
+    
+    ds_cadence = convertUnitsTo((ds_time[1]-ds_time[0]),Units.seconds)
+    #per_sec = int(1./ds_cadence)
+    per_sec = (1./ds_cadence)
+    
+    processed_ds = hanning(ds,window)
+
+    for i in xrange( slide ):
+        try:
+            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        except( java.lang.ArrayIndexOutOfBoundsException ):
+            pass
+
+    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+
+    for i in xrange( len(processed_ds[:,0]) ):
+        processed_ds_fft = 2 * fft( processed_ds[i,:] )
+        TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/per_sec) / 1.725
+
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , processed_ds.property(QDataSet.DEPEND_0) )
+    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , processed_ds_fft[:,0].property(QDataSet.DEPEND_0)*per_sec )
+    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+
+    frequency_range = where( TEMP_waveform_fft.property(QDataSet.DEPEND_1).ge(freq_min).and(TEMP_waveform_fft.property(QDataSet.DEPEND_1).le(freq_max)) )
+    waveform_fft = TEMP_waveform_fft[:,frequency_range,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_1 , TEMP_waveform_fft.property(QDataSet.DEPEND_1)[frequency_range] )
+    del ( TEMP_waveform_fft )
+    
+    uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+    waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+    waveform_fft = waveform_fft[uniqueness,:,:]
+    waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+    
+    return ( waveform_fft )
+        
+
+# ############################################################################################ 
+
+def fft_power( ds_fft , fft_time , frequency_axis ):
+    ds_fft_power = ds_fft[:,:,0]**2 + ds_fft[:,:,1]**2
+    ds_fft_power.putProperty(QDataSet.DEPEND_0,fft_time)
+    ds_fft_power.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    
+    return(ds_fft_power)
+    
+# ############################################################################################          
+    
+def field_aligner( Bx_GSE , By_GSE, Bz_GSE , Btotal , TEMP_Rx_GSE , TEMP_Ry_GSE , TEMP_Rz_GSE , smoothData_yn , trend_seconds ):
+    
+    
+    # ###
+    # ### SYNCHRONIZE DATASETS TO MAKE ALL THE SAME CADENCE
+    # ###    
+    
+    TEMP_Rx_GSE , TEMP_Ry_GSE , TEMP_Rz_GSE = synchronize(Btotal,[TEMP_Rx_GSE , TEMP_Ry_GSE , TEMP_Rz_GSE])
+    
+    monitor.setLabel('Field Aligner')    
+    # ###
+    # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR
+    # ###    
+    
+    mag_time = Btotal.property(QDataSet.DEPEND_0)
+            #mag_time.putProperty(QDataSet.NAME,'B-field Time')
+            
+            #print mag_time[1]-mag_time[0]
+            #for i in xrange(len(mag_time)):
+            #    if( mag_time[i]-mag_time[0] > detrend_time ):
+            #        raise getmeouttahere
+            #print mag_time.property(QDataSet.UNITS)
+    if( smoothData_yn == True ):
+        smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
+        
+        Bx_GSE_smooth = smooth(Bx_GSE,smooth_points)
+        By_GSE_smooth = smooth(By_GSE,smooth_points)
+        Bz_GSE_smooth = smooth(Bz_GSE,smooth_points)
+        Btotal_smooth = smooth(Btotal,smooth_points)
+    else:
+        Bx_GSE_smooth = copy(Bx_GSE)
+        By_GSE_smooth = copy(By_GSE)
+        Bz_GSE_smooth = copy(Bz_GSE)
+        Btotal_smooth = copy(Btotal)
+    
+    Nx = Bx_GSE_smooth / Btotal_smooth
+    Ny = By_GSE_smooth / Btotal_smooth
+    Nz = Bz_GSE_smooth / Btotal_smooth
+    
+    
+    # ###
+    # ### PULL RADIAL VECTOR DATA AND DEFINE PERPENDICULAR VECTOR DIRECTIONS
+    # ###
+    
+
+    TEMP_Rmag = sqrt(TEMP_Rx_GSE**2 + TEMP_Ry_GSE**2 + TEMP_Rz_GSE**2)
+    
+    ephem_time = TEMP_Rx_GSE.property(QDataSet.DEPEND_0)
+    #ephem_to_mag_ratio = findex(ephem_time,mag_time)
+    
+    #Rx_GSE = interpolate( (TEMP_Rx_GSE/TEMP_Rmag) , ephem_to_mag_ratio )
+    #Ry_GSE = interpolate( (TEMP_Ry_GSE/TEMP_Rmag) , ephem_to_mag_ratio )
+    #Rz_GSE = interpolate( (TEMP_Rz_GSE/TEMP_Rmag) , ephem_to_mag_ratio )
+    
+    Rx_inwards_GSE = -(TEMP_Rx_GSE/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
+    Ry_inwards_GSE = -(TEMP_Ry_GSE/TEMP_Rmag) 
+    Rz_inwards_GSE = -(TEMP_Rz_GSE/TEMP_Rmag) 
+    
+    TEMP_Px = ( Ny * Rz_inwards_GSE ) - ( Nz * Ry_inwards_GSE )
+    TEMP_Py = ( Nz * Rx_inwards_GSE ) - ( Nx * Rz_inwards_GSE )
+    TEMP_Pz = ( Nx * Ry_inwards_GSE ) - ( Ny * Rx_inwards_GSE )
+    
+    Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
+        
+    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction
+    Py = TEMP_Py / Pmag
+    Pz = TEMP_Pz / Pmag
+    
+    del( [ TEMP_Px , TEMP_Py , TEMP_Pz , Pmag ] )
+        
+    Qx = -( Py * Nz ) + ( Pz * Ny ) # N x P ~radial - positive is outward
+    Qy = -( Pz * Nx ) + ( Px * Nz )
+    Qz = -( Px * Ny ) + ( Py * Nx )
+    
+    
+    # ###
+    # ### TRANSFORM MAG DATA INTO FIELD-ALIGNED COORDINATES
+    # ###
+    
+    Bn = (Bx_GSE * Nx) + (By_GSE * Ny) + (Bz_GSE * Nz)
+    Bp = (Bx_GSE * Px) + (By_GSE * Py) + (Bz_GSE * Pz)
+    Bq = (Bx_GSE * Qx) + (By_GSE * Qy) + (Bz_GSE * Qz)
+   
+    Nx = round(Nx,3)
+    Ny = round(Ny,3)
+    Nz = round(Nz,3)     
+    
+    Px = round(Px,3)
+    Py = round(Py,3)
+    Pz = round(Pz,3) 
+    
+    Qx = round(Qx,3)
+    Qy = round(Qy,3)
+    Qz = round(Qz,3)           
+                    
+    ###
+    ### ADD LABELS AND UNITS AND STUFF, RETURN RESULTS
+    ###
+    
+    Bn.putProperty(QDataSet.LABEL,'B!B||!N')
+    Bn.putProperty(QDataSet.NAME,'B!B||!N')
+    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
+    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
+    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
+    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
+    Btotal.putProperty(QDataSet.LABEL,'|B|')
+    Btotal.putProperty(QDataSet.NAME,'|B|')
+    
+    
+    return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+
+
+     
+# #########################################################################################################     
+
+def rotate( Ax , Ay , Az , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ):
+    
+    Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz = synchronize(Ax ,[Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz])
+    
+    An = (Ax * Nx) + (Ay * Ny) + (Az * Nz)
+    Ap = (Ax * Px) + (Ay * Py) + (Az * Pz)
+    Aq = (Ax * Qx) + (Ay * Qy) + (Az * Qz)
+    
+    return( An , Ap , Aq )
+
+     
+# #########################################################################################################     
+          
+def synchroterpolate(ds1,ds2):
+    time1 = ds1.property(QDataSet.DEPEND_0)
+    time2 = ds2.property(QDataSet.DEPEND_0)
+    
+    ds1_to_ds2_ratio = findex(time2,time1)
+    try:
+        ds2_synch = None
+        for j in xrange(len(ds2.property(QDataSet.DEPEND_1))):
+            TEMP_ds2_synch = interpolate(ds2[j],ds1_to_ds2_ratio)
+            ds2_synch = bundle(ds2_synch,TEMP_ds2_synch)
+    except:
+        ds2_synch = interpolate(ds2,ds1_to_ds2_ratio)
+    #ds2_synch = interpolate(ds2,ds1_to_ds2_ratio)
+    
+    return( ds2_synch )
+              
+# ######################################################################################################### 
+# ######################################################################################################### 
+# #########################################################################################################     
+
+brst_or_srvy = 'brst'
+
+#timerange = '2015-09-18 13:16:15 to 13:16:21'
+## timerange = '2015-08-15 14:42:30 to 14:43:45' # This is the one I am working on
+#timerange = '2015-08-04 16:24:00 to 16:25:00'
+#timerange = '2016-04-07 01:25:30 to 01:25:40'
+
+if brst_or_srvy == 'srvy':
+    #timerange = '2015-08-15 08:54 to 09:12' # Rising tone
+    #timerange = '2015-06-25 11:50 to 12:07' # Pearl elements
+    timerange = '2018-09-22 22:29 to 22:34' # Conjunction study
+    #timerange = '2016-05-20 19:00 to 20:45' # Usanova's EMIC harmonics event
+    sc_list = ['mms1','mms2','mms3','mms4']
+    
+    freq_min = 0.1
+    freq_max = 30.
+    window = 128
+    slide = 8
+    minPower = 0.003
+    
+    trend_seconds = 30
+    
+    b_or_e = 'bfield'
+    
+elif brst_or_srvy == 'brst':
+    #timerange = '2015-09-18 13:15:30 to 13:17:00'   # Large overview of chorus events
+    #timerange = '2015-09-18 13:15:55 to 13:16:04'   # The single wave burst with spectral characteristics
+    #timerange = '2015-09-18 13:16:15 to 13:16:21'
+    #timerange = '2016-04-07 01:25:30 to 01:25:50' # The event Drew looked at in Turner2017 paper
+    #timerange = '2015-11-04 3:11:39 to 3:12:03' # Looking at better events now
+    timerange = '2016-10-17 16:33:45 to 16:37:13'
+    #timerange = '2018-09-22 22:26 to 22:38'  # The chorus activity for the 20180922 conjunction event
+    ##timerange = '2018-09-22 22:28 to 22:34'  # The chorus activity for the 20180922 conjunction event
+    #timerange = '2015-08-04 15:49 to 15:50'  # 20150804 Olivier Confirmation event
+    sc_list = ['mms1','mms2','mms3','mms4']
+    
+    freq_min = 20
+    freq_max = 500
+    window = 1024
+#    freq_min = 100
+#    freq_max = 500
+#    window = 1024
+    slide = 8
+    minPower = 1E-5
+    minPower = 5E-9
+    
+    trend_seconds = 30
+    
+    b_or_e = 'bfield'
+    
+smoothData_yn = False    # True if you want the fieldAligner to smooth data for you, False if not. Leave at falser and smooth before trimming data to save processing time when plotting nan event shorter than smooth time.
+
+#########################################################
+#########################################################
+#########################################################
+
+
+# ###
+# ### Download/Import data
+# ###
+
+# Download position data
+try:
+    pos_mms1 = getDataSet('vap+cdaweb:ds=%s_MEC_SRVY_L2_EPHTS04D&id=%s_mec_r_gse&timerange=%s'%(sc_list[0].upper(),sc_list[0].lower(),timerange))
+    pos_mms2 = getDataSet('vap+cdaweb:ds=%s_MEC_SRVY_L2_EPHTS04D&id=%s_mec_r_gse&timerange=%s'%(sc_list[1].upper(),sc_list[1].lower(),timerange))
+    pos_mms3 = getDataSet('vap+cdaweb:ds=%s_MEC_SRVY_L2_EPHTS04D&id=%s_mec_r_gse&timerange=%s'%(sc_list[2].upper(),sc_list[2].lower(),timerange))
+    pos_mms4 = getDataSet('vap+cdaweb:ds=%s_MEC_SRVY_L2_EPHTS04D&id=%s_mec_r_gse&timerange=%s'%(sc_list[3].upper(),sc_list[3].lower(),timerange))
+except:
+    pos_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_gse&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+    pos_mms2 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_gse&timerange=%s'%(sc_list[1].lower(),sc_list[1].lower(),sc_list[1].lower(),timerange))
+    pos_mms3 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_gse&timerange=%s'%(sc_list[2].lower(),sc_list[2].lower(),sc_list[2].lower(),timerange))
+    pos_mms4 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/mec/srvy/l2/ephts04d/$Y/$m/%s_mec_srvy_l2_ephts04d_$Y$m$d_v$(v,sep).cdf?%s_mec_r_gse&timerange=%s'%(sc_list[3].lower(),sc_list[3].lower(),sc_list[3].lower(),timerange))
+
+# Download magnetic field data
+if brst_or_srvy == 'brst':
+    if b_or_e == 'bfield':
+        try:
+            wave_mms1 = getDataSet('vap+cdaweb:ds=%s_SCM_BRST_L2_SCB&id=%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[0].upper(),sc_list[0].lower(),timerange))
+            wave_mms2 = getDataSet('vap+cdaweb:ds=%s_SCM_BRST_L2_SCB&id=%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[1].upper(),sc_list[1].lower(),timerange))
+            wave_mms3 = getDataSet('vap+cdaweb:ds=%s_SCM_BRST_L2_SCB&id=%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[2].upper(),sc_list[2].lower(),timerange))
+            wave_mms4 = getDataSet('vap+cdaweb:ds=%s_SCM_BRST_L2_SCB&id=%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[3].upper(),sc_list[3].lower(),timerange))
+        except:
+            wave_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/scm/brst/l2/scb/$Y/$m/$d/%s_scm_brst_l2_scb_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+            wave_mms2 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/scm/brst/l2/scb/$Y/$m/$d/%s_scm_brst_l2_scb_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[1].lower(),sc_list[1].lower(),sc_list[1].lower(),timerange))
+            wave_mms3 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/scm/brst/l2/scb/$Y/$m/$d/%s_scm_brst_l2_scb_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[2].lower(),sc_list[2].lower(),sc_list[2].lower(),timerange))
+            wave_mms4 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/scm/brst/l2/scb/$Y/$m/$d/%s_scm_brst_l2_scb_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_scm_acb_gse_scb_brst_l2&timerange=%s'%(sc_list[3].lower(),sc_list[3].lower(),sc_list[3].lower(),timerange))
+    if b_or_e == 'efield':
+        try:
+            wave_mms1 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[0].upper(),sc_list[0].lower(),timerange))
+            wave_mms2 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[1].upper(),sc_list[1].lower(),timerange))
+            wave_mms3 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[2].upper(),sc_list[2].lower(),timerange))
+            wave_mms4 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[3].upper(),sc_list[3].lower(),timerange))
+        except:
+            try:
+                wave_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+                wave_mms2 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[1].lower(),sc_list[1].lower(),sc_list[1].lower(),timerange))
+                wave_mms3 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[2].lower(),sc_list[2].lower(),sc_list[2].lower(),timerange))
+                wave_mms4 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[3].lower(),sc_list[3].lower(),sc_list[3].lower(),timerange))
+            except:
+                try:
+                    wave_mms1 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_dsl_brst_l2&timerange=%s'%(sc_list[0].upper(),sc_list[0].lower(),timerange))
+                    wave_mms2 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_dsl_brst_l2&timerange=%s'%(sc_list[1].upper(),sc_list[1].lower(),timerange))
+                    wave_mms3 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_dsl_brst_l2&timerange=%s'%(sc_list[2].upper(),sc_list[2].lower(),timerange))
+                    wave_mms4 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_DCE&id=%s_edp_dce_dsl_brst_l2&timerange=%s'%(sc_list[3].upper(),sc_list[3].lower(),timerange))
+                except:
+                    try:
+                        wave_mms1 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_HMFE&id=%s_edp_hmfe_dsl_brst_l2&timerange=%s'%(sc_list[0].upper(),sc_list[0].lower(),timerange))
+                        wave_mms2 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_HMFE&id=%s_edp_hmfe_dsl_brst_l2&timerange=%s'%(sc_list[1].upper(),sc_list[1].lower(),timerange))
+                        wave_mms3 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_HMFE&id=%s_edp_hmfe_dsl_brst_l2&timerange=%s'%(sc_list[2].upper(),sc_list[2].lower(),timerange))
+                        wave_mms4 = getDataSet('vap+cdaweb:ds=%s_EDP_BRST_L2_HMFE&id=%s_edp_hmfe_dsl_brst_l2&timerange=%s'%(sc_list[3].upper(),sc_list[3].lower(),timerange))
+                    except:
+                        raise NoFilesBooHooHoo_Exception
+    
+    try:
+        B_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_b_gse_srvy_l2&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+        r_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_r_gse_srvy_l2&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+        
+    except:
+        B_mms1 = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/afg/srvy/l2pre/$Y/$m/%s_afg_srvy_l2pre_$Y$m$d_v$(v,sep).cdf?%s_afg_srvy_l2pre_gse&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+        r_mms1 = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/afg/srvy/l2pre/$Y/$m/%s_afg_srvy_l2pre_$Y$m$d_v$(v,sep).cdf?%s_pos_gse&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+
+    # Trim down wave data to avoid too much information
+    wave_mms1 = trim(wave_mms1,timerange)
+    time = wave_mms1.property(QDataSet.DEPEND_0)
+    
+    wave_mms2 = synchronize(wave_mms1,wave_mms2)
+    wave_mms3 = synchronize(wave_mms1,wave_mms3)
+    wave_mms4 = synchronize(wave_mms1,wave_mms4)
+    
+elif brst_or_srvy == 'srvy':
+    if b_or_e == 'bfield':
+        try:
+            B_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_b_gse_srvy_l2&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+            r_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_r_gse_srvy_l2&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+            
+        except:
+            B_mms1 = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/afg/srvy/l2pre/$Y/$m/%s_afg_srvy_l2pre_$Y$m$d_v$(v,sep).cdf?%s_afg_srvy_l2pre_gse&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+            r_mms1 = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/afg/srvy/l2pre/$Y/$m/%s_afg_srvy_l2pre_$Y$m$d_v$(v,sep).cdf?%s_pos_gse&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+        wave_mms1 = copy(B_mms1)
+        try:
+            wave_mms2 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_b_gse_srvy_l2&timerange=%s'%(sc_list[1].lower(),sc_list[1].lower(),sc_list[1].lower(),timerange))
+            wave_mms3 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_b_gse_srvy_l2&timerange=%s'%(sc_list[2].lower(),sc_list[2].lower(),sc_list[2].lower(),timerange))
+            wave_mms4 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fgm/srvy/l2/$Y/$m/%s_fgm_srvy_l2_$Y$m$d_v$(v,sep).cdf?%s_fgm_b_gse_srvy_l2&timerange=%s'%(sc_list[3].lower(),sc_list[3].lower(),sc_list[3].lower(),timerange))
+        except:
+            wave_mms2 = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/afg/srvy/l2pre/$Y/$m/%s_afg_srvy_l2pre_$Y$m$d_v$(v,sep).cdf?%s_afg_srvy_l2pre_gse&timerange=%s'%(sc_list[1].lower(),sc_list[1].lower(),sc_list[1].lower(),timerange))
+            wave_mms3 = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/afg/srvy/l2pre/$Y/$m/%s_afg_srvy_l2pre_$Y$m$d_v$(v,sep).cdf?%s_afg_srvy_l2pre_gse&timerange=%s'%(sc_list[2].lower(),sc_list[2].lower(),sc_list[2].lower(),timerange))
+            wave_mms4 = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/afg/srvy/l2pre/$Y/$m/%s_afg_srvy_l2pre_$Y$m$d_v$(v,sep).cdf?%s_afg_srvy_l2pre_gse&timerange=%s'%(sc_list[3].lower(),sc_list[3].lower(),sc_list[3].lower(),timerange))
+    elif b_or_e == 'efield':
+        try:
+            wave_mms1 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+            wave_mms2 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[1].lower(),sc_list[1].lower(),sc_list[1].lower(),timerange))
+            wave_mms3 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[2].lower(),sc_list[2].lower(),sc_list[2].lower(),timerange))
+            wave_mms4 = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/edp/brst/l2/dce/$Y/$m/$d/%s_edp_brst_l2_dce_$Y$m$d$H$(M,span=10)$S_v$(v,sep).cdf?%s_edp_dce_gse_brst_l2&timerange=%s'%(sc_list[3].lower(),sc_list[3].lower(),sc_list[3].lower(),timerange))
+        except:
+            raise noLaspFileException
+            
+    # Trim down wave data to avoid too much information    
+    wave_mms1 = trim(wave_mms1,timerange)
+    time = wave_mms1.property(QDataSet.DEPEND_0)
+    
+    try:
+        wave_mms2 = synchroterpolate(wave_mms1,wave_mms2)
+        wave_mms3 = synchroterpolate(wave_mms1,wave_mms3)
+        wave_mms4 = synchroterpolate(wave_mms1,wave_mms4)
+        if mean(valid(wave_mms2)) == 0:
+            raise badSynchronizeFunction
+    except:
+        wave_mms2 = synchronize(wave_mms1,wave_mms2)
+        wave_mms3 = synchronize(wave_mms1,wave_mms3)
+        wave_mms4 = synchronize(wave_mms1,wave_mms4)
+    #plot(0,wave_mms3[:,0])
+    #stop        
+    
+    #wave_mms2 = synchroterpolate(wave_mms1,wave_mms2)   # This is broken for some reason
+    #wave_mms3 = synchroterpolate(wave_mms1,wave_mms3)
+    #wave_mms4 = synchroterpolate(wave_mms1,wave_mms4)
+    
+    #wave_mms2 = trim(wave_mms2,timerange)   # If timing is slightly off this can give arrays of different lengths
+    #wave_mms3 = trim(wave_mms3,timerange)
+    #wave_mms4 = trim(wave_mms4,timerange)
+    
+    
+    
+
+[pos_mms1 , pos_mms2 , pos_mms3 , pos_mms4] = synchronize(wave_mms1,[pos_mms1 , pos_mms2 , pos_mms3 , pos_mms4])
+
+
+# Define MMS1 field-aligned system?
+mag_time = B_mms1.property(QDataSet.DEPEND_0)
+smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
+B_mms1 = smooth(B_mms1,smooth_points)
+B_mms1 = trim(B_mms1,timerange)
+r_mms1 = synchronize(B_mms1,r_mms1)
+
+Bx_GSE = B_mms1[:,0]
+By_GSE = B_mms1[:,1]
+Bz_GSE = B_mms1[:,2]
+Btotal = B_mms1[:,3]
+TEMP_Rx_GSE = r_mms1[:,0]
+TEMP_Ry_GSE = r_mms1[:,1]
+TEMP_Rz_GSE = r_mms1[:,2]
+
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx_GSE , By_GSE, Bz_GSE , Btotal , TEMP_Rx_GSE , TEMP_Ry_GSE , TEMP_Rz_GSE , smoothData_yn , trend_seconds )
+
+
+# Use MMS1 electron density measurements?
+try:
+    try:
+        density = getDataSet('https://lasp.colorado.edu/mms/sdc/public/data/%s/fpi/fast/l2/des-moms/$Y/$m/%s_fpi_fast_l2_des-moms_$Y$m$d$(H,span=2)$M$S_v$(v,sep).cdf?%s_des_numberdensity_fast&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+    except:
+        density = getDataSet('http://mms@mmsdata.sr.unh.edu/%s/fpi/fast/l2/des-moms/$Y/$m/%s_fpi_fast_l2_des-moms_$Y$m$d$(H,span=2)$M$S_v$(v,sep).cdf?%s_des_numberdensity_fast&timerange=%s'%(sc_list[0].lower(),sc_list[0].lower(),sc_list[0].lower(),timerange))
+    density = trim(density,timerange)
+except:
+    density = ones(len(time))*37.5
+    density.putProperty(QDataSet.DEPEND_0,time)
+
+# Find relative position vectors
+pos_difference_12 = pos_mms2 - pos_mms1
+pos_difference_13 = pos_mms3 - pos_mms1
+pos_difference_14 = pos_mms4 - pos_mms1
+pos_difference_23 = pos_mms3 - pos_mms2
+pos_difference_24 = pos_mms4 - pos_mms2
+pos_difference_34 = pos_mms4 - pos_mms3
+
+# Rotate vectors into NPQ
+( wave_mms1_n , wave_mms1_p , wave_mms1_q ) = rotate( wave_mms1[:,0] , wave_mms1[:,1] , wave_mms1[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( wave_mms2_n , wave_mms2_p , wave_mms2_q ) = rotate( wave_mms2[:,0] , wave_mms2[:,1] , wave_mms2[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( wave_mms3_n , wave_mms3_p , wave_mms3_q ) = rotate( wave_mms3[:,0] , wave_mms3[:,1] , wave_mms3[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( wave_mms4_n , wave_mms4_p , wave_mms4_q ) = rotate( wave_mms4[:,0] , wave_mms4[:,1] , wave_mms4[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+        
+( pos_difference_12_n , pos_difference_12_p , pos_difference_12_q ) = rotate( pos_difference_12[:,0] , pos_difference_12[:,1] , pos_difference_12[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( pos_difference_13_n , pos_difference_13_p , pos_difference_13_q ) = rotate( pos_difference_13[:,0] , pos_difference_13[:,1] , pos_difference_13[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( pos_difference_14_n , pos_difference_14_p , pos_difference_14_q ) = rotate( pos_difference_14[:,0] , pos_difference_14[:,1] , pos_difference_14[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( pos_difference_23_n , pos_difference_23_p , pos_difference_23_q ) = rotate( pos_difference_23[:,0] , pos_difference_23[:,1] , pos_difference_23[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( pos_difference_24_n , pos_difference_24_p , pos_difference_24_q ) = rotate( pos_difference_24[:,0] , pos_difference_24[:,1] , pos_difference_24[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+( pos_difference_34_n , pos_difference_34_p , pos_difference_34_q ) = rotate( pos_difference_34[:,0] , pos_difference_34[:,1] , pos_difference_34[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+
+pos_difference_12 = bundle( pos_difference_12_n , pos_difference_12_p , pos_difference_12_q )
+pos_difference_13 = bundle( pos_difference_13_n , pos_difference_13_p , pos_difference_13_q )
+pos_difference_14 = bundle( pos_difference_14_n , pos_difference_14_p , pos_difference_14_q )
+pos_difference_23 = bundle( pos_difference_23_n , pos_difference_23_p , pos_difference_23_q )
+pos_difference_24 = bundle( pos_difference_24_n , pos_difference_24_p , pos_difference_24_q )
+pos_difference_34 = bundle( pos_difference_34_n , pos_difference_34_p , pos_difference_34_q )
+
+pos_difference_12.putProperty(QDataSet.DEPEND_0,time)
+pos_difference_13.putProperty(QDataSet.DEPEND_0,time)
+pos_difference_14.putProperty(QDataSet.DEPEND_0,time)
+pos_difference_23.putProperty(QDataSet.DEPEND_0,time)
+pos_difference_24.putProperty(QDataSet.DEPEND_0,time)
+pos_difference_34.putProperty(QDataSet.DEPEND_0,time)
+
+# ###
+# ### Calculate phase differences
+# ###
+
+#wave_allmms = bundle( wave_mms1[:,0] , wave_mms2[:,0] , wave_mms3[:,0] , wave_mms4[:,0] )
+#wave_allmms = bundle( wave_mms1_n , wave_mms2_n , wave_mms3_n , wave_mms4_n )
+#wave_allmms = bundle( wave_mms1_p , wave_mms2_p , wave_mms3_p , wave_mms4_p )
+wave_allmms = bundle( wave_mms1_q , wave_mms2_q , wave_mms3_q , wave_mms4_q )
+
+# Run fft function to return real and imaginary parts
+waveform_fft_mms1 = Hanningfft( wave_allmms[:,0] , freq_min , freq_max , window , slide )
+waveform_fft_mms2 = Hanningfft( wave_allmms[:,1] , freq_min , freq_max , window , slide )
+waveform_fft_mms3 = Hanningfft( wave_allmms[:,2] , freq_min , freq_max , window , slide )
+waveform_fft_mms4 = Hanningfft( wave_allmms[:,3] , freq_min , freq_max , window , slide )
+
+fft_time = waveform_fft_mms1.property(QDataSet.DEPEND_0)
+fft_frequency = waveform_fft_mms1.property(QDataSet.DEPEND_1)
+
+fft_frequency_array = dblarr(len(fft_time),len(fft_frequency))
+for i in xrange(len(fft_time)):
+    fft_frequency_array[i,:] = fft_frequency
+
+wavePower = fft_power( waveform_fft_mms3 , fft_time , fft_frequency )
+wavePower.putProperty(QDataSet.VALID_MAX,1E10)
+#plot(0,wavePower)
+#stop
+
+##############
+
+# G_uv = 2*N/f_s u_star * v
+# N=window
+# f_s = ? sample frequency?
+
+# Calculate cross-spectral density between spacecraft
+#   Since pos12 = (pos2 - pos1), we must define the phase difference as phi2-ph1, so cos(phi2-phi1)=cos(phi2)cos(phi1)+sin(phi2)sin(phi1)
+#   but we can't forget the i in each of the sin terms! That supplies the -ve in the _real components
+#     NOO!! This can't be right, the results show coherent k-vector spectral information if we use +ve
+#     in the real components. There is obvious statistical noise with -ve
+#  - The answer  must lie in making the imaginary parts negative. This reverses the phi2-ph1 sign, so must be where the
+#    probelm came from. I thought I had it correct on paper, but obviously it disagreed with the direction/sign of relative locations
+G_12_real =  waveform_fft_mms1[:,:,0]*waveform_fft_mms2[:,:,0] + waveform_fft_mms1[:,:,1]*waveform_fft_mms2[:,:,1]
+G_12_imag = -(waveform_fft_mms1[:,:,0]*waveform_fft_mms2[:,:,1] - waveform_fft_mms1[:,:,1]*waveform_fft_mms2[:,:,0])
+G_12_mag = sqrt(G_12_real*G_12_real+G_12_imag*G_12_imag)
+
+G_13_real =  waveform_fft_mms1[:,:,0]*waveform_fft_mms3[:,:,0] + waveform_fft_mms1[:,:,1]*waveform_fft_mms3[:,:,1]
+G_13_imag = -(waveform_fft_mms1[:,:,0]*waveform_fft_mms3[:,:,1] - waveform_fft_mms1[:,:,1]*waveform_fft_mms3[:,:,0])
+G_13_mag = sqrt(G_13_real*G_13_real+G_13_imag*G_13_imag)
+
+G_14_real =  waveform_fft_mms1[:,:,0]*waveform_fft_mms4[:,:,0] + waveform_fft_mms1[:,:,1]*waveform_fft_mms4[:,:,1]
+G_14_imag = -(waveform_fft_mms1[:,:,0]*waveform_fft_mms4[:,:,1] - waveform_fft_mms1[:,:,1]*waveform_fft_mms4[:,:,0])
+G_14_mag = sqrt(G_14_real*G_14_real+G_14_imag*G_14_imag)
+
+G_23_real =  waveform_fft_mms2[:,:,0]*waveform_fft_mms3[:,:,0] + waveform_fft_mms2[:,:,1]*waveform_fft_mms3[:,:,1]
+G_23_imag = -(waveform_fft_mms2[:,:,0]*waveform_fft_mms3[:,:,1] - waveform_fft_mms2[:,:,1]*waveform_fft_mms3[:,:,0])
+G_23_mag = sqrt(G_23_real*G_23_real+G_23_imag*G_23_imag)
+
+G_24_real =  waveform_fft_mms2[:,:,0]*waveform_fft_mms4[:,:,0] + waveform_fft_mms2[:,:,1]*waveform_fft_mms4[:,:,1]
+G_24_imag = -(waveform_fft_mms2[:,:,0]*waveform_fft_mms4[:,:,1] - waveform_fft_mms2[:,:,1]*waveform_fft_mms4[:,:,0])
+G_24_mag = sqrt(G_24_real*G_24_real+G_24_imag*G_24_imag)
+
+G_34_real =  waveform_fft_mms3[:,:,0]*waveform_fft_mms4[:,:,0] + waveform_fft_mms3[:,:,1]*waveform_fft_mms4[:,:,1]
+G_34_imag = -(waveform_fft_mms3[:,:,0]*waveform_fft_mms4[:,:,1] - waveform_fft_mms3[:,:,1]*waveform_fft_mms4[:,:,0])
+G_34_mag = sqrt(G_34_real*G_34_real+G_34_imag*G_34_imag)
+
+crossSpectralPower = ( sqrt(G_12_real**2 + G_12_imag**2) + sqrt(G_13_real**2 + G_13_imag**2) + sqrt(G_14_real**2 + G_14_imag**2) )/3.
+crossSpectralPower.putProperty(QDataSet.VALID_MAX,1E10)
+crossSpectralPower.putProperty(QDataSet.VALID_MIN,1E-10)
+
+r = where(lt(crossSpectralPower,minPower))
+s = where(gt(crossSpectralPower,minPower))
+wavePower.putProperty(QDataSet.VALID_MIN,1E-10)
+
+validMask = zeros(len(fft_time),len(fft_frequency))#*(-1E36)
+validMask[r] = 1
+invalidMask = ones(len(fft_time),len(fft_frequency))*(-1E36)
+invalidMask[s] = 1
+
+# Find phase difference
+phi_difference_12 = atan2(G_12_imag,G_12_real)
+phi_difference_13 = atan2(G_13_imag,G_13_real)
+phi_difference_14 = atan2(G_14_imag,G_14_real)
+phi_difference_23 = atan2(G_23_imag,G_23_real)
+phi_difference_24 = atan2(G_24_imag,G_24_real)
+phi_difference_34 = atan2(G_34_imag,G_34_real)
+
+phi_difference_12.putProperty(QDataSet.DEPEND_0,fft_time)
+phi_difference_13.putProperty(QDataSet.DEPEND_0,fft_time)
+phi_difference_14.putProperty(QDataSet.DEPEND_0,fft_time)
+phi_difference_23.putProperty(QDataSet.DEPEND_0,fft_time)
+phi_difference_24.putProperty(QDataSet.DEPEND_0,fft_time)
+phi_difference_34.putProperty(QDataSet.DEPEND_0,fft_time)
+
+phi_difference_12.putProperty(QDataSet.VALID_MIN,-PI)
+phi_difference_13.putProperty(QDataSet.VALID_MIN,-PI)
+phi_difference_14.putProperty(QDataSet.VALID_MIN,-PI)
+phi_difference_23.putProperty(QDataSet.VALID_MIN,-PI)
+phi_difference_24.putProperty(QDataSet.VALID_MIN,-PI)
+phi_difference_34.putProperty(QDataSet.VALID_MIN,-PI)
+
+phi_difference_12.putProperty(QDataSet.VALID_MAX,PI)
+phi_difference_13.putProperty(QDataSet.VALID_MAX,PI)
+phi_difference_14.putProperty(QDataSet.VALID_MAX,PI)
+phi_difference_23.putProperty(QDataSet.VALID_MAX,PI)
+phi_difference_24.putProperty(QDataSet.VALID_MAX,PI)
+phi_difference_34.putProperty(QDataSet.VALID_MAX,PI)
+
+## Define  a_prime = delta_phi / omega  from [Paschmann1998]
+#a_prime_12 = (phi_difference_12 * invalidMask) / fft_frequency_array
+#a_prime_13 = (phi_difference_13 * invalidMask) / fft_frequency_array
+#a_prime_14 = (phi_difference_14 * invalidMask) / fft_frequency_array
+#a_prime_23 = (phi_difference_23 * invalidMask) / fft_frequency_array
+#a_prime_24 = (phi_difference_24 * invalidMask) / fft_frequency_array
+#a_prime_34 = (phi_difference_34 * invalidMask) / fft_frequency_array
+#
+#a_prime_12_inverse = fft_frequency_array / (phi_difference_12 * invalidMask)
+#a_prime_13_inverse = fft_frequency_array / (phi_difference_13 * invalidMask)
+#a_prime_14_inverse = fft_frequency_array / (phi_difference_14 * invalidMask)
+#a_prime_23_inverse = fft_frequency_array / (phi_difference_23 * invalidMask)
+#a_prime_24_inverse = fft_frequency_array / (phi_difference_24 * invalidMask)
+#a_prime_34_inverse = fft_frequency_array / (phi_difference_34 * invalidMask)
+##plot(1,fft_frequency_array/phi_difference_12)
+##plot(2,fft_frequency_array/phi_difference_13)
+##plot(3,fft_frequency_array/phi_difference_14)
+##stop
+
+
+
+# Interpolate position vector on to phase cadence (fft timescale)
+pos_difference_12 = synchronize(phi_difference_12,pos_difference_12)
+pos_difference_13 = synchronize(phi_difference_12,pos_difference_13)
+pos_difference_14 = synchronize(phi_difference_12,pos_difference_14)
+pos_difference_23 = synchronize(phi_difference_12,pos_difference_23)
+pos_difference_24 = synchronize(phi_difference_12,pos_difference_24)
+pos_difference_34 = synchronize(phi_difference_12,pos_difference_34)
+
+
+# ###
+# ### Matrix Stuff
+# ###
+
+#def 
+
+# Import necessary functions
+from org.apache.commons.math.linear import Array2DRowRealMatrix  # Array2DRowRealMatrix(row,column)
+from org.apache.commons.math.linear import DecompositionSolver
+from org.apache.commons.math.linear import LUDecompositionImpl
+from org.apache.commons.math.linear import SingularValueDecompositionImpl
+
+# Define matrices
+D = Array2DRowRealMatrix(3,3) # This will be the 3x3 position difference matrix
+Phase = Array2DRowRealMatrix(3,len(fft_frequency)) # This will be the 3x1 phase difference vector
+a_prime = Array2DRowRealMatrix(3,len(fft_frequency)) # This will be the 3x1 [a_prime = delta_phi / omega]
+
+# All of the "6" stuff is using all 6 relative differences in tetrahedron, so uses the SVD method
+D6 = Array2DRowRealMatrix(6,3) # This will be the 6x3 position difference matrix
+Phase6 = Array2DRowRealMatrix(6,len(fft_frequency)) # This will be the 6x1 phase difference vector
+a_prime6 = Array2DRowRealMatrix(6,len(fft_frequency)) # This will be the 6x1 [a_prime = delta_phi / omega]
+
+k = dblarr(len(fft_time),len(fft_frequency),3)
+V_ph = dblarr(len(fft_time),len(fft_frequency),3)
+k6 = dblarr(len(fft_time),len(fft_frequency),3)
+V_ph6 = dblarr(len(fft_time),len(fft_frequency),3)
+for i in xrange(len(fft_time)):
+    # Add entries to matrices
+    D.setEntry(0,0,pos_difference_12[i,0].value()) # This is building the position difference matrix as each row being a spacecraft pair (correct I think)
+    D.setEntry(0,1,pos_difference_12[i,1].value())
+    D.setEntry(0,2,pos_difference_12[i,2].value())
+    D.setEntry(1,0,pos_difference_13[i,0].value())
+    D.setEntry(1,1,pos_difference_13[i,1].value())
+    D.setEntry(1,2,pos_difference_13[i,2].value())
+    D.setEntry(2,0,pos_difference_14[i,0].value())
+    D.setEntry(2,1,pos_difference_14[i,1].value())
+    D.setEntry(2,2,pos_difference_14[i,2].value())
+    #print 'D:',D
+    D_transpose = D.transpose()
+    
+    D6.setEntry(0,0,pos_difference_12[i,0].value()) # This is building the position difference matrix as each row being a spacecraft pair (correct I think)
+    D6.setEntry(0,1,pos_difference_12[i,1].value())
+    D6.setEntry(0,2,pos_difference_12[i,2].value())
+    D6.setEntry(1,0,pos_difference_13[i,0].value())
+    D6.setEntry(1,1,pos_difference_13[i,1].value())
+    D6.setEntry(1,2,pos_difference_13[i,2].value())
+    D6.setEntry(2,0,pos_difference_14[i,0].value())
+    D6.setEntry(2,1,pos_difference_14[i,1].value())
+    D6.setEntry(2,2,pos_difference_14[i,2].value())
+    D6.setEntry(3,0,pos_difference_23[i,0].value()) 
+    D6.setEntry(3,1,pos_difference_23[i,1].value())
+    D6.setEntry(3,2,pos_difference_23[i,2].value())
+    D6.setEntry(4,0,pos_difference_24[i,0].value())
+    D6.setEntry(4,1,pos_difference_24[i,1].value())
+    D6.setEntry(4,2,pos_difference_24[i,2].value())
+    D6.setEntry(5,0,pos_difference_34[i,0].value())
+    D6.setEntry(5,1,pos_difference_34[i,1].value())
+    D6.setEntry(5,2,pos_difference_34[i,2].value())
+    D6_transpose = D6.transpose()
+    
+    ### JUST TESTING WHAT HAPPENS IF I SWITCH PLACES ##### - Doesn't seem to change the result
+    D6.setEntry(3,0,pos_difference_12[i,0].value()) # This is building the position difference matrix as each row being a spacecraft pair (correct I think)
+    D6.setEntry(3,1,pos_difference_12[i,1].value())
+    D6.setEntry(3,2,pos_difference_12[i,2].value())
+    D6.setEntry(4,0,pos_difference_13[i,0].value())
+    D6.setEntry(4,1,pos_difference_13[i,1].value())
+    D6.setEntry(4,2,pos_difference_13[i,2].value())
+    D6.setEntry(5,0,pos_difference_14[i,0].value())
+    D6.setEntry(5,1,pos_difference_14[i,1].value())
+    D6.setEntry(5,2,pos_difference_14[i,2].value())
+    D6.setEntry(0,0,pos_difference_23[i,0].value()) 
+    D6.setEntry(0,1,pos_difference_23[i,1].value())
+    D6.setEntry(0,2,pos_difference_23[i,2].value())
+    D6.setEntry(1,0,pos_difference_24[i,0].value())
+    D6.setEntry(1,1,pos_difference_24[i,1].value())
+    D6.setEntry(1,2,pos_difference_24[i,2].value())
+    D6.setEntry(2,0,pos_difference_34[i,0].value())
+    D6.setEntry(2,1,pos_difference_34[i,1].value())
+    D6.setEntry(2,2,pos_difference_34[i,2].value())
+    D6_transpose = D6.transpose()
+    
+    # For each frequency slice, set phase difference matrices and [a_prime = delta_phi / omega]
+    for j in xrange(len(fft_frequency)):
+        Phase.setEntry(0,j,phi_difference_12[i,j].value())
+        Phase.setEntry(1,j,phi_difference_13[i,j].value())
+        Phase.setEntry(2,j,phi_difference_14[i,j].value())
+    
+#        a_prime.setEntry(0,j,a_prime_12_inverse[i,j].value())
+#        a_prime.setEntry(1,j,a_prime_13_inverse[i,j].value())
+#        a_prime.setEntry(2,j,a_prime_14_inverse[i,j].value())
+        
+        ###################
+        
+        Phase6.setEntry(0,j,phi_difference_12[i,j].value())
+        Phase6.setEntry(1,j,phi_difference_13[i,j].value())
+        Phase6.setEntry(2,j,phi_difference_14[i,j].value())
+        Phase6.setEntry(3,j,phi_difference_23[i,j].value())
+        Phase6.setEntry(4,j,phi_difference_24[i,j].value())
+        Phase6.setEntry(5,j,phi_difference_34[i,j].value())
+        
+        ### JUST TESTING WHAT HAPPENS IF I SWITCH PLACES #####
+#        Phase6.setEntry(3,j,phi_difference_12[i,j].value())
+#        Phase6.setEntry(4,j,phi_difference_13[i,j].value())
+#        Phase6.setEntry(5,j,phi_difference_14[i,j].value())
+#        Phase6.setEntry(0,j,phi_difference_23[i,j].value())
+#        Phase6.setEntry(1,j,phi_difference_24[i,j].value())
+#        Phase6.setEntry(2,j,phi_difference_34[i,j].value())
+    
+#        a_prime6.setEntry(0,j,a_prime_12_inverse[i,j].value())
+#        a_prime6.setEntry(1,j,a_prime_13_inverse[i,j].value())
+#        a_prime6.setEntry(2,j,a_prime_14_inverse[i,j].value())
+#        a_prime6.setEntry(3,j,a_prime_23_inverse[i,j].value())
+#        a_prime6.setEntry(4,j,a_prime_24_inverse[i,j].value())
+#        a_prime6.setEntry(5,j,a_prime_34_inverse[i,j].value())
+#
+#        TEMP_V_ph = D_transpose.multiply(a_prime)
+#        #TEMP_V_ph = D.multiply(a_prime)
+#        TEMP_V_ph6 = D6_transpose.multiply(a_prime6)
+#        #print TEMP_V_ph6
+#
+#        V_ph[i,j,:] = [TEMP_V_ph.getEntry(0,j),TEMP_V_ph.getEntry(1,j),TEMP_V_ph.getEntry(2,j)]
+#        V_ph6[i,j,:] = [TEMP_V_ph6.getEntry(0,j),TEMP_V_ph6.getEntry(1,j),TEMP_V_ph6.getEntry(2,j)]
+    
+    
+    # Solve for inverse of position difference matrix
+    solver = LUDecompositionImpl(D).getSolver()  # Why did I use the Lower-Upper decomposition? - I don't think there is another one, this works for square matrices
+
+    D_inverse = solver.getInverse()
+    D_inverse_transpose = solver.getInverse().transpose()
+    
+    # k = D^-1 * delta(Phi)
+    k_matrix = D_inverse.multiply(Phase)
+    #M = D_inverse.multiply(Phase)
+    #M = D_inverse_transpose.multiply(Phase)   # This result doesn't seem to make sense for the EMIC wave event
+    for j in xrange(len(fft_frequency)):
+        k[i,j,:] = [k_matrix.getEntry(0,j),k_matrix.getEntry(1,j),k_matrix.getEntry(2,j)]
+        #k[i,j,:] = [M.getEntry(0,j),M.getEntry(1,j),M.getEntry(2,j)]
+        
+        
+        
+    # Solve for inverse of position difference matrix -> 6-element version uses SVD technique
+    solver6 = SingularValueDecompositionImpl(D6)
+    D6_V = solver6.getV()
+    D6_U_transpose = solver6.getUT()
+    
+    D6_S = solver6.getS()
+    D6_S_inverse = LUDecompositionImpl(D6_S).getSolver().getInverse()
+    
+    # The Pseudoinverse is taken from M^(-1) = V Sigma^(-1) U^T  (Look up wikipedia page)
+    D6_inverse = D6_V.multiply(D6_S_inverse).multiply(D6_U_transpose)
+    
+    # k = D^-1 * delta(Phi)
+    k6_matrix = D6_inverse.multiply(Phase6)
+    for j in xrange(len(fft_frequency)):
+        k6[i,j,:] = [k6_matrix.getEntry(0,j),k6_matrix.getEntry(1,j),k6_matrix.getEntry(2,j)]
+    
+    #decomposition_r = SingularValueDecompositionImpl(TEMP_V_ph6)
+    #eigenvalues_r = decomposition_r.getSingularValues()  # Eigenvalues are provided in "non-increasing order"
+    #D6_inverse.getRowDimension()
+    #D6_inverse.getColumnDimension()
+
+
+#V_ph.putProperty(QDataSet.VALID_MIN,-1E4)
+#V_ph.putProperty(QDataSet.VALID_MAX, 1E4)
+#V_ph.putProperty(QDataSet.DEPEND_0,fft_time)
+#V_ph.putProperty(QDataSet.DEPEND_1,fft_frequency)
+##plot(1,V_ph[:,:,0])
+##plot(2,V_ph[:,:,1])
+##plot(3,V_ph[:,:,2])
+##stop
+#V_ph6.putProperty(QDataSet.VALID_MIN,-1E10)
+#V_ph6.putProperty(QDataSet.VALID_MAX, 1E10)
+#V_ph6.putProperty(QDataSet.DEPEND_0,fft_time)
+#V_ph6.putProperty(QDataSet.DEPEND_1,fft_frequency)
+##plot(4,V_ph[:,:,0]/V_ph6[:,:,0])
+##plot(5,V_ph[:,:,1]/V_ph6[:,:,1])
+##plot(6,V_ph[:,:,2]/V_ph6[:,:,2])
+##stop
+
+rad_km = Units.lookupUnits('rad/km')
+
+for q in xrange(len(k[0,0,:])):
+    k[:,:,q] = k[:,:,q]*invalidMask
+
+k.putProperty(QDataSet.VALID_MIN,-1E4)
+k.putProperty(QDataSet.VALID_MAX, 1E4)
+k.putProperty(QDataSet.UNITS,rad_km) 
+k.putProperty(QDataSet.DEPEND_0,fft_time)
+k.putProperty(QDataSet.DEPEND_1,fft_frequency) 
+k.putProperty(QDataSet.DEPEND_2,labels(['kn','kp','kq']))
+
+kmag = magnitude(k)
+
+for q in xrange(len(k[0,0,:])):
+    k6[:,:,q] = k[:,:,q]*invalidMask
+
+k6.putProperty(QDataSet.VALID_MIN,-1E4)
+k6.putProperty(QDataSet.VALID_MAX, 1E4)
+k6.putProperty(QDataSet.UNITS,rad_km) 
+k6.putProperty(QDataSet.DEPEND_0,fft_time)
+k6.putProperty(QDataSet.DEPEND_1,fft_frequency) 
+k6.putProperty(QDataSet.DEPEND_2,labels(['kn','kp','kq']))
+
+k6mag = magnitude(k6)
+
+
+# ###
+# ### ANALYTICAL PLASMA CALCULATIONS
+# ###
+
+# Solve for Alfven velocity
+mass_ratio = 1    # Ion mass ratio
+mean_density = mean(density)
+mean_B = mean(Btotal)
+V_a = (2.18E11) * ((mass_ratio)**(-0.5)) * (mean_density**(-0.5)) * (mean_B*(1E-5)) * 1E-5 # Alfven Velocity in km/sec  
+
+# Solve for analytical V_phase using Yamaguchi2013
+f_ce = 28*Btotal
+f_ce = synchronize(wavePower,f_ce)
+f_ce.putProperty(QDataSet.UNITS,Units.hertz)
+w_pe = (5.64E4)*sqrt(density)
+w_pe = synchronize(wavePower,w_pe)
+w_pe.putProperty(QDataSet.UNITS,Units.hertz)
+zeta = dblarr(len(fft_time),len(fft_frequency))
+for j in xrange(len(fft_frequency)):
+    zeta[:,j] = sqrt( fft_frequency[j]*(f_ce-fft_frequency[j])/(w_pe**2) )
+
+chi = sqrt( 1 / (1 + (zeta**2)) )
+c = 2.9979E5 # speed of light in km/s
+
+V_phase_analytical = c*chi*zeta
+V_phase_analytical.putProperty(QDataSet.DEPEND_0,fft_time)
+V_phase_analytical.putProperty(QDataSet.DEPEND_1,fft_frequency)
+V_phase_analytical.putProperty(QDataSet.VALID_MIN,0)
+#plot(0,V_phase_analytical)
+#stop
+
+
+# ###
+# ### PLOT K AND CROSS SPECTRAL DENSITY
+# ###
+
+if brst_or_srvy == 'brst':
+    if b_or_e == 'bfield':
+        plot(0 , crossSpectralPower , ytitle='CSD!CSCM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in GSE   V!Ba!N = %s km/s'%(round(V_a,2)) )
+    if b_or_e == 'efield':
+        plot(0 , crossSpectralPower , ytitle='CSD!CEPD E!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in GSE   V!Ba!N = %s km/s'%(round(V_a,2)) )
+elif brst_or_srvy == 'srvy':
+    plot(0 , crossSpectralPower , zlog=True , ytitle='CSD!CFGM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in GSE   V!Ba!N = %s km/s'%(round(V_a,2)) )
+
+plot_kvec_or_kunit = 'kvec'
+if plot_kvec_or_kunit == 'kunit':  
+    plot(1,k[:,:,0]/kmag,ytitle='(%{UNITS})',ztitle='k!D||!N / |k|')
+    plot(2,k[:,:,1]/kmag,ytitle='(%{UNITS})',ztitle='k!B&perp;az!N / |k|')
+    plot(3,k[:,:,2]/kmag,ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N / |k|')
+#    plot(1,k6[:,:,0]/k6mag,ytitle='(%{UNITS})',ztitle='k!D||!N / |k|')
+#    plot(2,k6[:,:,1]/k6mag,ytitle='(%{UNITS})',ztitle='k!B&perp;az!N / |k|')
+#    plot(3,k6[:,:,2]/k6mag,ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N / |k|')
+elif plot_kvec_or_kunit == 'kvec':
+    plot(1,k[:,:,0],ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
+    plot(2,k[:,:,1],ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
+    plot(3,k[:,:,2],ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N (%{UNITS})')
+elif plot_kvec_or_kunit == 'kangles':
+    plot(1,toDegrees(acos(k[:,:,0]/kmag)),ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
+    plot(2,toDegrees(acos(k[:,:,1]/kmag)),ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
+    plot(3,toDegrees(acos(k[:,:,2]/kmag)),ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N (%{UNITS})')
+    #plot(1,acos(k[:,:,0]),ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
+    #plot(2,acos(k[:,:,1]),ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
+    #plot(3,acos(k[:,:,2]),ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N (%{UNITS})')
+
+#plot(4,k[:,:,0]/k6[:,:,0],ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
+#plot(5,k[:,:,1]/k6[:,:,1],ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
+#plot(6,k[:,:,2]/k6[:,:,2],ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N (%{UNITS})')
+#stop
+#plot(1,(2*PI)/k[:,:,0],ytitle='(%{UNITS})',ztitle='&lambda;!D||!N ')
+#plot(2,(2*PI)/k[:,:,1],ytitle='(%{UNITS})',ztitle='&lambda;!B&perp;az!N ')
+#plot(3,(2*PI)/k[:,:,2],ytitle='(%{UNITS})',ztitle='&lambda;!B&perp;rad!N ')
+#plot(1,sin(k[:,:,0]/kmag),ytitle='(%{UNITS})',ztitle='Wave Normal')
+#plot(1,V_phase_analytical)
+
+# For plotting scatter of w vs k
+#w_tot = None
+#kx_tot = None
+#ky_tot = None
+#kz_tot = None
+#for i in xrange(len(phi_difference_12)):
+#    w_tot = concatenate(w_tot,k.property(QDataSet.DEPEND_1))
+#    kx_tot = concatenate(kx_tot,k[i,:,0])
+#    ky_tot = concatenate(ky_tot,k[i,:,1])
+#    kz_tot = concatenate(kz_tot,k[i,:,2])
+#plot(4,kx_tot,w_tot,renderType='scatter',xtitle='kx (rad/km)',ytitle='&omega; (Hz)')
+#plot(5,ky_tot,w_tot,renderType='scatter',xtitle='ky (rad/km)')
+#plot(6,kz_tot,w_tot,renderType='scatter',xtitle='kz (rad/km)')
+#stop
+
+
+# ###
+# ###  CALCULATE PHASE VELOCITY FROM K-VECTOR
+# ###
+
+v_phase_apparent = dblarr(len(phi_difference_12[:,0]),len(phi_difference_12[0,:]),3)
+for i in xrange(len(phi_difference_12)):
+    v_phase_apparent[i,:,0] = fft_frequency / k[i,:,0]
+    v_phase_apparent[i,:,1] = fft_frequency / k[i,:,1]
+    v_phase_apparent[i,:,2] = fft_frequency / k[i,:,2]
+#    v_phase_apparent[i,:,0] = fft_frequency / k6[i,:,0]
+#    v_phase_apparent[i,:,1] = fft_frequency / k6[i,:,1]
+#    v_phase_apparent[i,:,2] = fft_frequency / k6[i,:,2]
+
+for q in xrange(len(v_phase_apparent[0,0,:])):
+    v_phase_apparent[:,:,q] = v_phase_apparent[:,:,q]*invalidMask
+
+v_phase_apparent.putProperty(QDataSet.VALID_MIN,-1E6)
+v_phase_apparent.putProperty(QDataSet.VALID_MAX, 1E6)
+v_phase_apparent.putProperty(QDataSet.DEPEND_0,fft_time)
+v_phase_apparent.putProperty(QDataSet.DEPEND_1,fft_frequency) 
+
+v_phase_magnitude = ( v_phase_apparent[:,:,0]**-2 + v_phase_apparent[:,:,1]**-2 + v_phase_apparent[:,:,2]**-2 )**(-0.5)
+
+v_phase_unit_vector = dblarr(len(phi_difference_12[:,0]),len(phi_difference_12[0,:]),3)
+v_phase_unit_vector_magnitude = v_phase_magnitude**-1
+v_phase_unit_vector[:,:,0] = (v_phase_apparent[:,:,0]**-1) / v_phase_unit_vector_magnitude
+v_phase_unit_vector[:,:,1] = (v_phase_apparent[:,:,1]**-1) / v_phase_unit_vector_magnitude
+v_phase_unit_vector[:,:,2] = (v_phase_apparent[:,:,2]**-1) / v_phase_unit_vector_magnitude
+
+v_phase_unit_vector.putProperty(QDataSet.VALID_MIN,-1)
+v_phase_unit_vector.putProperty(QDataSet.VALID_MAX, 1)
+v_phase_unit_vector.putProperty(QDataSet.DEPEND_0,fft_time)
+v_phase_unit_vector.putProperty(QDataSet.DEPEND_1,fft_frequency) 
+
+v_phase = v_phase_magnitude*v_phase_unit_vector
+
+v_phase.putProperty(QDataSet.VALID_MIN,-1E6)
+v_phase.putProperty(QDataSet.VALID_MAX, 1E6)
+
+#plot(0,v_phase[:,:,0]-k[:,:,0]/kmag)
+#stop
+
+plot(4,v_phase[:,:,0],ztitle='V!D||!N (km/s)')
+plot(5,v_phase[:,:,1],ztitle='V!B&perp;az!N (km/s)')
+plot(6,v_phase[:,:,2],ztitle='V!B&perp;rad!N (km/s)',zrange=[-1500,1500])
+
+dom.plots[0].xaxis.setRange(datumRange(timerange))
+
+background_grey = java.awt.Color(216,216,216,255)
+dom.plots[4].controller.dasColorBar.setFillColor(background_grey)
+dom.plots[5].controller.dasColorBar.setFillColor(background_grey)
+dom.plots[6].controller.dasColorBar.setFillColor(background_grey)
+
+## Add entries to matrices
+#D.setEntry(0,0,pos_difference_12[:,0].value())
+#D.setEntry(0,1,pos_difference_12[1].value())
+#D.setEntry(0,2,pos_difference_12[2].value())
+#D.setEntry(1,0,pos_difference_13[0].value())
+#D.setEntry(1,1,pos_difference_13[1].value())
+#D.setEntry(1,2,pos_difference_13[2].value())
+#D.setEntry(2,0,pos_difference_14[0].value())
+#D.setEntry(2,1,pos_difference_14[1].value())
+#D.setEntry(2,2,pos_difference_14[2].value())
+#print 'D:',D
+#
+#Phase.setEntry(0,0,phi_difference_12.value())
+#Phase.setEntry(1,0,phi_difference_13.value())
+#Phase.setEntry(2,0,phi_difference_14.value())
+#print 'Phase:',Phase
+#
+## Solve for inverse of position difference matrix
+#solver = LUDecompositionImpl(D).getSolver()
+#D_inverse = solver.getInverse()
+#
+## k = D^-1 * Phi
+#k = D_inverse.multiply(Phase)
+#print 'k:',k
+#
+
+
+
+

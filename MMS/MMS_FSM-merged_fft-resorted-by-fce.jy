@@ -1,0 +1,39 @@
+
+timerange = '2017-07-26 2:00 to 3:00'
+bx = getDataSet('http://mmsdata.sr.unh.edu/mms1/fsm/brst/l3/8khz/$Y/$m/$d/mms1_fsm_brst_l3_8khz_$Y$m$d$H$(M,span=5)$S_v$(v,sep).cdf?mms1_fsm_b_gse_brst_l3&slice1=0&timerange=%s'%(timerange))
+bmag = getDataSet('http://mmsdata.sr.unh.edu/mms1/fsm/brst/l3/8khz/$Y/$m/$d/mms1_fsm_brst_l3_8khz_$Y$m$d$H$(M,span=5)$S_v$(v,sep).cdf?mms1_fsm_b_mag_brst_l3&timerange=%s'%(timerange))
+
+#bmag = getDataSet('http://mmsdata.sr.unh.edu/mms1/fsm/brst/l3/8khz/2016/01/01/mms1_fsm_brst_l3_8khz_20160101005644_v1.0.0.cdf?mms1_fsm_b_mag_brst_l3&slice1=0')
+
+
+bx_fft = fftPower(bx,4096,4,'Hanning',None)
+fce = putProperty(bmag*28.,QDataSet.UNITS,None)/1000.
+fce_downsample = synchronize(bx_fft,fce)
+
+plot(0,bx_fft)
+plot(1,fce_downsample)
+#fce_adjusted_freq = fce_downsample[0]
+shifted_frequency_table = dblarr(len(bx_fft[:,0]),len(bx_fft[0,:]))
+for i in xrange(len(fce_downsample)):
+    shifted_frequency_table[i] =  bx_fft[i,:].property(QDataSet.DEPEND_0) + (fce_downsample[0] - fce_downsample[i]) 
+    #bx_fft[i,:].putProperty( QDataSet.DEPEND_0 , bx_fft[i,:].property(QDataSet.DEPEND_0) + (fce_downsample[i] - fce_downsample[0]) )
+    
+
+
+
+
+#plot(2,bx_fft)
+
+plot(2,bx_fft.property(QDataSet.DEPEND_0),shifted_frequency_table,bx_fft)
+plot(3,bx_fft.property(QDataSet.DEPEND_0),ones(len(bx_fft[:,0]))*fce_downsample[0])
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,171 @@
+
+def vectorDotProduct(AA,BB):
+    ''' Using two [:,3] vector arrays AA, BB, finds the [:,1] 
+    vector dot product AA*BB '''
+    if len(AA) != len(BB):
+        raise arraysOfDifferentLengthsError
+    if AA.rank() == 1 :
+        result = AA[0]*BB[0] + AA[1]*BB[1] + AA[2]*BB[2]
+    else:
+        result = dblarr(len(AA),1)
+        result[:,0] =  AA[:,0]*BB[:,0] + AA[:,1]*BB[:,1] + AA[:,2]*BB[:,2]
+    return result
+
+def vectorCrossProduct(AA,BB):
+    '''Using two [:,3] vector arrays AA, BB, finds the [:,3] vector 
+    cross product AAxBB'''
+    if len(AA) != len(BB):
+        raise arraysOfDifferentLengthsError
+    
+    if AA.rank() == 1 :
+        result = dblarr(3)
+        result[0] =  ( AA[1]*BB[2] - AA[2]*BB[1] )
+        result[1] = -( AA[0]*BB[2] - AA[2]*BB[0] )
+        result[2] =  ( AA[0]*BB[1] - AA[1]*BB[0] )
+    else:
+        result = dblarr(len(AA),3)
+        result[:,0] =  ( AA[:,1]*BB[:,2] - AA[:,2]*BB[:,1] )
+        result[:,1] = -( AA[:,0]*BB[:,2] - AA[:,2]*BB[:,0] )
+        result[:,2] =  ( AA[:,0]*BB[:,1] - AA[:,1]*BB[:,0] )
+    
+    return(result)
+
+def reciprocalVectorsMMS(pos_mms1,pos_mms2,pos_mms3,pos_mms4):
+    ''' This routine calculates the reciprocal vectors for a tetrahedron 
+    formation over a period of time using the [:,3]-dimensional position 
+    vectors. Make sure things are synchronized before running this, there 
+    are no checks yet. Uses vectorCrossProduct() and vectorDotProduct() routines.'''
+
+    pos_difference_12 = pos_mms2 - pos_mms1
+    pos_difference_13 = pos_mms3 - pos_mms1
+    pos_difference_14 = pos_mms4 - pos_mms1
+    
+    pos_difference_23 = pos_mms3 - pos_mms2
+    pos_difference_24 = pos_mms4 - pos_mms2
+    
+    pos_difference_34 = pos_mms4 - pos_mms3
+    
+    
+    # The reciprocal vector at each spacecraft making up a tetrahedron is defined as 
+    # the vector normal to the surface opposite the spacecraft. Here we find those normals
+    normal_1 = vectorCrossProduct(pos_difference_23,pos_difference_24)
+    normal_2 = vectorCrossProduct(pos_difference_13,pos_difference_14)
+    normal_3 = vectorCrossProduct(pos_difference_12,pos_difference_14)
+    normal_4 = vectorCrossProduct(pos_difference_23,pos_difference_13)
+    
+    # This normal must be normalized by the volume of the tetrahedron, which is calculated
+    # as the normal dotted with the position difference between the spacecraft in question 
+    # and the common point used for the cross product above.
+    reciprocal_vector_1 = normal_1 / vectorDotProduct(pos_difference_12,normal_1)
+    reciprocal_vector_2 = normal_2 / vectorDotProduct(pos_difference_12,normal_2)
+    reciprocal_vector_3 = normal_3 / vectorDotProduct(pos_difference_13,normal_3)
+    reciprocal_vector_4 = normal_4 / vectorDotProduct(pos_difference_34,normal_4)
+    
+    return(reciprocal_vector_1,reciprocal_vector_2,reciprocal_vector_3,reciprocal_vector_4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def gradient(AA,XX):
+    ''' take grad(AA) for a [:,3,3] matrix array over a [:,3] sc position measurement XX'''
+    if len(AA) != len(XX):
+        raise arraysOfDifferentLengthsError
+    
+    diff_AA_x = bundle(diff(AA[:,0,0]),diff(AA[:,1,0]),diff(AA[:,2,0]))
+    diff_AA_y = bundle(diff(AA[:,0,1]),diff(AA[:,1,1]),diff(AA[:,2,1]))
+    diff_AA_z = bundle(diff(AA[:,0,2]),diff(AA[:,1,2]),diff(AA[:,2,2]))
+    #diff_AA_y = diff(AA[:,:,1])
+    #diff_AA_z = diff(AA[:,:,2])
+    diff_XX = bundle(diff(XX[:,0]),diff(XX[:,1]),diff(XX[:,2]))
+              
+    result = dblarr(len(AA),3,3)
+    result [:,:,0] = diff_AA_x / diff_XX[:,0]
+    result [:,:,1] = diff_AA_y / diff_XX[:,1]
+    result [:,:,2] = diff_AA_z / diff_XX[:,2]
+    
+    return(result)
+
+
+def matrixCrossProduct(AA,BB):
+    '''Using two [:,3] vector arrays AA, BB, finds the [:,3] vector cross product AAxBB'''
+    if len(AA) != len(BB):
+        raise arraysOfDifferentLengthsError
+    
+    if AA.rank() == 1 :
+        result = dblarr(3)
+        result[0] =  ( AA[1]*BB[2] - AA[2]*BB[1] )
+        result[1] = -( AA[0]*BB[2] - AA[2]*BB[0] )
+        result[2] =  ( AA[0]*BB[1] - AA[1]*BB[0] )
+    else:
+        result = dblarr(len(AA),3)
+        result[:,0] =  ( AA[:,1]*BB[:,2] - AA[:,2]*BB[:,1] )
+        result[:,1] = -( AA[:,0]*BB[:,2] - AA[:,2]*BB[:,0] )
+        result[:,2] =  ( AA[:,0]*BB[:,1] - AA[:,1]*BB[:,0] )
+    
+    return(result)
+
+
+
+timerange = '2017-06-11 17:00 to 17:02'
+mms_sc = 'mms1'
+
+
+#fpi_pressure_tensor = getDataSet('vap+cdaweb:ds=MMS1_FPI_FAST_L2_DIS-MOMS&id=mms1_dis_prestensor_gse_fast&timerange=%s'%timerange)
+fpi_pressure_tensor = getDataSet('vap+cdaweb:ds=MMS1_FPI_BRST_L2_DIS-MOMS&id=mms1_dis_prestensor_gse_brst&timerange=%s'%timerange)
+fgm = getDataSet('vap+cdaweb:ds=MMS1_FGM_SRVY_L2&id=mms1_fgm_b_gse_srvy_l2_clean&timerange=%s'%timerange)
+pos = getDataSet('vap+cdaweb:ds=MMS1_MEC_SRVY_L2_EPHTS04D&id=mms1_mec_r_gse&timerange=%s'%timerange)
+
+# Current: J = q*ne*(vi - ve)
+
+q = 1
+ne = getDataSet('vap+cdaweb:ds=MMS1_FPI_FAST_L2_DES-MOMS&id=mms1_des_numberdensity_fast&timerange=%s'%timerange)
+
+vi = getDataSet('vap+cdaweb:ds=MMS1_FPI_FAST_L2_DIS-MOMS&id=mms1_dis_bulkv_gse_fast&timerange=%s'%timerange)
+ve = getDataSet('vap+cdaweb:ds=MMS1_FPI_FAST_L2_DES-MOMS&id=mms1_des_bulkv_gse_fast&timerange=%s'%timerange)
+
+J = q*ne*(vi - ve)
+
+
+# Trim to dataset and interpolate onto B
+
+fgm = trim(fgm,timerange)
+TEMP_fpi_pressure_tensor = synchronize(fgm,[fpi_pressure_tensor[:,:,0],fpi_pressure_tensor[:,:,1],fpi_pressure_tensor[:,:,2]])
+fpi_pressure_tensor = dblarr(len(fgm),3,3)
+fpi_pressure_tensor[:,:,0] = TEMP_fpi_pressure_tensor[0]
+fpi_pressure_tensor[:,:,1] = TEMP_fpi_pressure_tensor[1]
+fpi_pressure_tensor[:,:,2] = TEMP_fpi_pressure_tensor[2]
+
+J = synchronize(fgm,J)
+pos = synchronize(fgm,pos)
+
+
+# Calculate gradient of pressure
+
+gradP = gradient(fpi_pressure_tensor, pos)
+gradP.putProperty(QDataSet.VALID_MIN , -1E10)
+gradP.putProperty(QDataSet.VALID_MAX ,  1E10)
+
+
+# Evaluate gradP = JxB
+
+JxB = matrixCrossProduct(J,fgm)
+
+plot(JxB)
+plot(1,gradP)
+plot(2,JxB-gradP)

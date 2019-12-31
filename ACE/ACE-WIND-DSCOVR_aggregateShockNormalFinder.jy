@@ -1,0 +1,172 @@
+
+
+def vectorDotProduct(AA,BB):
+    ''' Using two [:,3] vector arrays AA, BB, finds the [:,1] vector dot product AA*BB '''
+    if len(AA) != len(BB):
+        raise arraysOfDifferentLengthsError
+    if AA.rank() == 1 :
+        result = AA[0]*BB[0] + AA[1]*BB[1] + AA[2]*BB[2]
+    else:
+        result = dblarr(len(AA),1)
+        result[:,0] =  AA[:,0]*BB[:,0] + AA[:,1]*BB[:,1] + AA[:,2]*BB[:,2]
+    return result
+    
+
+def matrixCrossProduct(AA,BB):
+    '''Using two [:,3] vector arrays AA, BB, finds the [:,3] vector cross product AAxBB'''
+    if len(AA) != len(BB):
+        raise arraysOfDifferentLengthsError
+    if AA.rank() == 1 :
+        result = dblarr(3)
+        result[0] =  ( AA[1]*BB[2] - AA[2]*BB[1] )
+        result[1] = -( AA[0]*BB[2] - AA[2]*BB[0] )
+        result[2] =  ( AA[0]*BB[1] - AA[1]*BB[0] )
+    else:
+        result = dblarr(len(AA),3)
+        result[:,0] =  ( AA[:,1]*BB[:,2] - AA[:,2]*BB[:,1] )
+        result[:,1] = -( AA[:,0]*BB[:,2] - AA[:,2]*BB[:,0] )
+        result[:,2] =  ( AA[:,0]*BB[:,1] - AA[:,1]*BB[:,0] )
+    return(result)
+
+# ###
+# ### DO TIME STUFF
+# ###
+
+# Insert datetime manually
+#ACE_datetime = '2016/04/14 06:50:26'
+#WIN_datetime = '2016/04/14 06:56:52'
+#DSC_datetime = '2016/04/14 06:57:13'
+#ACE_datetime = '2015-11-03 11:11:17'
+#WIN_datetime = '2015-11-03 11:16:53'
+#DSC_datetime = '2015-11-03 11:17:29'
+
+# Get Datetime values as variables, define appropriate timerange
+ACE_datetime_input = getParam('ACE timestamp','2015-11-03 11:11:17','The time that ACE saw the shock')
+WIN_datetime_input = getParam('WIN timestamp','2015-11-03 11:16:53','The time that WIND saw the shock')
+DSC_datetime_input = getParam('DSC timestamp','2015-11-03 11:17:29','The time that DSCOVR saw the shock')
+ACE_datetime = dataset(ACE_datetime_input)
+WIN_datetime = dataset(WIN_datetime_input)
+DSC_datetime = dataset(DSC_datetime_input)
+
+print 'ACE_datetime = ',ACE_datetime
+print 'WIN_datetime = ',WIN_datetime
+print 'DSC_datetime = ',DSC_datetime
+
+times_list = [ACE_datetime,DSC_datetime,WIN_datetime]
+timerange = str(min(times_list))+' to '+str(max(times_list))
+
+
+# ###
+# ### GET S/C VELOCITY DATA
+# ###
+
+timeSpan = putProperty(dataset(600),QDataSet.UNITS,Units.seconds) # time after shock passing for average Vr speed
+
+# Several try routines to pull in data, taking average values from available datasets
+try:
+    ACE_shockTime = str(ACE_datetime)+' to '+str(ACE_datetime+timeSpan)
+    ACE_wind_speed = getDataSet('vap+cdaweb:ds=AC_H0_SWE&id=V_RTN&slice1=0&timerange=%s'%(ACE_shockTime))
+    ACE_wind_speed = mean(trim(ACE_wind_speed,ACE_shockTime))
+except:
+    ACE_windSpeedError = True
+
+try:
+    WIN_shockTime = str(WIN_datetime)+' to '+str(WIN_datetime+timeSpan)
+    WIN_wind_speed = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=V_GSE_p&slice1=0&where=QF_V.gt(10000)&timerange=%s'%(WIN_shockTime))
+    WIN_wind_speed = mean(trim(WIN_wind_speed[sort(WIN_wind_speed.property(QDataSet.DEPEND_0))],WIN_shockTime))
+    WIN_wind_speed.putProperty(QDataSet.UNITS,ACE_wind_speed.property(QDataSet.UNITS))
+except:
+    WIN_windSpeedError = True
+
+
+if( 'ACE_windSpeedError' in globals() ):
+    if( 'WIN_windSpeedError' in globals() ):
+        raise noWindSpeedAvailableError
+    else:
+        shock_speed = -WIN_wind_speed
+        print 'using WIND-derived shock speed:',round(shock_speed,1)
+elif( 'WIN_windSpeedError' in globals() ):
+    shock_speed = -ACE_wind_speed
+    print 'using ACE-derived shock speed:',round(shock_speed,1)
+else:
+    shock_speed = -mean(abs(dataset([ACE_wind_speed,WIN_wind_speed]))) 
+    print 'Average shock speed:',round(shock_speed,1)
+
+    
+# ###
+# ### GET S/C POSITIONS
+# ###
+
+Re = 6378.
+ACE_pos = getDataSet('vap+cdaweb:ds=AC_H0_SWE&id=SC_pos_GSE&timerange=%s'%(timerange))
+DSC_pos = getDataSet('vap+cdaweb:ds=DSCOVR_ORBIT_PRE&id=GSE_POS&timerange=%s'%(timerange)) # THIS IS ONLY PREDICTED POSITION!!
+WIN_pos = getDataSet('vap+cdaweb:ds=WI_H0_MFI&id=PGSE&timerange=%s'%(timerange))
+WIN_pos = putProperty(WIN_pos*Re,QDataSet.UNITS,Units.kiloMeters) # WIND position is given in Re with this file
+
+tempRatio = findex(ACE_pos.property(QDataSet.DEPEND_0),ACE_datetime)
+ACE_location = ACE_pos[tempRatio]
+tempRatio = findex(DSC_pos.property(QDataSet.DEPEND_0),DSC_datetime)
+DSC_location = DSC_pos[tempRatio]
+tempRatio = findex(WIN_pos.property(QDataSet.DEPEND_0),WIN_datetime)
+WIN_location = WIN_pos[tempRatio]
+
+DSC_X_location = DSC_location[0]
+ACE_X_location = ACE_location[0]
+
+
+# ###
+# ### SHIFT S/C POSITIONS OF SHOCK OBSERVATION
+# ###
+
+# Calculate shifted GSEx position of ACE and DSC at WIND shock-crossing time [X'_ACE = X_ACE - (t_ACE-t_WIN)*V_sh]
+TD_DW = convertUnitsTo(DSC_datetime-WIN_datetime,Units.seconds)
+TD_AW = convertUnitsTo(ACE_datetime-WIN_datetime,Units.seconds)
+
+DSC_X_location_PRIME = DSC_X_location - putProperty((TD_DW)*shock_speed,QDataSet.UNITS,Units.kiloMeters)
+ACE_X_location_PRIME = ACE_X_location - putProperty((TD_AW)*shock_speed,QDataSet.UNITS,Units.kiloMeters)
+
+ACE = dataset([ACE_X_location_PRIME,ACE_location[1],ACE_location[2]]) #We just found the new x position, so we can use that variable instead of typing it in
+DSCOVR = dataset([DSC_X_location_PRIME,DSC_location[1],DSC_location[2]])
+WIND = WIN_location
+
+
+# ###
+# ### FIND DIFFERENCE OF POSITION VECTORS (SHOULD ALL BE IN SHOCK PLANE NOW) (SIGN CHANGES ARE ESSENTIALY ARBITRARY)
+# ###
+
+D_A= DSCOVR-ACE
+W_D= WIND-DSCOVR
+A_W= ACE-WIND
+
+
+# ###
+# ### TAKE CROSS PRODUCT OF POSITION DIFFERENCE VECTORS FROM WIND TO FIND NORMAL TO SHOCK PLANE
+# ###
+
+W_D_dot_A_W = vectorDotProduct(W_D,A_W)
+W_D_dot_D_A = vectorDotProduct(W_D,D_A)
+A_W_dot_D_A = vectorDotProduct(A_W,D_A)
+
+theta_W_D__A_W = acos(W_D_dot_A_W/(magnitude(W_D)*magnitude(A_W)))
+theta_W_D__D_A = acos(W_D_dot_D_A/(magnitude(W_D)*magnitude(D_A)))
+theta_A_W__D_A = acos(A_W_dot_D_A/(magnitude(A_W)*magnitude(D_A)))
+
+angle_list = [theta_W_D__A_W,theta_W_D__D_A,theta_A_W__D_A]
+#print angle_list
+#print angle_list[imin(abs((PI/2.)-dataset(angle_list)))]
+
+if( theta_W_D__A_W == angle_list[imin(abs((PI/2.)-dataset(angle_list)))] ):
+    Cross = matrixCrossProduct(W_D,A_W)
+elif( abs(theta_W_D__D_A) == angle_list[imin(abs((PI/2.)-dataset(angle_list)))] ):
+    Cross = matrixCrossProduct(W_D,D_A)
+elif( abs(theta_A_W__D_A) == angle_list[imin(abs((PI/2.)-dataset(angle_list)))] ):
+    Cross = matrixCrossProduct(A_W,D_A)
+#print('Cross:',Cross)
+
+Magnitude = magnitude(Cross)
+#print('Magnitude:',Magnitude)
+
+unit_vector = Cross/Magnitude
+print 'GSE unit vector (plane normal):'
+print (round(unit_vector[0],3),round(unit_vector[1],3),round(unit_vector[2],3))
+

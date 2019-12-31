@@ -1,0 +1,223 @@
+#############################
+#    SCRIPT FOR READYING    #
+#       WIND DATA FOR       #
+#     DEHOFFMAN-TELLER      #
+#############################
+
+# Variable timestamp and s/c input
+timerange = getParam('timerange','2018-11-12 to 2018-11-15','Timerange of WIND Data')
+stereo_sc = getParam('spacecraft','A','Which STEREO spacecraft to use',['A','B'])
+dd = timerange[0:10]
+
+if stereo_sc == 'A':
+    stereo_sc_label = 'ahead'
+elif stereo_sc == 'B':
+    stereo_sc_label = 'behind'
+
+def fillInGaps(element):
+    #element.putProperty(QDataSet.VALID_MIN,-1E6)
+    #element.putProperty(QDataSet.VALID_MAX, 1E6)
+    element_time = element[where( valid(element).eq(1) )].property(QDataSet.DEPEND_0)
+    TEMP_ratio = findex(element_time,swe_time)
+    TEMP_element = interpolate(element[where( valid(element).eq(1) )],TEMP_ratio)
+    return(TEMP_element)
+
+def filterAndUpscale(element,faster_ds):
+    ''' Runs a median filter throwing out single points more than 3 standard deviations from the mean of the 2 surrounding data points. Then, interpolates up to faster_ds time cadence'''
+#for element in [Vx,Vy,Vz,pos_x,pos_y,pos_z,density_input,temp_input] :
+    faster_ds_time = faster_ds.property(QDataSet.DEPEND_0)
+    try:
+        element_filter = medianFilter(element[where(valid(element).eq(1))],3)
+        r = where( abs(element[where(valid(element).eq(1))]-element_filter).ge(3*stddev(element[where(valid(element).eq(1))])) )
+        mask = ones(len(element[where(valid(element).eq(1))]))
+        mask[r] = -1E31
+        element[where(valid(element).eq(1))] = element[where(valid(element).eq(1))]*mask
+    except:
+        pass
+    
+    element.putProperty(QDataSet.VALID_MIN,-1E10)
+    element.putProperty(QDataSet.VALID_MAX, 1E10)
+    element = synchronize(faster_ds,element[where( valid(element).eq(1) )])
+    element_time = element[where( valid(element).eq(1) )].property(QDataSet.DEPEND_0)
+    TEMP_ratio = findex(element_time,faster_ds_time)
+    TEMP_element = interpolate(element[where( valid(element).eq(1) )],TEMP_ratio)
+    return(TEMP_element)
+
+
+#B_input = getDataSet('file:///C:/Users/Kristoff/Desktop/Farrugia_WIND-Hoffman-Teller/B_gse_for_HT.dat?rank2=field2-field5&renderTye=series&time=field0&timeFormat=$d-$m-$Y+$H:$M:$S.$(milli)')
+#V_input = getDataSet('file:///C:/Users/Kristoff/Desktop/Farrugia_WIND-Hoffman-Teller/V_gse_for_HT.dat?rank2=field2-field4&renderTye=series&time=field0&timeFormat=$d-$m-$Y+$H:$M:$S.$(milli)')
+
+#Full cadence magnetic field:
+#B_input = getDataSet('vap+cdaweb:ds=WI_H2_MFI&id=BGSE&timerange=%s'%timerange)
+#B_mag = getDataSet('vap+cdaweb:ds=WI_H2_MFI&id=BF1&timerange=%s'%timerange)
+
+
+# ###
+# ### DOWNLOAD DATA
+# ###
+
+# First try to pull the merged data (won't work for newest)
+try: 
+    # One-minute magnetic field
+    B_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=BFIELDRTN&timerange=%s'%(stereo_sc,timerange)),timerange)
+    B_mag = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=BTOTAL&timerange=%s'%(stereo_sc,timerange)),timerange)
+    time = B_mag.property(QDataSet.DEPEND_0)
+    B_input = bundle(B_mag,B_input[:,0],B_input[:,1],B_input[:,2])
+    B_input.putProperty(QDataSet.DEPEND_0,time)
+    
+    Vp = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_bulk_speed&timerange=%s'%(stereo_sc,timerange)),timerange)
+    Vr_over_Vp = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=Vr_Over_V_RTN&timerange=%s'%(stereo_sc,timerange)),timerange)
+    Vt_over_Vp = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=Vt_Over_V_RTN&timerange=%s'%(stereo_sc,timerange)),timerange)
+    Vn_over_Vp = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=Vn_Over_V_RTN&timerange=%s'%(stereo_sc,timerange)),timerange)
+    V_time = Vp.property(QDataSet.DEPEND_0)
+    
+    Vr = Vr_over_Vp*Vp
+    Vt = Vt_over_Vp*Vp
+    Vn = Vn_over_Vp*Vp
+    
+    pos_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=HEE&timerange=%s'%(stereo_sc,timerange)),timerange) # HEE coordinate position in AU
+    pos_x = unbundle(pos_input,0) # HEEx is Sun-Earth line
+    pos_y = unbundle(pos_input,1) # HEEy
+    pos_z = unbundle(pos_input,2) # HEEz is ecliptic north pole
+    
+    density_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=Np&timerange=%s'%(stereo_sc,timerange)),timerange) 
+    
+    temp_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=Tp&timerange=%s'%(stereo_sc,timerange)),timerange) 
+except:
+    print 'Using more recent full cadence data since merged MAGPLASMA not found'
+    # Full cadence magnetic field
+    B_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L1_MAG_RTN&id=BFIELD&timerange=%s'%(stereo_sc,timerange)),timerange)
+    time = B_input.property(QDataSet.DEPEND_0)
+    
+    # Define lower-cadence timestamps
+    beginTime = putProperty(time[0],QDataSet.NAME,None)
+    endTime = putProperty(time[-1],QDataSet.NAME,None)
+    cadence = '1min'#'60sec'
+    newTime_1min = timegen( str(beginTime) , cadence , int(round((endTime-beginTime)/dataset(cadence))) )
+    
+    print mean(diff(newTime_1min))
+    print newTime_1min[-1]
+    #stop
+    
+    # Interpolate Bfield onto new timestamps
+    Btime_to_newTime_ratio = findex(time,newTime_1min)
+    B_input = synchronize(putProperty(ones(len(newTime_1min)),QDataSet.DEPEND_0,newTime_1min),B_input)
+    B_input = bundle(B_input[:,3],B_input[:,0],B_input[:,1],B_input[:,2])
+    B_input.putProperty(QDataSet.DEPEND_0,newTime_1min)
+    #stop
+    
+    Vp = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_bulk_speed&timerange=%s'%(stereo_sc,timerange)),timerange)
+    Vr = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_Vr_RTN&timerange=%s'%(stereo_sc,timerange)),timerange)
+    Vt = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_Vt_RTN&timerange=%s'%(stereo_sc,timerange)),timerange)
+    Vn = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_Vn_RTN&timerange=%s'%(stereo_sc,timerange)),timerange)
+    V_time = Vp.property(QDataSet.DEPEND_0)
+    
+    pos_input = trim(getDataSet('http://www.srl.caltech.edu/STEREO2/Position/%s/position_%s_$Y_HEE.txt?time=field0&rank2=field4-field6&timeFormat=$Y+$j+$S&timerange=%s'%(stereo_sc_label,stereo_sc_label,timerange)),timerange)
+    #pos_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=HEE&timerange=%s'%(stereo_sc,timerange)),timerange) # HEE coordinate position in AU
+    pos_x = unbundle(pos_input,0) # HEEx is Sun-Earth line
+    pos_y = unbundle(pos_input,1) # HEEy
+    pos_z = unbundle(pos_input,2) # HEEz is ecliptic north pole
+    
+    density_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_number_density&timerange=%s'%(stereo_sc,timerange)),timerange)
+    
+    temp_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_temperature&timerange=%s'%(stereo_sc,timerange)),timerange)
+    
+    
+
+
+# ###
+# ### FILTER OUT BAD DATA, SYNCHRONIZE
+# ###
+
+try:    
+    plasma_velocity_r = filterAndUpscale(Vr,B_input)
+    plasma_velocity_t = filterAndUpscale(Vt,B_input)
+    plasma_velocity_n = filterAndUpscale(Vn,B_input)
+except:
+    plasma_velocity_r = Vr
+    plasma_velocity_t = Vt
+    plasma_velocity_n = Vn
+    
+pos_x = filterAndUpscale(pos_x,B_input)*149597870.7 # Convert to km to make things easier later
+pos_y = filterAndUpscale(pos_y,B_input)*149597870.7
+pos_z = filterAndUpscale(pos_z,B_input)*149597870.7
+
+density_upsampled = filterAndUpscale(density_input,B_input)
+temp_upsampled = filterAndUpscale(temp_input,B_input)
+
+
+plot(1,temp_upsampled)
+stop
+# Rename data variables, reassign fill values
+
+last = TimeUtil.now()
+
+r = where( valid(B_input[:,1]).eq(0) )
+temp_Bx = copy(B_input[:,1])
+temp_Bx[r] = -9999.999
+
+r = where( valid(B_input[:,2]).eq(0) )
+temp_By = copy(B_input[:,2])
+temp_By[r] = -9999.999
+
+r = where( valid(B_input[:,3]).eq(0) )
+temp_Bz = copy(B_input[:,3])
+temp_Bz[r] = -9999.999
+
+r = where( valid(B_input[:,0]).eq(0) )
+temp_Btot = copy(B_input[:,0])
+temp_Btot[r] = -9999.999
+
+fgm = bundle(temp_Bx,temp_By,temp_Bz,temp_Btot)
+
+r = where( valid(plasma_velocity_r).eq(0) )
+plasma_velocity_r[r] = -9999.999
+r = where( valid(plasma_velocity_t).eq(0) )
+plasma_velocity_t[r] = -9999.999
+r = where( valid(plasma_velocity_n).eq(0) )
+plasma_velocity_n[r] = -9999.999
+
+r = where( valid(pos_x).eq(0) )
+pos_x[r] = -9999.999
+pos_x.putProperty(QDataSet.UNITS,Units.kiloMeters)
+r = where( valid(pos_y).eq(0) )
+pos_y[r] = -9999.999
+pos_y.putProperty(QDataSet.UNITS,Units.kiloMeters)
+r = where( valid(pos_z).eq(0) )
+pos_z[r] = -9999.999
+pos_z.putProperty(QDataSet.UNITS,Units.kiloMeters)
+
+r = where( valid(density_upsampled).eq(0) )
+density_upsampled[r] = -9999.999
+
+r = where( valid(temp_upsampled).eq(0) )
+temp_upsampled[r] = -9999.999
+        
+print 'To reset fill values took:',TimeUtil.now()-last
+last = TimeUtil.now()
+plot(newTime_1min,fgm)
+write_output = 'T'
+if write_output=='T':
+    
+        output = None        
+        output = bundle(output,pos_x,pos_y,pos_z)
+        output = bundle(output,fgm[:,3])
+        output = bundle(output,fgm[:,0],fgm[:,1],fgm[:,2])
+        output = bundle(output,density_upsampled,temp_upsampled)
+        output = bundle(output,plasma_velocity_r,plasma_velocity_t,plasma_velocity_n)
+        
+        output.putProperty(QDataSet.DEPEND_0,time)
+        print 'To bundle everything took:',TimeUtil.now()-last
+        last = TimeUtil.now()
+        #stop
+        
+        # ###
+        # ### WRITE DAILY FILE
+        # ###
+        
+        sc = 'ST%s'%stereo_sc
+        stereo_data_directory = 'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/STEREODATA/merged_mag_plasma/'
+        stereo_data_file = '%s_%s_merged.txt'%(sc,dd)
+        
+        formatDataSet(output,stereo_data_directory+stereo_data_file+'?format=9.4f&tformat=milliseconds')
+        print 'Written to:',stereo_data_directory+stereo_data_file

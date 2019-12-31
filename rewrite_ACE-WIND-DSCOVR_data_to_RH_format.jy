@@ -1,0 +1,189 @@
+
+
+#############################
+#    SCRIPT FOR READYING    #
+#       WIND DATA FOR       #
+#     DEHOFFMAN-TELLER      #
+#############################
+
+# Original timestamps
+#timerange = '1998-02-02 00:00 to 1998-02-07 09:00'
+#dd = '1998-02-02'
+
+# Variable timestamp input
+timerange = getParam('timerange','2012-08-02 9:00 to 24:00','Timerange of WIND Data')
+dd = timerange[0:10]
+
+#B_input = getDataSet('file:///C:/Users/Kristoff/Desktop/Farrugia_WIND-Hoffman-Teller/B_gse_for_HT.dat?rank2=field2-field5&renderTye=series&time=field0&timeFormat=$d-$m-$Y+$H:$M:$S.$(milli)')
+#V_input = getDataSet('file:///C:/Users/Kristoff/Desktop/Farrugia_WIND-Hoffman-Teller/V_gse_for_HT.dat?rank2=field2-field4&renderTye=series&time=field0&timeFormat=$d-$m-$Y+$H:$M:$S.$(milli)')
+
+#Full cadence magnetic field:
+#B_input = getDataSet('vap+cdaweb:ds=WI_H2_MFI&id=BGSE&timerange=%s'%timerange)
+#B_mag = getDataSet('vap+cdaweb:ds=WI_H2_MFI&id=BF1&timerange=%s'%timerange)
+
+#Three-second magnetic field
+B_input = getDataSet('vap+cdaweb:ds=WI_H0_MFI&id=B3GSE&timerange=%s'%timerange)
+B_mag = getDataSet('vap+cdaweb:ds=WI_H0_MFI&id=B3F1&timerange=%s'%timerange)
+time = B_mag.property(QDataSet.DEPEND_0)
+B_input = bundle(B_mag,B_input[:,0],B_input[:,1],B_input[:,2])
+B_input.putProperty(QDataSet.DEPEND_0,time)
+
+V_input = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=V_GSE&timerange=%s'%timerange)
+swe_time = V_input.property(QDataSet.DEPEND_0)
+#r = where(uniq(swe_time))
+#swe_time = swe_time[r]
+#s = sort(swe_time)
+#swe_time = swe_time[s]
+Vx = unbundle(V_input,0)#[r][s]
+Vy = unbundle(V_input,1)#[r][s]
+Vz = unbundle(V_input,2)#[r][s]
+
+def fillInGaps(element):
+    #element.putProperty(QDataSet.VALID_MIN,-1E6)
+    #element.putProperty(QDataSet.VALID_MAX, 1E6)
+    element_time = element[where( valid(element).eq(1) )].property(QDataSet.DEPEND_0)
+    TEMP_ratio = findex(element_time,swe_time)
+    TEMP_element = interpolate(element[where( valid(element).eq(1) )],TEMP_ratio)
+    return(TEMP_element)
+#Vz = fillInGaps(Vz)
+
+pos_input = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=SC_pos_gse&timerange=%s'%timerange)
+pos_x = unbundle(pos_input,0)#[r][s]
+pos_y = unbundle(pos_input,1)#[r][s]
+pos_z = unbundle(pos_input,2)#[r][s]
+
+density_input = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=Np&timerange=%s'%timerange)
+
+temp_input = getDataSet('vap+cdaweb:ds=WI_PM_3DP&id=P_TEMP&timerange=%s'%timerange)
+
+def filterAndUpscale(element,faster_ds):
+    ''' Runs a median filter throwing out single points more than 3 standard deviations from the mean of the 2 surrounding data points. Then, interpolates up to faster_ds time cadence'''
+#for element in [Vx,Vy,Vz,pos_x,pos_y,pos_z,density_input,temp_input] :
+    
+    element_filter = medianFilter(element[where(valid(element).eq(1))],3)
+    r = where( abs(element[where(valid(element).eq(1))]-element_filter).ge(3*stddev(element[where(valid(element).eq(1))])) )
+    mask = ones(len(element[where(valid(element).eq(1))]))
+    mask[r] = -1E31
+    element[where(valid(element).eq(1))] = element[where(valid(element).eq(1))]*mask
+    
+    element.putProperty(QDataSet.VALID_MIN,-1E10)
+    element.putProperty(QDataSet.VALID_MAX, 1E10)
+    element = synchronize(faster_ds,element[where( valid(element).eq(1) )])
+    element_time = element[where( valid(element).eq(1) )].property(QDataSet.DEPEND_0)
+    TEMP_ratio = findex(element_time,time)
+    TEMP_element = interpolate(element[where( valid(element).eq(1) )],TEMP_ratio)
+    return(TEMP_element)
+    
+plasma_velocity_x = filterAndUpscale(Vx,B_input)
+plasma_velocity_y = filterAndUpscale(Vy,B_input)
+plasma_velocity_z = filterAndUpscale(Vz,B_input)
+
+pos_x = filterAndUpscale(pos_x,B_input)
+pos_y = filterAndUpscale(pos_y,B_input)
+pos_z = filterAndUpscale(pos_z,B_input)
+
+density_upsampled = filterAndUpscale(density_input,B_input)
+temp_upsampled = filterAndUpscale(temp_input,B_input)
+
+
+# Rename data variables, reassign fill values
+
+last = TimeUtil.now()
+
+
+r = where( valid(B_input[:,1]).eq(0) )
+temp_Bx = copy(B_input[:,1])
+temp_Bx[r] = -9999.999
+
+r = where( valid(B_input[:,2]).eq(0) )
+temp_By = copy(B_input[:,2])
+temp_By[r] = -9999.999
+
+r = where( valid(B_input[:,3]).eq(0) )
+temp_Bz = copy(B_input[:,3])
+temp_Bz[r] = -9999.999
+
+r = where( valid(B_input[:,0]).eq(0) )
+temp_Btot = copy(B_input[:,0])
+temp_Btot[r] = -9999.999
+
+fgm = bundle(temp_Bx,temp_By,temp_Bz,temp_Btot)
+
+r = where( valid(plasma_velocity_x).eq(0) )
+plasma_velocity_x[r] = -9999.999
+r = where( valid(plasma_velocity_y).eq(0) )
+plasma_velocity_y[r] = -9999.999
+r = where( valid(plasma_velocity_z).eq(0) )
+plasma_velocity_z[r] = -9999.999
+
+r = where( valid(pos_x).eq(0) )
+pos_x[r] = -9999.999
+r = where( valid(pos_y).eq(0) )
+pos_y[r] = -9999.999
+r = where( valid(pos_z).eq(0) )
+pos_z[r] = -9999.999
+
+r = where( valid(density_upsampled).eq(0) )
+density_upsampled[r] = -9999.999
+
+r = where( valid(temp_upsampled).eq(0) )
+temp_upsampled[r] = -9999.999
+        
+print 'To reset fill values took:',TimeUtil.now()-last
+last = TimeUtil.now()
+
+write_output = 'T'
+if write_output=='T':
+    
+        output = None        
+        output = bundle(output,pos_x,pos_y,pos_z)
+        output = bundle(output,fgm[:,3])
+        output = bundle(output,fgm[:,0],fgm[:,1],fgm[:,2])
+        output = bundle(output,density_upsampled,temp_upsampled)
+        output = bundle(output,plasma_velocity_x,plasma_velocity_y,plasma_velocity_z)
+        
+        output.putProperty(QDataSet.DEPEND_0,time)
+        print 'To bundle everything took:',TimeUtil.now()-last
+        last = TimeUtil.now()
+        #stop
+        
+        # ###
+        # ### WRITE DAILY FILE
+        # ###
+        
+        sc = 'WIND'
+        mms_data_directory = 'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/WINDDATA/merged_mag_plasma/'
+        mms_data_file = '%s_%s_merged.txt'%(sc,dd)
+        
+        formatDataSet(output,mms_data_directory+mms_data_file+'?format=9.4f&tformat=milliseconds')
+        print 'Written to:',mms_data_directory+mms_data_file
+
+
+
+
+
+
+
+
+
+
+
+
+
+c..Output header
+        write(13,290)'Year','Month','Day','Time','Np','Tp[K]','Vp',
+     .      'Vx','Vy','Vz','Bx','By','Bz','Bmag'
+  290   format(a4,1x,a5,1x,a3,1x,a4,6x,a2,7x,a5,6x,a2,7x,
+     .       a2,7x,a2,7x,a2,9x,a2,9x,a2,9x,a2,9x,
+     .       a4)
+        write(13,292)'---------------------------------------',
+     .     '-----------------------------------------',
+     .     '-----------------------------------------'
+     
+     
+     
+ds= randn(100,13)
+o= open('/tmp/foo.dat','w')
+for d in ds:
+   o.write( '%4d %3d %4d  %9.3f %11.3e %8.2f %8.2f %8.2f %8.2f %10.4f %10.4f %10.4f %10.4f \n' % ( d[0], d[1],d[2],d[3],d[4],d[5],d[6],d[7], d[8], d[9],d[10],d[11],d[12]) )
+o.close()

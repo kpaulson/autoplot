@@ -1,0 +1,3 @@
+i_c = 7.25   # Angle between Solar equator and ecliptic
+
+Omega_c = 73.67 + 0.013958 (t - 1850.0)

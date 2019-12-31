@@ -1,0 +1,217 @@
+#############################
+#    SCRIPT FOR READYING    #
+#       WIND DATA FOR       #
+#     DEHOFFMAN-TELLER      #
+#############################
+
+import java
+
+
+# Variable timestamp input
+#timerange = getParam('timerange','2002-05-23 10:00 to 11:30','Timerange of WIND Data')
+timerange =  '2002-05-23 10:00 to 11:30'
+
+
+
+
+
+
+
+
+# Directory location and output filename
+dd = timerange[0:10]
+data_directory = getParam('directory','D:/Research/Solar Wind Projects/WIND_shock_data/','Directory where you want to save WIND data')
+data_file = getParam('filename','WIND_mergedData_%s'%dd,'Directory where you want to save WIND data')
+
+start = TimeUtil.now()
+
+
+#Three-second magnetic field
+B_input = getDataSet('vap+cdaweb:ds=WI_H0_MFI&id=B3GSE&timerange=%s'%timerange)
+B_mag = getDataSet('vap+cdaweb:ds=WI_H0_MFI&id=B3F1&timerange=%s'%timerange)
+B_input = trim(B_input,timerange)
+B_mag = trim(B_mag,timerange)
+
+time = B_mag.property(QDataSet.DEPEND_0)
+B_input = bundle(B_mag,B_input[:,0],B_input[:,1],B_input[:,2])
+B_input.putProperty(QDataSet.DEPEND_0,time)
+
+V_input = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=V_GSE&timerange=%s'%timerange)
+swe_time = V_input.property(QDataSet.DEPEND_0)
+
+Vx = unbundle(V_input,0)
+Vy = unbundle(V_input,1)
+Vz = unbundle(V_input,2)
+
+pos_input = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=SC_pos_gse&timerange=%s'%timerange)
+pos_x = unbundle(pos_input,0)
+pos_y = unbundle(pos_input,1)
+pos_z = unbundle(pos_input,2)
+
+density_input = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=Np&timerange=%s'%timerange)
+
+temp_input = getDataSet('vap+cdaweb:ds=WI_PM_3DP&id=P_TEMP&timerange=%s'%timerange)
+
+
+def filterAndDownscale(element,timerange,time):
+    ''' Runs a median filter throwing out single points more than 3 standard deviations from 
+    the mean of the 2 surrounding data points. Then, interpolates down to 1-minute cadence.'''
+    
+        
+    total_seconds = convertUnitsTo(time[-1]-time[0],Units.seconds)
+    new_time = timegen(str(putProperty(time,QDataSet.NAME,None)[0]),'60 sec',int(total_seconds/60))
+    
+    try:
+        r_valid = where(valid(copy(element)).eq(1))
+        element_filter = medianFilter(element[r_valid],3)
+        r = where( abs(element[r_valid]-element_filter).ge(3*stddev(element[r_valid])) )
+        putValues(element,r,-1E36)
+        element.putProperty(QDataSet.FILL_VALUE,-1E36)
+        
+        s = sort(element.property(QDataSet.DEPEND_0))
+        uniqueness = uniq(element.property(QDataSet.DEPEND_0)[s])
+        element = copy(element[s][uniqueness])
+        element_time = element.property(QDataSet.DEPEND_0)
+        
+        r_valid = where( valid(element).eq(1) )
+        TEMP_ratio = findex(element_time,new_time)
+        TEMP_element = interpolate(element,TEMP_ratio)
+        
+        TEMP_element.putProperty(QDataSet.VALID_MIN,-1E10) # Sets valid limits on element
+        TEMP_element.putProperty(QDataSet.VALID_MAX, 1E10)
+        TEMP_element.putProperty(QDataSet.FILL_VALUE,-9999.999)
+        return (TEMP_element)
+    except(java.lang.IllegalArgumentException):
+        print '%s has fewer than 3 valid points in time range (replacing with fill)'%element
+        TEMP_element = ones(len(new_time))*-9999.999
+        TEMP_element.putProperty(QDataSet.DEPEND_0,new_time)
+        TEMP_element.putProperty(QDataSet.FILL_VALUE,-9999.999)
+        
+        return (TEMP_element)
+        
+# Apply filtering system and take data down to 60-second cadence
+B_mag = filterAndDownscale(B_input[:,0],timerange,time)
+B_x   = filterAndDownscale(B_input[:,1],timerange,time)
+B_y   = filterAndDownscale(B_input[:,2],timerange,time)
+B_z   = filterAndDownscale(B_input[:,3],timerange,time)
+
+plasma_velocity_x = filterAndDownscale(Vx,timerange,time)
+plasma_velocity_y = filterAndDownscale(Vy,timerange,time)
+plasma_velocity_z = filterAndDownscale(Vz,timerange,time)
+
+pos_x = filterAndDownscale(pos_x,timerange,time)
+pos_y = filterAndDownscale(pos_y,timerange,time)
+pos_z = filterAndDownscale(pos_z,timerange,time)
+
+density = filterAndDownscale(density_input,timerange,time)
+temp = filterAndDownscale(temp_input,timerange,time)
+
+time = temp.property(QDataSet.DEPEND_0)
+
+
+# Rename data variables, reassign fill values
+last = TimeUtil.now()
+
+r = where( valid(B_x).eq(0) )
+temp_Bx = copy(B_x)
+temp_Bx[r] = -9999.999
+
+r = where( valid(B_y).eq(0) )
+temp_By = copy(B_y)
+temp_By[r] = -9999.999
+
+r = where( valid(B_z).eq(0) )
+temp_Bz = copy(B_z)
+temp_Bz[r] = -9999.999
+
+r = where( valid(B_mag).eq(0) )
+temp_Btot = copy(B_mag)
+temp_Btot[r] = -9999.999
+
+fgm = bundle(temp_Bx,temp_By,temp_Bz,temp_Btot)
+
+Vp = magnitude(bundle(plasma_velocity_x,plasma_velocity_y,plasma_velocity_z))
+r = where( valid(plasma_velocity_x).eq(0) )
+plasma_velocity_x[r] = -9999.99
+r = where( valid(plasma_velocity_y).eq(0) )
+plasma_velocity_y[r] = -9999.99
+r = where( valid(plasma_velocity_z).eq(0) )
+plasma_velocity_z[r] = -9999.99
+r = where( valid(Vp).eq(0) )
+Vp[r] = -9999.99
+
+r = where( valid(pos_x).eq(0) )
+pos_x[r] = -9999.999
+r = where( valid(pos_y).eq(0) )
+pos_y[r] = -9999.999
+r = where( valid(pos_z).eq(0) )
+pos_z[r] = -9999.999
+
+r = where( eq(valid(density),0) )
+density[r] = -9999.999
+
+r = where( valid(temp).eq(0) )
+temp[r] = -9999.999
+        
+print 'To reset fill values took:',TimeUtil.now()-last
+last = TimeUtil.now()
+
+write_output = 'T'
+if write_output=='T':
+        
+        
+        # ###
+        # ### COMPOSE OUTPUT ARRAY
+        # ###
+
+        year  = dd[0:4]
+        month = dd[5:7]
+        day   = dd[8:10]
+
+        hours   = dblarr(len(time))
+        minutes = dblarr(len(time))
+        seconds = dblarr(len(time))
+        time.putProperty(QDataSet.NAME,None)
+        for i in xrange(len(time)):
+            hours[i]   = str(time[i])[11:13]
+            minutes[i] = str(time[i])[14:16]
+            seconds[i] = str(time[i])[17:23]
+        
+        doy = TimeUtil.dayOfYear(int(month),int(day),int(year))*ones(len(time))
+        doy = doy+(hours/24.)+(minutes/(60.*24.))+(seconds/(60.*60.*24.))
+        
+        output = None     
+        output = bundle(output , ones(len(time))*year , doy , density)
+        output = bundle(output , temp , zeros(len(time)) , Vp )
+        output = bundle(output , plasma_velocity_x , plasma_velocity_y , plasma_velocity_z )
+        output = bundle(output , fgm[:,0] , fgm[:,1] , fgm[:,2] )
+        output = bundle(output , fgm[:,3] , zeros(len(time)) , zeros(len(time)) )
+        output = bundle(output , zeros(len(time)) , pos_x , pos_y )
+        output = bundle(output , pos_z , zeros(len(time)) )
+        
+        #output.putProperty(QDataSet.DEPEND_0,time)
+        print 'To bundle everything took:',TimeUtil.now()-last
+        last = TimeUtil.now()
+        #stop
+        
+        # ###
+        # ### WRITE DAILY FILE
+        # ###
+        
+        sc = 'WIND'
+        # This was from when I wanted to look at the Jan 2018 shock also seen by mms
+        #data_directory = 'C:/Users/Kristoff/Desktop/MMS_20180108_Shock/'
+        #data_file = '%s_%s_merged.txt'%(sc,dd)
+     
+        o= open(data_directory+data_file,'w')
+        #o.write('Year Month Day Time      Np       Tp[K]      Vp       Vx       Vy       Vz         Bx         By         Bz         Bmag') # What format was this from??
+        o.write('Year,    DOY,       Np,      Tp[K],   N_alpha/Np, Vp[km/s],Vr[km/s],Vt[km/s],Vn[km/s], Br[gamma],Bt[gamma],Bn[gamma],Bmag[gamma],lambda[deg],delta[deg],Brms[gamma], Xsc_HS[km],Ysc_HS[km],Zsc_HS[km], MAG_pts')
+        #o.write('-------------------------------------------------------------------------------------------------------------------------'
+        for d in output:
+            o.write( '%4d %11.8f %9.3f %11.3e %6.2f %8.2f %8.2f %8.2f %8.2f %10.4f %10.4f %10.4f %10.4f %6.2f %6.2f %6.2f %10.4f %10.4f %10.4f %6.2f \n' % ( d[0], d[1],d[2],d[3],d[4],d[5],d[6],d[7], d[8], d[9],d[10],d[11], d[12], d[13], d[14], d[15], d[16], d[17], d[18], d[19]) )
+        o.close()
+
+        
+        #formatDataSet(output,mms_data_directory+mms_data_file+'?format=9.4f&tformat=microseconds')
+
+        print 'Total time elapsed for %s:'%dd,TimeUtil.now()-start

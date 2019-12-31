@@ -1,0 +1,85 @@
+
+def filterAndUpscale(element,faster_ds):
+    ''' Runs a median filter throwing out single points more than 3 standard deviations from the mean of the 2 surrounding data points. Then, interpolates up to faster_ds time cadence'''
+#for element in [Vx,Vy,Vz,pos_x,pos_y,pos_z,density_input,temp_input] :
+    
+    element_filter = medianFilter(element[where(valid(element).eq(1))],3)
+    r = where( abs(element[where(valid(element).eq(1))]-element_filter).ge(3*stddev(element[where(valid(element).eq(1))])) )
+    mask = ones(len(element[where(valid(element).eq(1))]))
+    mask[r] = -1E31
+    element[where(valid(element).eq(1))] = element[where(valid(element).eq(1))]*mask
+    
+    element.putProperty(QDataSet.VALID_MIN,-1E10)
+    element.putProperty(QDataSet.VALID_MAX, 1E10)
+    try:
+        element = synchronize(faster_ds,element[where( valid(element).eq(1) )])
+    except:
+        tempRatio = findex(element.property(QDataSet.DEPEND_0),faster_ds.property(QDataSet.DEPEND_0))
+        element = interpolate(element,tempRatio)
+    element_time = element[where( valid(element).eq(1) )].property(QDataSet.DEPEND_0)
+    TEMP_ratio = findex(element_time,time)
+    TEMP_element = interpolate(element[where( valid(element).eq(1) )],TEMP_ratio)
+    return(TEMP_element)
+
+
+tstart = dom.plots[0].xaxis.range.min()
+tstop = dom.plots[0].xaxis.range.max()
+starttime_input = getParam( 'Start Date and Time' , str(tstart) , 'Any format you want, really' )
+endtime_input = getParam( 'End Date and Time' , str(tstop) , 'End of wave activity' )
+stereo_sc = getParam('spacecraft','A','Which STEREO spacecraft to use',['A','B'])
+
+timerange = str(starttime_input)+' through '+str(endtime_input)
+
+try:
+    temperature = getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=Tp&timerange=%s'%(stereo_sc,timerange))
+    if len(temperature)==0:
+        raise noFileError
+except:
+    temperature = getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_temperature&timerange=%s'%(stereo_sc,timerange))
+
+try:
+    Vp = getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_bulk_speed&timerange=%s'%(stereo_sc,timerange))
+except:
+    Vp = getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_bulk_speed&timerange=%s'%(stereo_sc,timerange))
+#    v_time = velocity.property(QDataSet.DEPEND_0)
+#    velocity = bundle(velocity,zeros(len(velocity)),zeros(len(velocity)))
+#    velocity.putProperty(QDataSet.DEPEND_0,v_time)
+
+
+time = temperature.property( QDataSet.DEPEND_0 )
+if len(time) != len(uniq(time)):
+    print 'Timetags not unique... fixing'
+    u = uniq(time)
+    time = time[u]
+    temperature = temperature[u]
+
+Vp = filterAndUpscale(Vp,temperature)
+
+Vp.putProperty(QDataSet.UNITS,None)
+T_exp = dblarr( len(Vp) )
+T_exp.putProperty( QDataSet.VALID_MIN , 0 )
+T_exp.putProperty( QDataSet.LABEL , 'T!Bexp!N' )
+T_exp.putProperty( QDataSet.DEPEND_0, time )
+T_exp.putProperty( QDataSet.UNITS, Units.eV )
+
+for i in xrange( len(Vp) ):
+    if ( Vp[i] == -9999.90 ):
+        T_exp[i] = -1
+    elif ( Vp[i] <= 500 ):
+        T_exp[i] = ((0.031*Vp[i] - 5.1)**2)*1000
+    elif ( Vp[i] > 500 ):
+        T_exp[i] = (0.51*Vp[i] -142)*1000
+
+T_exp = T_exp*8.621738E-5 # Convert from the Kelvin result above to eV (WIND Tp data originally in eV)       
+plotx(4,T_exp,color='red')
+
+fluxrope_yn = getParam('Flux Rope','F','Plot the Flux Rope event?',['T','F'])
+
+if( fluxrope_yn == 'T' ):
+    rope_start = getParam( 'Start of Flux Rope' , dom.plots[0].xaxis.range.min() , 'Any format you want, really' )
+    rope_end = getParam( 'End of Flux Rope' , dom.plots[0].xaxis.range.max() , 'Dittos' )
+    
+    fluxrope = createEvent(str(rope_start)+' through '+str(rope_end),0x99CCCC,'Flux Rope')
+    fluxrope.putProperty(QDataSet.LABEL,'Flux Rope')
+    
+    plotx(6,fluxrope,renderType='eventsBar')

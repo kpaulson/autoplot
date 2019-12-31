@@ -5,13 +5,15 @@ tr = '2018-10-28 to 2018-11-20'  # Encounter 1
 tr = '2018-10-15 to 2019-04-20'  # Encounter 2
 #tr = '2018-11-02'
 minWavePower = 2E-2
-percentUncertainty = 10
+percentUncertainty = 40
 
 version_L1 = '1.1.1'
 
 
 
-anisotropyFile = 'file:/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1,version_L1)
+anisotropyFile = 'file:/home/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1,version_L1)
+
+anisotropyFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1,version_L1)
 
 anisotropy = getDataSet(anisotropyFile+'?Anisotropy',tr)
 betaParallel = getDataSet(anisotropyFile+'?Beta_parallel',tr)
@@ -19,18 +21,21 @@ betaPerp = getDataSet(anisotropyFile+'?Beta_perp',tr)
 anisotropy_deltaPlus = getDataSet(anisotropyFile+'?anisotropy_deltaPlus',tr)
 anisotropy_deltaMinus = getDataSet(anisotropyFile+'?anisotropy_deltaMinus',tr)
 
+[betaParallel,betaPerp] = synchronize(anisotropy,[betaParallel,betaPerp])
+
 goodValues = where( lt(anisotropy_deltaPlus/anisotropy , (percentUncertainty/100.) ) )
 
 polarizationFile = 'file:/home/kpaulson/Research/PSP/Wave_Polarization/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
+polarizationFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/PSP_Polarization/Polarization_Files/PSP_Polarization_$Y-$m-$d_$(H,span=6)$M.cdf'
 
-wavePower_LH = getDataSet(polarizationFile+'?wavePower_LH',tr)
-wavePower_RH = getDataSet(polarizationFile+'?wavePower_RH',tr)
+#wavePower_LH = getDataSet(polarizationFile+'?wavePower_LH',tr)
+#wavePower_RH = getDataSet(polarizationFile+'?wavePower_RH',tr)
 
 
-(wavePower_LH,wavePower_RH) = synchronize(anisotropy[goodValues],[wavePower_LH,wavePower_RH])
+#(wavePower_LH,wavePower_RH) = synchronize(anisotropy[goodValues],[wavePower_LH,wavePower_RH])
 
-powerPresent_LH = where(gt(wavePower_LH,minWavePower))
-powerPresent_RH = where(gt(wavePower_RH,minWavePower))
+#powerPresent_LH = where(gt(wavePower_LH,minWavePower))
+#powerPresent_RH = where(gt(wavePower_RH,minWavePower))
 
 anisotropy_bin_min    = 1E-1
 anisotropy_bin_max    = 1E1
@@ -43,14 +48,14 @@ beta_bin_number = 100
 bb = logspace(beta_bin_min,beta_bin_max,beta_bin_number)
 
 anisotropy_rebin_total = rebin( link(betaParallel[goodValues],anisotropy[goodValues],ones(len(goodValues))) , bb , aa ).property(QDataSet.WEIGHTS)
-anisotropy_rebin_LH = rebin( link(betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],ones(len(goodValues[powerPresent_LH]))) , bb , aa ).property(QDataSet.WEIGHTS)
-anisotropy_rebin_RH = rebin( link(betaParallel[goodValues][powerPresent_RH],anisotropy[goodValues][powerPresent_RH],ones(len(goodValues[powerPresent_RH]))) , bb , aa ).property(QDataSet.WEIGHTS)
+#anisotropy_rebin_LH = rebin( link(betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],ones(len(goodValues[powerPresent_LH]))) , bb , aa ).property(QDataSet.WEIGHTS)
+#anisotropy_rebin_RH = rebin( link(betaParallel[goodValues][powerPresent_RH],anisotropy[goodValues][powerPresent_RH],ones(len(goodValues[powerPresent_RH]))) , bb , aa ).property(QDataSet.WEIGHTS)
 
 anisotropy_rebin_total_percentage = 100*anisotropy_rebin_total/len(anisotropy)
 
 setLayoutOverplot(7)
 plot(0,betaParallel[goodValues],anisotropy[goodValues],renderType='scatter')
-plot(1,betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],renderType='scatter',color='orange',symbolSize=3)
+#plot(1,betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],renderType='scatter',color='orange',symbolSize=3)
 #plot(2,betaParallel[goodValues][powerPresent_RH],anisotropy[goodValues][powerPresent_RH],renderType='scatter',ylog=True,color='red',symbolSize=3)
 
 plot(0,anisotropy_rebin_total_percentage,colorTable='white_blue_black',ztitle='Percentage of Observations',zlog=True,zrange=[8.0E-4,0.7],title='Anisotropy vs &beta;!B||!N During Left-Handed ICW')

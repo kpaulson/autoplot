@@ -54,7 +54,7 @@ elif writeStuff == 'F':
 angleBinWdith = getParam('angleBinWidth',4,'width of bins of incident magnetic field angle in uncertainty maps')
 anisotropyBinNumber = getParam('anisotropyBins',40,'Number of bins in anisotropy axis')
 
-analyzingTimeWidthComparisons = True   
+analyzingTimeWidthComparisons = False   
 fitSeconds = getParam('fitSeconds',1,'Width of time used to fit data for anisotropy (this should only be used in the time comparison results)')
 
 # SI

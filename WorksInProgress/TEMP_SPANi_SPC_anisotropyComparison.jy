@@ -1,10 +1,11 @@
 
-tr = '2019-04-04 through 2019-04-06'
-tr = '2019-04-06'
+tr = '2019-04-01 through 2019-04-12'
+tr = '2019-04-04'
 
 jia_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter2_anisotropy_Jia.cdf?anisotropy moment')
 
-spc_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.3.cdf?Anisotropy',tr)
+spc_L1_version = '1.1.3'
+spc_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf?Anisotropy'%(spc_L1_version,spc_L1_version),tr)
 time_spc = spc_anisotropy.property(QDataSet.DEPEND_0)
 
 flowAngle = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf?flow_angle&where=MODE_FLAG.eq(0)',tr)
@@ -27,18 +28,34 @@ time_mcmannis = spani_anisotropy_mcmannis.property(QDataSet.DEPEND_0)
 findx = findex(time_mcmannis,time_spc)
 spani_anisotropy_mcmannis = interpolate(spani_anisotropy_mcmannis,findx)
 
-goodSpanView = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_2019-04-04.txt?depend0=Epoch&column=VDF_Peak_Obs')
+goodSpanView = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt?depend0=Epoch&column=VDF_Peak_Obs',tr)
 findx = findex(goodSpanView.property(QDataSet.DEPEND_0),time_spc)
 goodSpanView = interpolate(goodSpanView,findx)
 #plot(0,ceil(goodSpanView))
 #stop
 
+r = where(eq(ceil(goodSpanView),0).and(lt(spani_anisotropy_mcmannis,5)))
 r = where(eq(ceil(goodSpanView),0))
+r = where(eq(abs(diff(ceil(goodSpanView))),1))
 
+#plot(0,spani_anisotropy_mcmannis[r])
 plot(0,spani_anisotropy_mcmannis[r],spc_anisotropy[r],azimuth[r],xtitle='SPANi McMannis',renderType='colorScatter',symbolSize=4,xlog=True)
+#plot(1,spani_anisotropy_mcmannis,spc_anisotropy,azimuth,xtitle='SPANi McMannis',renderType='colorScatter',symbolSize=4,xlog=True)
 
+xx = logspace(1E-2,1E2,50)
+yy = logspace(1E-2,1E2,50)
+
+anisotropyRebin = rebin(link(spani_anisotropy_mcmannis[r],spc_anisotropy[r],ones(len(spc_anisotropy[r]))) , xx , yy )
+plot(1,anisotropyRebin.property(QDataSet.WEIGHTS),zlog=True)
+#plot(3,xx,yy)
+validSpani = where(valid(spani_anisotropy_mcmannis[r]))
+validSPC = where(valid(spc_anisotropy[r]))
+validBoth = where(valid(spani_anisotropy_mcmannis[r]).and(valid(spc_anisotropy[r])))
+comparisonData = None
+correlationCoefficient = (total( (spani_anisotropy_mcmannis[r][validBoth]-mean(spani_anisotropy_mcmannis[r][validBoth])) * (spc_anisotropy[r][validBoth]-mean(spc_anisotropy[r][validBoth]))))/( sqrt(total( (spani_anisotropy_mcmannis[r][validSpani]-mean(spani_anisotropy_mcmannis[r][validSpani]))**2 )) * sqrt(total((spc_anisotropy[r][validSPC]-mean(spc_anisotropy[r][validSPC]))**2)) ) 
+print correlationCoefficient
 stop
-
+plot(3,spc_anisotropy[r]-mean(spc_anisotropy[r]))
 spani_anisotropy_rotation = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/Base_Rotation/SPANi_Anisotropy_L1_$Y-$m-$d_v$(v,sep).txt?depend0=Epoch&column=data',tr)
 time_rotation = spani_anisotropy_rotation.property(QDataSet.DEPEND_0)
 #time_mcmannis = convertUnitsTo(time_mcmannis,Units.cdfTT2000)

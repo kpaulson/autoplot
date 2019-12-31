@@ -26,7 +26,6 @@ def despikifier(ds,spread=3,maxSigma=6,fill_or_mean='fill'):
     badPoints = where(gt(abs(difference/sigma),maxSigma))
     goodPoints = where(lt(abs(difference/sigma),maxSigma))
     
-    print ds[validPoints][badPoints][0]
     if fill_or_mean == 'fill':
         ds_despiked[badPoints] = -1E38
     elif fill_or_mean == 'mean':

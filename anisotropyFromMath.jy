@@ -5,7 +5,7 @@
 ############################################################################
 
 
-timerange = getParam('timerange','2019-04-05 6:50 to 6:54','Iteration Timerange')
+timerange = getParam('timerange','2019-04-04 01:37 to 01:39','Iteration Timerange')
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.3','Version number to be appended to filenames')
 
@@ -635,7 +635,7 @@ for tr in trs:
         setLayoutOverplot(4) 
         
         #plot(0,totalFlux)
-        plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='vdf',zlog=True)
+        plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
         plot(1,v_z[r])
         #stop
         
@@ -965,7 +965,7 @@ for tr in trs:
                 if plotFitsAndPauseALot == True:
                     if 'vapAlreadyLoaded' not in locals():
                         load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_IterativeFitPlotter.vap')
-                        plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='vdf',zlog=True)
+                        plot(0,vdf,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
                         #plot(1,v_z[r])
                         print v_z
                         print 'vap loaded'
@@ -1005,12 +1005,12 @@ for tr in trs:
                     
                     #plot(3,dataset([datumRange(tr_dds).min(),datumRange(tr_dds).max(),'xff00ff','event']),renderType='eventsBar',color='magenta')
                     plot(3,event,renderType='eventsBar')
-                    plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
-                    plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='Normalized Flux',symbolSize=3)
+                    plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=3)
+                    plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=3)
                     #plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
                     #plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
-                    plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N*B!Bx!N!C!C'+tr_dds,title='Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4))+'     Anisotropy!B&Chi;!N = '+str(round(plot_anisotropy_chi,3))+' &plusmn; ['+str(round(anisotropy_chi_deltaPlus,3))+','+str(round(anisotropy_chi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!Bx')
-                    plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N*B!By!N!C!C'+tr_dds,title='Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4))+'     Anisotropy!B&Psi;!N = '+str(round(plot_anisotropy_psi,3))+' &plusmn; ['+str(round(anisotropy_psi_deltaPlus,3))+','+str(round(anisotropy_psi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!By')
+                    plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N*B!Bx!N (nT km s!U-1!N)!C!C'+tr_dds,title='Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4))+'     Anisotropy!B&Chi;!N = '+str(round(plot_anisotropy_chi,3))+' &plusmn; ['+str(round(anisotropy_chi_deltaPlus,3))+','+str(round(anisotropy_chi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!Bx!N (km s!U-1!N)')
+                    plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N*B!By!N (nT km s!U-1!N)!C!C'+tr_dds,title='Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4))+'     Anisotropy!B&Psi;!N = '+str(round(plot_anisotropy_psi,3))+' &plusmn; ['+str(round(anisotropy_psi_deltaPlus,3))+','+str(round(anisotropy_psi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!By!N (km s!U-1!N)')
                     #plot(8,trim(Nz_temp,tr_dds),title=Nz_temp_dd)
                     
 #                    psiline_temp = putProperty(copy(psiline),QDataSet.DEPEND_0,epsilonEpoch)

@@ -25,7 +25,8 @@ q                    = 1.6022E-12
 #fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 #modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
 
-cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+#cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2i_$Y$m$d_v$v.cdf'
         
     
 ############################################################################
@@ -153,18 +154,18 @@ for tr in trs:
         print 'Defining VDF took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
-        #setLayoutOverplot(2)
-        #waitUntilIdle()
+        setLayoutOverplot(2)
+        waitUntilIdle()
         
-        tempTime = timegen('October 1st, 2019','0.8sec',len(vdf))
+        #tempTime = timegen('October 1st, 2019','0.8sec',len(vdf))
         
-        plot(0,tempTime,vdf,zlog=True,zrange=[0.05,20])
+        plot(0,vdf,zlog=True,zrange=[0.05,20])
         
         dom.plotElements[0].controller.renderer.setRebinner(org.das2.graph.SpectrogramRenderer.RebinnerEnum.lanlNearestNeighbor)
-        #plot(1,v_z[r],renderType='scatter')
-        #plot(2,U,zrange=[-45,45])
-        #plot(3,V,zrange=[-45,45])
-        #waitUntilIdle()
+        plot(1,v_z[r],renderType='scatter')
+        plot(2,U,zrange=[-45,45])
+        plot(3,V,zrange=[-45,45])
+        waitUntilIdle()
         if writeStuff == True:
             writeToPng('C:/Users/kpaulson/Google Drive/Research/PSP/SPC/VDF/Plots/SPC_VDF_%s.png'%tr)
             formatDataSet(vdf,'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_%s.cdf'%tr)

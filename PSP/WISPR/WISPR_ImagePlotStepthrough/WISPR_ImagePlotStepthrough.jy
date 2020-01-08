@@ -1,5 +1,6 @@
  
-reset()
+#reset()
+load('defaultInner.vap')
 
 tr = '2018-11-05 15:47'
 tryingDirectoryScan = True
@@ -18,14 +19,12 @@ if tryingDirectoryScan == True:
     for orbit in orbits:
         dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'inner/'
         dd_inner_folders = listDirectory(dd_inner)
-        #stop
+        
         for date in dd_inner_folders:
             try:
                 temp_ff = listDirectory(dd_inner+date+'*.fits')
                 temp_ff_fullname = list()
-                #print temp_ff_fullname
                 for i in xrange(len(temp_ff)):
-                    print dd_inner+date+str(temp_ff[i])
                     temp_ff_fullname.append(dd_inner+date+str(temp_ff[i]))
                 ff = ff + list(temp_ff)
                 ff_fullname = ff_fullname + list(temp_ff_fullname)
@@ -33,7 +32,7 @@ if tryingDirectoryScan == True:
             except:
                 print 'no folder for',date
                 continue
-            #stop
+                
 else:
     dd='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/20181105/'
     ff= listDirectory(dd+'*.fits')
@@ -54,14 +53,6 @@ ds = None
 def loadOne(i):
     if tryingDirectoryScan == True:
         ds= getDataSet( ff_fullname[i] )
-#        print globals()
-#        while 'ds' not in locals():
-#            for orbit in orbits:
-#                try:
-#                    ds= getDataSet( dd_top+orbit+'inner/'+ff[i] )
-#                    print ds
-#                except:
-#                    continue
     else:
         ds= getDataSet( dd+ff[i] )
     ds.putProperty( QDataSet.CONTEXT_0, dataset(tt[i]) )

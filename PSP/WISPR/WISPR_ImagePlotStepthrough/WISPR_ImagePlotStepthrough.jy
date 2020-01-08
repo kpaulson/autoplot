@@ -2,7 +2,7 @@
 #reset()
 load('https://github.com/kpaulson/autoplot/blob/master/PSP/WISPR/WISPR_ImagePlotStepthrough/defaultInner.vap')
 
-tr = '2018-11-05 15:47'
+tr = '2019-04-05 15:47'
 tryingDirectoryScan = True
 
 

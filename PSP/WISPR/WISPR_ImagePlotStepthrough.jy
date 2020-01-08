@@ -1,19 +1,44 @@
-
+ 
 reset()
 
-tr = '2018-11-05 to 2018-11-07'
-tryingDirectoryScan = False
+tr = '2018-11-05 15:47'
+tryingDirectoryScan = True
 
 
 
 if tryingDirectoryScan == True:
-    dd='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/'
-    ff= listDirectory(dd+'*/'+'*.fits')
-    tp= TimeParser.create('$Y$m$d/psp_L3_wispr_$Y$m$dT$H$M$S_V1_1221.fits')
+#    datelist = generateTimeRanges('$Y$m$d',str(datumRange('2018-08-01 to '+str(TimeUtil.now()))))
+#    dd='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/'
+#    ff= listDirectory(dd+'*/'+'*.fits')
+#    tp= TimeParser.create('$Y$m$d/psp_L3_wispr_$Y$m$dT$H$M$S_V1_1221.fits')
+    ff = list()
+    ff_fullname = list()
+    dd_top = 'https://wispr.nrl.navy.mil/data/rel/fits/L3/'
+    orbits = listDirectory(dd_top)
+    for orbit in orbits:
+        dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'inner/'
+        dd_inner_folders = listDirectory(dd_inner)
+        #stop
+        for date in dd_inner_folders:
+            try:
+                temp_ff = listDirectory(dd_inner+date+'*.fits')
+                temp_ff_fullname = list()
+                #print temp_ff_fullname
+                for i in xrange(len(temp_ff)):
+                    print dd_inner+date+str(temp_ff[i])
+                    temp_ff_fullname.append(dd_inner+date+str(temp_ff[i]))
+                ff = ff + list(temp_ff)
+                ff_fullname = ff_fullname + list(temp_ff_fullname)
+                
+            except:
+                print 'no folder for',date
+                continue
+            #stop
 else:
     dd='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/20181105/'
     ff= listDirectory(dd+'*.fits')
-    tp= TimeParser.create('psp_L3_wispr_$Y$m$dT$H$M$S_V1_1221.fits')
+    
+tp= TimeParser.create('psp_L3_wispr_$Y$m$dT$H$M$S_V1_1221.fits')
 
 curr= 0
 
@@ -24,9 +49,21 @@ for i in xrange(len(ff)):
    tt[i]= tp.parse( str(ff[i]) ).getTimeDatum()
 
 plot(0,dataset(tt),renderType='eventsBar')
+ds = None
 
 def loadOne(i):
-    ds= getDataSet( dd+ff[i] )
+    if tryingDirectoryScan == True:
+        ds= getDataSet( ff_fullname[i] )
+#        print globals()
+#        while 'ds' not in locals():
+#            for orbit in orbits:
+#                try:
+#                    ds= getDataSet( dd_top+orbit+'inner/'+ff[i] )
+#                    print ds
+#                except:
+#                    continue
+    else:
+        ds= getDataSet( dd+ff[i] )
     ds.putProperty( QDataSet.CONTEXT_0, dataset(tt[i]) )
     plot(1,ds, xtitle=tt[i], zlog=True, colorTable='inverse_grayscale', zrange=[5.0E-14,2.0E-12])
 

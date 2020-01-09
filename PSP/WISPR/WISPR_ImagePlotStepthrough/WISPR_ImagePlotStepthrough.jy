@@ -1,8 +1,8 @@
  
 #reset()
-load('https://github.com/kpaulson/autoplot/blob/master/PSP/WISPR/WISPR_ImagePlotStepthrough/defaultInner.vap')
+load('https://github.com/kpaulson/autoplot/blob/master/PSP/WISPR/WISPR_ImagePlotStepthrough/default.vap')
 
-tr = '2019-04-05 15:47'
+tr = '2018-11-05 15:47'
 tryingDirectoryScan = True
 
 
@@ -12,72 +12,96 @@ if tryingDirectoryScan == True:
 #    dd='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/'
 #    ff= listDirectory(dd+'*/'+'*.fits')
 #    tp= TimeParser.create('$Y$m$d/psp_L3_wispr_$Y$m$dT$H$M$S_V1_1221.fits')
-    ff = list()
-    ff_fullname = list()
+    ff_inner = list()
+    ff_inner_fullname = list()
+    ff_outer = list()
+    ff_outer_fullname = list()
     dd_top = 'https://wispr.nrl.navy.mil/data/rel/fits/L3/'
     orbits = listDirectory(dd_top)
     for orbit in orbits:
         dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'inner/'
         dd_inner_folders = listDirectory(dd_inner)
+        dd_outer='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'outer/'
+        dd_outer_folders = listDirectory(dd_outer)
         
         for date in dd_inner_folders:
-            try:
-                temp_ff = listDirectory(dd_inner+date+'*.fits')
-                temp_ff_fullname = list()
-                for i in xrange(len(temp_ff)):
-                    temp_ff_fullname.append(dd_inner+date+str(temp_ff[i]))
-                ff = ff + list(temp_ff)
-                ff_fullname = ff_fullname + list(temp_ff_fullname)
+            #try:
+                temp_ff_inner = listDirectory(dd_inner+date+'*.fits')
+                temp_ff_inner_fullname = list()
+                temp_ff_outer = listDirectory(dd_outer+date+'*.fits')
+                temp_ff_outer_fullname = list()
+                print temp_ff_inner
+                print temp_ff_outer
+                for i in xrange(len(temp_ff_inner)):
+                    temp_ff_inner_fullname.append(dd_inner+date+str(temp_ff_inner[i]))
+                for i in xrange(len(temp_ff_outer)):
+                    temp_ff_outer_fullname.append(dd_outer+date+str(temp_ff_outer[i]))
+                ff_inner = ff_inner + list(temp_ff_inner)
+                ff_inner_fullname = ff_inner_fullname + list(temp_ff_inner_fullname)
+                ff_outer = ff_outer + list(temp_ff_outer)
+                ff_outer_fullname = ff_outer_fullname + list(temp_ff_outer_fullname)
                 
-            except:
-                print 'no folder for',date
-                continue
+                
+            #except:
+            #    print 'no folder for',date
+            #    continue
                 
 else:
-    dd='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/20181105/'
-    ff= listDirectory(dd+'*.fits')
+    dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/20181105/'
+    ff_inner= listDirectory(dd+'*.fits')
     
 tp= TimeParser.create('psp_L3_wispr_$Y$m$dT$H$M$S_V1_1221.fits')
 
-curr= 0
+curr_inner= 0
+curr_outer= 0
 
-tt= replicate(0,len(ff))
+tt_inner= replicate(0,len(ff_inner))
+tt_outer= replicate(0,len(ff_outer))
 
 # create an array of times
-for i in xrange(len(ff)):
-   tt[i]= tp.parse( str(ff[i]) ).getTimeDatum()
+for i in xrange(len(ff_inner)):
+   tt_inner[i]= tp.parse( str(ff_inner[i]) ).getTimeDatum()
+for i in xrange(len(ff_outer)):
+   tt_outer[i]= tp.parse( str(ff_outer[i]) ).getTimeDatum()
 
-plot(0,dataset(tt),renderType='eventsBar')
+plot(0,dataset(tt_inner),renderType='eventsBar')
+plot(1,dataset(tt_outer),renderType='eventsBar')
 ds = None
 
-def loadOne(i):
+def loadOne(i_inner,i_outer):
     if tryingDirectoryScan == True:
-        ds= getDataSet( ff_fullname[i] )
+        ds_inner= getDataSet( ff_inner_fullname[i_inner] )
+        ds_outer= getDataSet( ff_outer_fullname[i_outer] )
     else:
-        ds= getDataSet( dd+ff[i] )
-    ds.putProperty( QDataSet.CONTEXT_0, dataset(tt[i]) )
-    plot(1,ds, xtitle=tt[i], zlog=True, colorTable='inverse_grayscale', zrange=[5.0E-14,2.0E-12])
+        ds_inner= getDataSet( dd+ff[i] )
+    ds_inner.putProperty( QDataSet.CONTEXT_0, dataset(tt_inner[i_inner]) )
+    #ds_outer.putProperty( QDataSet.CONTEXT_0, dataset(tt_outer[i]) )
+    plot(2,ds_inner, xtitle=tt_inner[i_inner], zlog=True, colorTable='inverse_grayscale', zrange=[5.0E-14,2.0E-12])
+    plot(3,ds_outer, xtitle='HPLN-ZPN!C'+str(tt_inner[i_inner])+'                 '+str(tt_outer[i_outer]), ytitle='HPLT-ZPN', zlog=True, colorTable='inverse_grayscale', zrange=[5.0E-14,2.0E-12])
 
 def prev(evt):
-    global curr
-    if ( curr>0 ):
-        curr= curr-1
-        loadOne(curr)
+    global curr_inner,curr_outer
+    if ( curr_inner>0 and curr_outer>0 ):
+        curr_inner= curr_inner-1
+        curr_outer= curr_outer-1
+        loadOne(curr_inner,curr_outer)
 
 def next(evt):
-    global curr
-    if ( curr<len(ff)-1 ):
-        curr= curr+1
-        loadOne(curr)
+    global curr_inner,curr_outer
+    if ( curr_inner<len(ff_inner)-1 and curr_outer<len(ff_outer)-1 ):
+        curr_inner= curr_inner+1
+        curr_outer= curr_outer+1
+        loadOne(curr_inner,curr_outer)
         
 def timeSearch(evt):
-    global curr
+    global curr_inner,curr_outer
     tr_input = tf.getText()
     tr_input = timegen(tr_input,'1sec',1)[0]
-    print tt
-    curr= imin(abs(tt-tr_input))
-    print curr
-    loadOne(curr)
+    #print tt
+    curr_inner= imin(abs(tt_inner-tr_input))
+    curr_outer= imin(abs(tt_outer-tr_input))
+    #print curr
+    loadOne(curr_inner,curr_outer)
 
 
 from javax.swing import JPanel,JButton,JTextField
@@ -86,7 +110,7 @@ from java.awt import FlowLayout
 prev_button    = JButton("Prev",actionPerformed=prev)
 next_button    = JButton("Next",actionPerformed=next)
 search_button  = JButton("Search",actionPerformed=timeSearch)
-tf             = JTextField(tr)
+tf             = JTextField(30,text=tr)
 
 # Build control panel
 controlPanel= JPanel()
@@ -98,7 +122,8 @@ controlPanel.add( search_button )
 
 getApplication().setBottomPanel(controlPanel)
 
-loadOne(curr)
+timeSearch(tr)
+#loadOne(curr)
 
 dom.canvases[0].rows[0].bottom='20%'
 dom.canvases[0].rows[1].top='20%+5em'

@@ -1,0 +1,29 @@
+def crossProduct(vector1,vector2):
+    '''
+    Calculates cross product between two rank(1) or rank(2) vectors/vectorArrays.
+    vector1 and vector2 must be of same length n.
+    
+    Input:
+        vector1 = rank1 or rank2 array ([3] or [n,3])
+        vector2 = rank1 or rank2 array ([3] or [n,3])
+    Output:
+        vector1_x_Vector2 = rank1 or rank2 array ([3] or [n,3])
+    '''
+    if len(vector1) != len(vector2):
+        raise vectorsOfDifferentLengthException
+    
+    
+    
+    if vector1.rank() == 1:
+        vector1_x_Vector2 = dblarr(3)
+        vector1_x_Vector2[0] = vector1[1]*vector2[2] - vector1[2]*vector2[1]
+        vector1_x_Vector2[1] = vector1[2]*vector2[0] - vector1[0]*vector2[2]
+        vector1_x_Vector2[2] = vector1[0]*vector2[1] - vector1[1]*vector2[0]
+    if vector1.rank() == 2:
+        vector1_x_Vector2 = dblarr(len(vector1),3)
+        vector1_x_Vector2[:,0] = vector1[:,1]*vector2[:,2] - vector1[:,2]*vector2[:,1]
+        vector1_x_Vector2[:,1] = vector1[:,2]*vector2[:,0] - vector1[:,0]*vector2[:,2]
+        vector1_x_Vector2[:,2] = vector1[:,0]*vector2[:,1] - vector1[:,1]*vector2[:,0]
+    
+    return(vector1_x_Vector2)
+    

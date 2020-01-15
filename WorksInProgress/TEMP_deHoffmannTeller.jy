@@ -7,7 +7,7 @@
 ############################################################################
 ############################################################################
 
-tr = '2018-11-01'# 12:00 to 13:00'
+tr = '2018-11-01 12:00 to 13:00'
 
 spc_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
@@ -32,10 +32,35 @@ except:
 ### IMPORT APACHE LIBRARY
 # Below jar unpacker is now a tool in the drop-down menu since it adds a few minutes
 #addToSearchPath(sys.path,'/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/jar/commons-math3-3.6.1.jar',monitor)
+addToSearchPath( sys.path, 'http://www-us.apache.org/dist//commons/math/binaries/commons-math3-3.6.1-bin.zip/commons-math3-3.6.1/commons-math3-3.6.1.jar', monitor )
 
-from org.apache.commons.math3 import *
-from org.apache.commons.math3.optim import *
-print dir(optim)
+#from org.apache.commons.math3         import *
+#from org.apache.commons.math3         import linear
+#from org.apache.commons.math3.optim   import *
+#from org.apache.commons.math3.linear  import *
+from org.apache.commons.math.linear   import Array2DRowRealMatrix as newMatrix
+#from org.apache.commons.math.linear  import *
+from org.apache.commons.math3.linear import RealMatrix
+from org.apache.commons.math3.linear.RealMatrix import *
+from org.apache.commons.math3.linear  import Array2DRowRealMatrix as newMatrix3
+from org.apache.commons.math3.linear import LUDecomposition
+#print dir(linear)
+
+
+
+TEMP_K_0 = newMatrix(3,3)
+
+TEMP_K_03 = newMatrix3(3,3)
+#TEMP_K_0.createMatrix(3, 3)
+TEMP_K_0.setEntry(0, 1, 17.)
+TEMP_K_03.setEntry(0, 1, 17.)
+
+#stop
+                
+############################################################################
+##################         SUBPROCESSES          ###########################
+############################################################################
+############################################################################
 
                 
 ############################################################################
@@ -56,7 +81,7 @@ v_cross_B.putProperty(QDataSet.DEPEND_0,time)
 
 plot(v_cross_B)
 
-efield_rtn = copy(-v_cross_B)
+efield_rtn = -1*(v_cross_B)
 efield_mag = magnitude(efield_rtn)
 
 plot(efield_rtn)
@@ -67,7 +92,7 @@ plot(1,efield_mag)
 tr = '2018-11-01 12:00 to 13:00'
 
 v_rtn = trim(vp_moment_rtn,tr)
-bfield_rtn = synchronize(vp_moment_rtn,bfield_rtn)
+bfield_rtn = synchronize(v_rtn,bfield_rtn)
 time = vp_moment_rtn.property(QDataSet.DEPEND_0)
 
 
@@ -89,7 +114,7 @@ v_HT = bundle( ones(len(v_rtn))*v_HT_r , ones(len(v_rtn))*v_HT_t , ones(len(v_rt
 #E_prime.putProperty(QDataSet.DEPEND_0,time)
 #D_v = total( magnitude(E_prime)**2 ) / len(E_prime)
 
-D_v = total( magnitude(crossProduct((vp_moment_rtn-v_HT),bfield_rtn))**2 ) / len(vp_moment_rtn)
+D_v = total( magnitude(crossProduct((v_rtn-v_HT),bfield_rtn))**2 ) / len(v_rtn)
 
 print D_v
 
@@ -99,9 +124,85 @@ print D_v
 ###
 ### SOLVE FOR V_HT LINEARLY BY INVERTING THE MATRIX OF OBSERVATIONS (KIND OF LIKE THE MEAN OF THE CROSS PRODUCT?) SEE PASCHMANN1998 CHAPTER 9
 ###
+
 v = v_rtn
 B = bfield_rtn
-#def KBuilderVxB(v,B):
-K = dblarr(len(v_rtn),3,3)
 
-K[:,0,0] = 
+def KBuilderHoffmannTeller(v,B):
+    K = dblarr(len(v),3,3)
+    TEMP_K_0 = dblarr(3,3)
+    Bmag_squared = magnitude(B)**2
+    
+    K[:,0,0] = Bmag_squared * ( 1 - (B[:,0]*B[:,0])/Bmag_squared )
+    K[:,1,1] = Bmag_squared * ( 1 - (B[:,1]*B[:,1])/Bmag_squared )
+    K[:,2,2] = Bmag_squared * ( 1 - (B[:,2]*B[:,2])/Bmag_squared )
+    
+    K[:,0,1] = Bmag_squared * ( 0 - (B[:,0]*B[:,1])/Bmag_squared )
+    K[:,0,2] = Bmag_squared * ( 0 - (B[:,0]*B[:,2])/Bmag_squared )
+    K[:,1,2] = Bmag_squared * ( 0 - (B[:,1]*B[:,2])/Bmag_squared )
+    
+    K[:,1,0] = K[:,0,1] #Bmag_squared * ( 0 - (B[:,0]*B[:,1])/Bmag_squared )
+    K[:,2,0] = K[:,0,2] #Bmag_squared * ( 0 - (B[:,0]*B[:,2])/Bmag_squared )
+    K[:,2,1] = K[:,1,2] #Bmag_squared * ( 0 - (B[:,1]*B[:,2])/Bmag_squared )
+    
+    TEMP_K_0[0,0] = mean(K[:,0,0])
+    TEMP_K_0[1,1] = mean(K[:,1,1])
+    TEMP_K_0[2,2] = mean(K[:,2,2])
+    
+    TEMP_K_0[0,1] = mean(K[:,0,1])
+    TEMP_K_0[0,2] = mean(K[:,0,2])
+    TEMP_K_0[1,2] = mean(K[:,1,2])
+    
+    TEMP_K_0[1,0] = TEMP_K_0[0,1] #Woohoo symmetry
+    TEMP_K_0[2,0] = TEMP_K_0[0,2]
+    TEMP_K_0[2,1] = TEMP_K_0[1,2]
+    
+    return(K,TEMP_K_0)
+
+(K,TEMP_K_0) = KBuilderHoffmannTeller(v_rtn,bfield_rtn)
+
+K_0 = newMatrix3(3,3)
+K_0.setEntry(0, 0, TEMP_K_0[0,0].value() )
+K_0.setEntry(1, 1, TEMP_K_0[1,1].value() )
+K_0.setEntry(2, 2, TEMP_K_0[2,2].value() )
+
+K_0.setEntry(0, 1, TEMP_K_0[0,1].value() )
+K_0.setEntry(0, 2, TEMP_K_0[0,2].value() )
+K_0.setEntry(1, 2, TEMP_K_0[1,2].value() )
+
+K_0.setEntry(1, 0, TEMP_K_0[1,0].value() )
+K_0.setEntry(2, 0, TEMP_K_0[2,0].value() )
+K_0.setEntry(2, 1, TEMP_K_0[2,1].value() )
+
+K_0_solver = LUDecomposition(K_0).getSolver()
+K_0_inverse = K_0_solver.getInverse()
+
+# K*v
+Kdotv = dblarr(len(v),3)
+Kdotv[:,0] = K[:,0,0]*v_rtn[:,0] + K[:,0,1]*v_rtn[:,1] + K[:,0,2]*v_rtn[:,2]
+Kdotv[:,1] = K[:,1,0]*v_rtn[:,0] + K[:,1,1]*v_rtn[:,1] + K[:,1,2]*v_rtn[:,2]
+Kdotv[:,2] = K[:,2,0]*v_rtn[:,0] + K[:,2,1]*v_rtn[:,1] + K[:,2,2]*v_rtn[:,2]
+
+
+# <K*v>
+Kdotv_average = dblarr(3)
+Kdotv_average[0] = mean(Kdotv[:,0])
+Kdotv_average[1] = mean(Kdotv[:,1])
+Kdotv_average[2] = mean(Kdotv[:,2])
+
+# K_0^-1 * <K*v>
+v_HT = dblarr(3)
+v_HT[0] = K_0_inverse.getEntry(0,0)*Kdotv_average[0] + K_0_inverse.getEntry(0,1)*Kdotv_average[1] + K_0_inverse.getEntry(0,2)*Kdotv_average[2]
+v_HT[1] = K_0_inverse.getEntry(1,0)*Kdotv_average[0] + K_0_inverse.getEntry(1,1)*Kdotv_average[1] + K_0_inverse.getEntry(1,2)*Kdotv_average[2]
+v_HT[2] = K_0_inverse.getEntry(2,0)*Kdotv_average[0] + K_0_inverse.getEntry(2,1)*Kdotv_average[1] + K_0_inverse.getEntry(2,2)*Kdotv_average[2]
+
+
+print 'deHoffmann-Teller velocity: (',v_HT[0],v_HT[1],v_HT[2],' )'
+
+v_HT_long = bundle( ones(len(bfield_rtn))*v_HT[0] , ones(len(bfield_rtn))*v_HT[1] , ones(len(bfield_rtn))*v_HT[2] )
+E_HT = crossProduct(v_HT_long,bfield_rtn)
+E_HT.putProperty(QDataSet.DEPEND_0,time)
+originalE = trim(efield_mag,tr)
+
+plot(2,magnitude(E_HT),efield_mag)
+plot(3,E_HT)

@@ -1,3 +1,7 @@
+
+
+# THIS FOLLOWS THE WORK DESCRIBED IN PASCHMANN1998 CHAPTER 9
+
 ############################################################################
 #################            Variables            ##########################
 ############################################################################
@@ -17,37 +21,87 @@ mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/field
     
 
 import sys
+### IMPORT GITHUB SUBPROCESSES
 try:
-
-    ### IMPORT SUBPROCESSES
     crossProduct = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/crossProduct.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( crossProduct.toString() )
 
 except:
     print 'Unable to grab subprocess from github'
-    
-    
-#vec1 = bundle(ones(10),zeros(10),zeros(10))
-#vec2 = bundle(zeros(10),ones(10),zeros(10))
-#
-#
-#vec3 = crossProduct(vec1,vec2)
-#
-#print vec3[0,0],vec3[0,1],vec3[0,2]
 
+### IMPORT APACHE LIBRARY
+# Below jar unpacker is now a tool in the drop-down menu since it adds a few minutes
+#addToSearchPath(sys.path,'/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/jar/commons-math3-3.6.1.jar',monitor)
+
+from org.apache.commons.math3 import *
+from org.apache.commons.math3.optim import *
+print dir(optim)
+
+                
+############################################################################
+##################          RUN SCRIPT           ###########################
+############################################################################
+############################################################################
+ 
 
 vp_moment_rtn = getDataSet(spc_L3_file_cfa+'?vp_moment_RTN',tr)
-mag_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',tr)
+bfield_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',tr)
 
 vp_moment_rtn = trim(vp_moment_rtn,tr)
-mag_rtn = synchronize(vp_moment_rtn,mag_rtn)
+bfield_rtn = synchronize(vp_moment_rtn,bfield_rtn)
 time = vp_moment_rtn.property(QDataSet.DEPEND_0)
 
-v_cross_B = crossProduct(vp_moment_rtn,mag_rtn)
+v_cross_B = crossProduct(vp_moment_rtn,bfield_rtn)
 v_cross_B.putProperty(QDataSet.DEPEND_0,time)
 
 plot(v_cross_B)
 
+efield_rtn = copy(-v_cross_B)
+efield_mag = magnitude(efield_rtn)
+
+plot(efield_rtn)
+plot(1,efield_mag)
 
 
 
+tr = '2018-11-01 12:00 to 13:00'
+
+v_rtn = trim(vp_moment_rtn,tr)
+bfield_rtn = synchronize(vp_moment_rtn,bfield_rtn)
+time = vp_moment_rtn.property(QDataSet.DEPEND_0)
+
+
+###
+### SOLVE FOR V_HT NUMERICALLY BY MINIMIZING THE FUNCTION
+###
+
+#v_HT = bundle(dataset(350),dataset(0),dataset(0))
+#v_HT = dblarr(1,3)
+#v_HT[0,:] = dataset([350,0,0])
+
+#for vr in [250,270,290,300,320,340,350,360,370]:
+v_HT_r = mean(v_rtn[:,0])
+v_HT_t = mean(v_rtn[:,1])
+v_HT_n = mean(v_rtn[:,2])
+v_HT = bundle( ones(len(v_rtn))*v_HT_r , ones(len(v_rtn))*v_HT_t , ones(len(v_rtn))*v_HT_n )
+
+#E_prime = crossProduct((vp_moment_rtn-v_HT),bfield_rtn)
+#E_prime.putProperty(QDataSet.DEPEND_0,time)
+#D_v = total( magnitude(E_prime)**2 ) / len(E_prime)
+
+D_v = total( magnitude(crossProduct((vp_moment_rtn-v_HT),bfield_rtn))**2 ) / len(vp_moment_rtn)
+
+print D_v
+
+
+
+
+###
+### SOLVE FOR V_HT LINEARLY BY INVERTING THE MATRIX OF OBSERVATIONS (KIND OF LIKE THE MEAN OF THE CROSS PRODUCT?) SEE PASCHMANN1998 CHAPTER 9
+###
+v = v_rtn
+B = bfield_rtn
+#def KBuilderVxB(v,B):
+K = dblarr(len(v_rtn),3,3)
+
+K[:,0,0] = 

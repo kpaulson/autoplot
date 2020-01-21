@@ -159,13 +159,13 @@ v_cross_B = crossProduct(vp_moment_rtn,bfield_rtn)
 v_cross_B.putProperty(QDataSet.DEPEND_0,time)
 
 #setLayoutOverplot(2)
-plot(2,v_cross_B)
+#plot(2,v_cross_B)
 
 efield_rtn = -1*(v_cross_B)
 efield_mag = magnitude(efield_rtn)
 
 plot(0,efield_rtn)
-plot(1,efield_mag)
+plot(1,efield_mag,ytitle='-v &times; B')
 
 
 
@@ -282,8 +282,19 @@ v_HT_dataset.putProperty(QDataSet.VALID_MIN,-1E10)
 v_HT_dataset.putProperty(QDataSet.VALID_MAX,1E10)  
 v_HT_dataset.putProperty(QDataSet.UNITS,Units.lookupUnits('km/s')) 
  
-plot(3,v_HT_dataset,ytitle='(%{UNITS})')
+plot(2,v_HT_dataset,ytitle='v!BHT!N!C!C(%{UNITS})')
 
 v_HT_upsample = synchronize(vp_moment_rtn,v_HT_dataset)
 
-plot(4,vp_moment_rtn - v_HT_upsample)
+plot(3,vp_moment_rtn - v_HT_upsample, ytitle='v!BRTN!N - v!BHT!N!C!C(%{UNITS})')
+plot(4,bfield_rtn,ytitle='B!BRTN!N')
+
+c = 2.9979E10 #speed of light in cm/s. don't we want km/s?
+c = c*(1E-5) #This should take it from cm/s to km/s
+print crossProduct(v_HT_upsample,efield_rtn)
+B_prime = bfield_rtn - ( (c**-2) * crossProduct(v_HT_upsample,efield_rtn) )
+
+plot(5,B_prime)
+
+
+

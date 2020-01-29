@@ -16,8 +16,9 @@ downsampleSeconds = getParam('downsampleSeconds',10.,'Number of seconds in new t
 write_output = getParam('writeOutput','T','Do you want to write the current setup to the GS directory?',['T','F']) 
 
 #Full cadence magnetic field:
-B_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_rtn',timerange)
-
+#B_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_rtn',timerange)
+mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
+B_input = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange) 
 
 #B_input = smooth(B_input,downsamplePoints)[::downsamplePoints,:]
 B_mag = magnitude(B_input)
@@ -37,7 +38,9 @@ B_mag.putProperty(QDataSet.LABEL,'Bmag')
 B_input = bundle(B_mag,Bx,By,Bz)
 B_input.putProperty(QDataSet.DEPEND_0,newTime)
 
-V_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?vp_moment_RTN',timerange)
+#V_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?vp_moment_RTN',timerange)
+spc_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+V_input = getDataSet(spc_L3_file_cfa+'?vp_moment_RTN',timerange)
 swe_time = V_input.property(QDataSet.DEPEND_0)
 
 Vx = unbundle(V_input,0)#[r][s]
@@ -52,14 +55,17 @@ def fillInGaps(element):
     TEMP_element = interpolate(element[where( valid(element).eq(1) )],TEMP_ratio)
     return(TEMP_element)
 
-pos_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',timerange)
+#pos_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',timerange)
+pos_input = getDataSet(spc_L3_file_cfa+'?sc_pos_HCI',timerange)
 pos_x = unbundle(pos_input,0)#[r][s]
 pos_y = unbundle(pos_input,1)#[r][s]
 pos_z = unbundle(pos_input,2)#[r][s]
 
-density_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment',timerange)
+#density_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment',timerange)
+density_input = getDataSet(spc_L3_file_cfa+'?np_moment',timerange)
 
-wp_moment = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?wp_moment',timerange)
+#wp_moment = getDataSet('http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?wp_moment',timerange)
+wp_moment = getDataSet(spc_L3_file_cfa+'?wp_moment',timerange)
 temp_input = (wp_moment*(9.79E0))**2   # Convert thermal speed to eV (from NRL formulary)
 temp_input.putProperty(QDataSet.LABEL,'Tp_moment (eV)')
 
@@ -180,7 +186,8 @@ if write_output=='T':
         # ###
         
         sc = 'PSP'
-        psp_data_directory = 'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
+        psp_data_directory = 'C:/Users/kpaulson/GoogleDrive/Research/GradShafranovReconstruction/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
+        #'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
         psp_data_file = '%s_%s_merged.txt'%(sc,dd)
         
         formatDataSet(output,psp_data_directory+psp_data_file+'?format=9.4f&tformat=milliseconds')

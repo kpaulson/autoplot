@@ -1,0 +1,138 @@
+
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+    
+
+import sys
+
+### IMPORT SUBPROCESSES
+field_aligner = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+execfile( field_aligner.toString() )
+
+get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+execfile( get_OS_version.toString() )
+
+    
+###########################################################
+#################     PARAMETERS      #####################
+###########################################################
+###########################################################
+
+timerange = getParam('timerange','2019-03-06','timerange for field-aligned data output')
+timeCadence = getParam('cadence','1min','Output time cadence of daily files',['1min','spanL2'])
+trend_seconds = getParam('trendSeconds',60,'Number of seconds over which to run boxcar average to determing MFA coords')
+
+writeStuff = True
+overwriteOldFiles = False
+
+mag_L2file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN_1min/$Y/$m/psp_fld_l2_mag_RTN_1min_$Y$m$d_v$v.cdf'
+spani_l2file_cfa = 'http://sweap.cfa.harvard.edu/pub/data/sci/sweap/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$v.cdf'
+
+    
+###########################################################
+#################      INITIALIZE     #####################
+###########################################################
+###########################################################
+
+   
+OS = get_os_version().split()[0]
+if OS == 'mac':
+    googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+elif OS == 'windows':
+    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    
+outputDirectory = googleDrive_path+'Research/PSP/FieldAligned_MagData/%s/'%(timeCadence)
+outputFile = 'fieldAlignedMag_%s-cadence_%s.cdf'%(timeCadence,timerange)
+
+
+if writeStuff == True and overwriteOldFiles == False:
+    if fileExists(outputDirectory+outputFile):
+        print 'file already exists for %s at %s cadence'%(timerange,timeCadence)
+        raise FileAlreadyThereException  
+      
+###########################################################
+#################       RUN CODE      #####################
+###########################################################
+###########################################################
+
+if trend_seconds >= 60:
+    Bfield_rtn = getDataSet(mag_L2file_berkeley+'?psp_fld_l2_mag_RTN_1min',timerange)
+    
+
+if timeCadence == 'spanL2':
+    spani_L2_time = getDataSet(spani_l2file_cfa+'?Epoch',timerange)
+    Bfield_rtn = synchronize(spani_L2_time,Bfield_rtn)
+
+Bfield_rtn.putProperty(QDataSet.VALID_MIN,-1E10)
+Bfield_rtn.putProperty(QDataSet.VALID_MAX, 1E10)
+
+Btotal = magnitude(Bfield_rtn)
+time = Btotal.property(QDataSet.DEPEND_0)
+
+Bx = Bfield_rtn[:,0]
+By = Bfield_rtn[:,1]
+Bz = Bfield_rtn[:,2]
+
+TEMP_Rx = zeros(len(Btotal))
+TEMP_Ry = ones(len(Btotal))
+TEMP_Rz = zeros(len(Btotal))
+TEMP_Rx.putProperty(QDataSet.DEPEND_0,time)
+TEMP_Ry.putProperty(QDataSet.DEPEND_0,time)
+TEMP_Rz.putProperty(QDataSet.DEPEND_0,time)
+
+( Bn , Bp , Bq , Nr , Nt , Nn , Pr , Pt , Pn , Qr , Qt , Qn ) = field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+
+Bn.putProperty(QDataSet.NAME,'B_para_n')
+Bp.putProperty(QDataSet.NAME,'B_perp1_p')
+Bq.putProperty(QDataSet.NAME,'B_perp2_q')
+Bn.putProperty(QDataSet.LABEL,'B!B||!N')
+Bp.putProperty(QDataSet.LABEL,'B!B&perp;1!N')
+Bq.putProperty(QDataSet.LABEL,'B!B&perp;2!N')
+B_NPQ = bundle(Bn,Bp,Bq)
+B_NPQ.putProperty(QDataSet.DEPEND_0,time)
+B_NPQ.putProperty(QDataSet.UNITS,Units.nT)
+B_NPQ.putProperty(QDataSet.NAME,'B')
+B_NPQ.putProperty(QDataSet.LABEL,'B (%{UNITS})')
+B_NPQ.putProperty(QDataSet.TITLE,'PSP-measured magnetic field in field-aligned coordinates')
+
+Nr.putProperty(QDataSet.NAME,'N_R')
+Nt.putProperty(QDataSet.NAME,'N_T')
+Nn.putProperty(QDataSet.NAME,'N_N')
+N_RTN = bundle(Nr,Nt,Nn)
+N_RTN.putProperty(QDataSet.DEPEND_0,time)
+N_RTN.putProperty(QDataSet.NAME,'N_RTN')
+N_RTN.putProperty(QDataSet.LABEL,'B!B||!N')
+N_RTN.putProperty(QDataSet.TITLE,'Unit vector in field-aligned direction in PSP RTN coordinates')
+
+Pr.putProperty(QDataSet.NAME,'P_R')
+Pt.putProperty(QDataSet.NAME,'P_T')
+Pn.putProperty(QDataSet.NAME,'P_N')
+P_RTN = bundle(Pr,Pt,Pn)
+P_RTN.putProperty(QDataSet.DEPEND_0,time)
+P_RTN.putProperty(QDataSet.NAME,'P_RTN')
+P_RTN.putProperty(QDataSet.LABEL,'B!B&perp;1!N')
+P_RTN.putProperty(QDataSet.TITLE,'Unit vector in first direction perpendicular to B in PSP RTN coordinates')
+
+Qr.putProperty(QDataSet.NAME,'Q_R')
+Qt.putProperty(QDataSet.NAME,'Q_T')
+Qn.putProperty(QDataSet.NAME,'Q_N')
+Q_RTN = bundle(Qr,Qt,Qn)
+Q_RTN.putProperty(QDataSet.DEPEND_0,time)
+Q_RTN.putProperty(QDataSet.NAME,'Q_RTN')
+Q_RTN.putProperty(QDataSet.LABEL,'B!B&perp;2!N')
+Q_RTN.putProperty(QDataSet.TITLE,'Unit vector in second direction perpendicular to B in PSP RTN coordinates')
+
+
+#plot(0,Bfield_rtn)
+#plot(1,B_NPQ)
+#plot(2,Btotal)
+
+if writeStuff == True:
+    formatDataSet(time,outputDirectory+outputFile)
+    formatDataSet(B_NPQ,outputDirectory+outputFile+'?append=T')
+    formatDataSet(N_RTN,outputDirectory+outputFile+'?append=T')
+    formatDataSet(P_RTN,outputDirectory+outputFile+'?append=T')
+    formatDataSet(Q_RTN,outputDirectory+outputFile+'?append=T')

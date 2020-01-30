@@ -5,7 +5,7 @@ the top panel, and the scientist draws a box to select a time range in the top p
 This will run a model on the time-averaged of the data in the interval.
 ''')
 
-#load( PWD + 'layout.vap' )
+load( PWD + 'layoutWithAnnotation.vap' )
 
 #plot( 0, PWD + 'FAKE_SPC.cdf?vdf' )
 

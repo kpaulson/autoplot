@@ -1143,7 +1143,8 @@ for tr in trs:
         #plot(6,epsilonEpoch,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))),ytitle='&#x2220;B!Bincident!N')
         plot(6,epsilonEpoch,bundle(anisotropy_3_chi,anisotropy_3_psi),symbol='none',ytitle='anisotropy_beam')
         
-        
+        #plot(6,epsilonEpoch,sqrt(1-(1./(1-(Nz**2)))+((Nx*Nz)/((1-(Nz**2))**2))),ytitle='just Bz factor')
+        #plot(6,epsilonEpoch,psiline_a,ytitle='chiline-a')
         
         
         #stop

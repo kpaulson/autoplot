@@ -3,8 +3,8 @@
 
 #randomSeed(30)
 generatingTotalErrorMap = False
-generatingDeltaPlusMinusMaps = True
-RunningSingleCase = False
+generatingDeltaPlusMinusMaps = False
+RunningSingleCase = True
 
 plotVzObservedVDF = True
 UseRealisticGaussians = True

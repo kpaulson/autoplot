@@ -13,6 +13,7 @@ manuallyRemoveFullScans = False
 
 plotFitsAndPauseALot = True
 separatePeaksWithL3Values = False
+calculateVDFUncertainty = False
 
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
@@ -41,7 +42,10 @@ time_begin = TimeUtil.now()
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
-    time_begin_tr = TimeUtil.now()   
+    time_begin_tr = TimeUtil.now()    
+    
+    if lt(datumRange(timerange).width(), datumRange(tr).width()):
+        tr = timerange
     
     if True:    
     #try:
@@ -63,6 +67,14 @@ for tr in trs:
 
             mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
             mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+            
+            spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+
+            mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
         except:
             noSPCData = None
             raise java.io.FileNotFoundException
@@ -80,6 +92,14 @@ for tr in trs:
         
         mv_lo = trim(mv_lo,tr)
         mv_hi = trim(mv_hi,tr)
+        
+        spc_a_DELTA_VAR = trim(spc_a_DELTA_VAR,tr)
+        spc_b_DELTA_VAR = trim(spc_b_DELTA_VAR,tr)
+        spc_c_DELTA_VAR = trim(spc_c_DELTA_VAR,tr)
+        spc_d_DELTA_VAR = trim(spc_d_DELTA_VAR,tr)
+        
+        mv_lo_DELTA_VAR = trim(mv_lo_DELTA_VAR,tr)
+        mv_hi_DELTA_VAR = trim(mv_hi_DELTA_VAR,tr)
         #print spc_a
         
         
@@ -88,21 +108,25 @@ for tr in trs:
         #spc_c = putProperty(spc_c/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
         #spc_d = putProperty(spc_d/(mv_hi-mv_lo),QDataSet.DEPEND_1,mv_lo)
         spc_list = [spc_a,spc_b,spc_c,spc_d]
-        del(spc_a,spc_b,spc_c,spc_d)
+        #del(spc_a,spc_b,spc_c,spc_d)
         
         totalFlux = sum(spc_list)
         #totalFlux = totalFlux/((mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo))
         
         fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
         fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
+        fluxDifference_pinch = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
         
         U = (fluxDifference_scy/totalFlux)/0.035
         V = (fluxDifference_scx/totalFlux)/0.035
+        pinch = (fluxDifference_pinch/totalFlux)/0.035
         
         U.putProperty(QDataSet.VALID_MIN,None)
         V.putProperty(QDataSet.VALID_MIN,None)
+        pinch.putProperty(QDataSet.VALID_MIN,None)
         U.putProperty(QDataSet.VALID_MAX,None)
         V.putProperty(QDataSet.VALID_MAX,None)
+        pinch.putProperty(QDataSet.VALID_MAX,None)
         
         
         for j in xrange(len(U[0,:])):
@@ -133,6 +157,32 @@ for tr in trs:
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
+        
+        if calculateVDFUncertainty == True:
+            mv_hi_mv_lo_squareDiff = (mv_hi**2-mv_lo**2)
+            d_vdf_d_spc_a = ((m_p*1E5)/q)*((mv_hi_mv_lo_squareDiff)**(-1./2.))
+            d_vdf_d_spc_b = d_vdf_d_spc_a
+            d_vdf_d_spc_c = d_vdf_d_spc_a
+            d_vdf_d_spc_d = d_vdf_d_spc_a
+            
+            d_vdf_d_mv_hi = totalFlux*((m_p*1E5)/q)*(-mv_hi/((mv_hi_mv_lo_squareDiff)**(3/2)))
+            d_vdf_d_mv_lo = totalFlux*((m_p*1E5)/q)*( mv_lo/((mv_hi_mv_lo_squareDiff)**(3/2)))
+            
+            vdf_DELTA_VAR = sqrt( (d_vdf_d_spc_a**2)*(spc_a_DELTA_VAR**2) \
+                                + (d_vdf_d_spc_b**2)*(spc_b_DELTA_VAR**2) \
+                                + (d_vdf_d_spc_c**2)*(spc_c_DELTA_VAR**2) \
+                                + (d_vdf_d_spc_d**2)*(spc_d_DELTA_VAR**2) \
+                                + (d_vdf_d_mv_hi**2)*(mv_hi_DELTA_VAR**2) \
+                                + (d_vdf_d_mv_lo**2)*(mv_lo_DELTA_VAR**2) )*1.66667E3
+            
+            vdf.putProperty(QDataSet.DELTA_PLUS, vdf_DELTA_VAR)
+            vdf.putProperty(QDataSet.DELTA_MINUS,vdf_DELTA_VAR)
+            
+            vdf_DELTA_VAR.putProperty(QDataSet.NAME,'vdf_DELTA_VAR')
+            vdf_DELTA_VAR.putProperty(QDataSet.SCALE_TYPE,'log')
+            vdf_DELTA_VAR.putProperty(QDataSet.DEPEND_0,vdf.property(QDataSet.DEPEND_0))
+            vdf_DELTA_VAR.putProperty(QDataSet.DEPEND_1,v_z)
+        
         del(windowWidths,mv_hi)
         
         if manuallyRemoveFullScans == True:
@@ -151,10 +201,17 @@ for tr in trs:
         
         vdf.putProperty(QDataSet.NAME,'vdf')
         vdf.putProperty(QDataSet.SCALE_TYPE,'log')
+        vdf.putProperty(QDataSet.VALID_MIN,0)
+        vdf.putProperty(QDataSet.VALID_MAX,1E10)
+        
+        U.putProperty(QDataSet.DEPEND_1,v_z)
+        V.putProperty(QDataSet.DEPEND_1,v_z)
+        pinch.putProperty(QDataSet.DEPEND_1,v_z)
+        
         print 'Defining VDF took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
-        setLayoutOverplot(2)
+        #setLayoutOverplot(2)
         waitUntilIdle()
         
         #tempTime = timegen('October 1st, 2019','0.8sec',len(vdf))
@@ -163,8 +220,34 @@ for tr in trs:
         
         dom.plotElements[0].controller.renderer.setRebinner(org.das2.graph.SpectrogramRenderer.RebinnerEnum.lanlNearestNeighbor)
         plot(1,v_z[r],renderType='scatter')
+        #plot(2,vdf_DELTA_VAR)
+        
+#        testIndex = 400
+#        testSlice = vdf[testIndex,:]
+#        testSlice.putProperty(QDataSet.DELTA_PLUS,vdf_DELTA_VAR[testIndex,:])
+#        testSlice.putProperty(QDataSet.DELTA_MINUS,vdf_DELTA_VAR[testIndex,:])
+        #plot(3,testSlice,xrange=[0,800])
         plot(2,U,zrange=[-45,45])
         plot(3,V,zrange=[-45,45])
+        
+        
+        U.putProperty(QDataSet.UNITS,spc_a.property(QDataSet.UNITS))
+        V.putProperty(QDataSet.UNITS,spc_a.property(QDataSet.UNITS))
+        #spc_a.putProperty(QDataSet.UNITS,None)
+        #spc_b.putProperty(QDataSet.UNITS,None)
+        #spc_c.putProperty(QDataSet.UNITS,None)
+        #spc_d.putProperty(QDataSet.UNITS,None)
+        
+        diag1 = V + 2*(spc_c-spc_d)/totalFlux/0.035
+        diag2 = U - 2*(spc_a-spc_d)/totalFlux/0.035
+        
+        diag1.putProperty(QDataSet.DEPEND_1,v_z)
+        diag2.putProperty(QDataSet.DEPEND_1,v_z)
+        
+        plot(4,pinch/diag1,zrange=[-1,1])
+        plot(5,pinch/diag2,zrange=[-1,1])
+        stop
+        plot(4,spc_a.property(QDataSet.DEPEND_0),v_z,pinch/diag)
         waitUntilIdle()
         if writeStuff == True:
             writeToPng('C:/Users/kpaulson/Google Drive/Research/PSP/SPC/VDF/Plots/SPC_VDF_%s.png'%tr)

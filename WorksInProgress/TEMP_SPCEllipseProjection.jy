@@ -1,0 +1,125 @@
+
+line_length = 1000
+xx = linspace(-10,10,line_length)
+yy = linspace(-10,10,line_length)
+
+circle_radius = 10
+
+ellipse_semimajor = 3
+ellipse_semiminor = 2
+
+
+detector = link(concatenate(xx,xx),concatenate(sqrt((circle_radius**2)-xx**2),-sqrt((circle_radius**2)-xx**2)))
+#detector = circle(circle_radius)
+
+plot(0,detector)
+
+plot(1,linspace(-circle_radius,circle_radius,line_length),zeros(line_length))
+plot(2,zeros(line_length),linspace(-circle_radius,circle_radius,line_length))
+
+
+spot = ellipse(ellipse_semimajor,ellipse_semiminor)
+spot_dep0 = spot.property(QDataSet.DEPEND_0)
+
+x_offset = 0.3
+y_offset = 1
+
+rotAngle = toRadians(20)
+
+new_dep0 = spot_dep0*cos(rotAngle) + spot*sin(rotAngle)
+new_spot = spot_dep0*sin(rotAngle) - spot*cos(rotAngle) 
+
+new_spot = link(new_dep0-x_offset,new_spot+y_offset)
+
+plot(4,new_spot)
+
+subSpot = None
+subSpot_dep0 = None
+numberOfRings = 100
+for i in xrange(numberOfRings):
+    subSpot_ring = ellipse(ellipse_semimajor*(i/(1.*numberOfRings)),ellipse_semiminor*(i/(1.*numberOfRings)))
+    
+    subSpot_ring_dep0 = subSpot_ring.property(QDataSet.DEPEND_0)
+    new_subSpot_dep0 = subSpot_ring_dep0*cos(rotAngle) + subSpot_ring*sin(rotAngle)
+    new_subSpot      = subSpot_ring_dep0*sin(rotAngle) - subSpot_ring*cos(rotAngle) 
+    
+    subSpot = concatenate(subSpot,new_subSpot)
+    subSpot_dep0 = concatenate(subSpot_dep0,new_subSpot_dep0)
+    
+new_subSpot = link(subSpot_dep0-x_offset,subSpot+y_offset,ones(len(subSpot)))
+plot(3,new_subSpot,color='red')
+
+r_a = where(lt(new_subSpot[:,0],0).and(lt(new_subSpot[:,1],0)))
+r_b = where(gt(new_subSpot[:,0],0).and(lt(new_subSpot[:,1],0)))
+r_c = where(gt(new_subSpot[:,0],0).and(gt(new_subSpot[:,1],0)))
+r_d = where(lt(new_subSpot[:,0],0).and(gt(new_subSpot[:,1],0)))
+
+spc_a = total(new_subSpot[r_a,2])
+spc_b = total(new_subSpot[r_b,2])
+spc_c = total(new_subSpot[r_c,2])
+spc_d = total(new_subSpot[r_d,2])
+
+print spc_a,spc_b,spc_c,spc_d
+
+totalFlux = spc_a + spc_b + spc_c + spc_d
+
+#totalFlux = totalFlux/((mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo))
+
+fluxDifference_scx   = (spc_a + spc_d) - (spc_b + spc_c)
+fluxDifference_scy   = (spc_a + spc_b) - (spc_c + spc_d)
+fluxDifference_pinch = (spc_a + spc_c) - (spc_b + spc_d)
+
+U = (fluxDifference_scy/totalFlux)/0.035
+V = (fluxDifference_scx/totalFlux)/0.035
+pinch = (fluxDifference_pinch/totalFlux)/0.035
+
+
+diag1 = V + 2*(spc_c-spc_d)/totalFlux/0.035
+diag2 = U - 2*(spc_a-spc_d)/totalFlux/0.035
+
+#diag1.putProperty(QDataSet.DEPEND_1,v_z)
+#diag2.putProperty(QDataSet.DEPEND_1,v_z)
+
+print 'U:',U
+print 'V:',V
+print 'pinch:',pinch
+print 'diag1:',diag1
+print 'diag2:',diag2
+
+stop
+
+plot(4,new_dep0-x_offset,new_spot+y_offset)
+
+print spot
+#formatDataSet(spot,'/tmp/TEMP.txt')
+
+dotArray = ones(xx.length(),yy.length())
+dotArray.putProperty(QDataSet.DEPEND_0,xx)
+dotArray.putProperty(QDataSet.DEPEND_1,yy)
+plot(3,dotArray,renderType='colorScatter')
+
+dotArray = ones(spot.length(),spot.length())
+new_spot_xxLin = linspace(min(new_dep0),max(new_dep0),len(new_dep0))
+new_spot_yyLin = linspace(min(new_spot),max(new_spot),len(new_spot))
+
+dotArray.putProperty(QDataSet.DEPEND_0,new_spot_xxLin)
+dotArray.putProperty(QDataSet.DEPEND_1,new_spot_yyLin)
+
+formatDataSet(dotArray,'/tmp/TEMP.txt')
+
+for x in xrange(int(len(new_dep0)/2.)):
+    r = where(gt(dotArray.property(QDataSet.DEPEND_1),spot[x]))
+    dotArray[x,r]=0
+    
+dotIndexArray = ones(spot.length(),spot.length())
+for x in xrange(int(len(new_dep0))):
+    dotIndexArray[x,:]=dotArray.property(QDataSet.DEPEND_1)
+    
+plot(3,new_spot_xxLin-x_offset,new_spot_yyLin+y_offset,dotIndexArray)
+#plot(3,spot_dep0,spot,dotArray)
+
+#plot(4,xx,yy,xx*yy)
+
+
+
+

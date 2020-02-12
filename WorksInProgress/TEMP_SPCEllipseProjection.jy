@@ -1,28 +1,38 @@
-
+plotStuff = True
+if plotStuff == True:
+    setLayoutOverplot(5)
+    
 line_length = 1000
 xx = linspace(-10,10,line_length)
 yy = linspace(-10,10,line_length)
 
-circle_radius = 10
+circle_radius = 1.
 
-ellipse_semimajor = 3
-ellipse_semiminor = 2
+eccentricity = 0 #e = sqrt(1 - b**2/a**2 ) 
 
+ellipse_semimajor = 0.3
+ellipse_semiminor = sqrt((1. - eccentricity**2)*(ellipse_semimajor**2))
+#ellipse_semiminor = 0.2
+x_offset = -0.03
+y_offset = 0.1
+
+
+
+
+
+collimater_length = 16.4/10.846 #In units of the circle radius
+
+toDegrees(atan2(x_offset,collimater_length))/0.035
+toDegrees(atan2(y_offset,collimater_length))/0.035
 
 detector = link(concatenate(xx,xx),concatenate(sqrt((circle_radius**2)-xx**2),-sqrt((circle_radius**2)-xx**2)))
 #detector = circle(circle_radius)
 
-plot(0,detector)
-
-plot(1,linspace(-circle_radius,circle_radius,line_length),zeros(line_length))
-plot(2,zeros(line_length),linspace(-circle_radius,circle_radius,line_length))
 
 
 spot = ellipse(ellipse_semimajor,ellipse_semiminor)
 spot_dep0 = spot.property(QDataSet.DEPEND_0)
 
-x_offset = 0.3
-y_offset = 1
 
 rotAngle = toRadians(20)
 
@@ -31,7 +41,6 @@ new_spot = spot_dep0*sin(rotAngle) - spot*cos(rotAngle)
 
 new_spot = link(new_dep0-x_offset,new_spot+y_offset)
 
-plot(4,new_spot)
 
 subSpot = None
 subSpot_dep0 = None
@@ -47,7 +56,6 @@ for i in xrange(numberOfRings):
     subSpot_dep0 = concatenate(subSpot_dep0,new_subSpot_dep0)
     
 new_subSpot = link(subSpot_dep0-x_offset,subSpot+y_offset,ones(len(subSpot)))
-plot(3,new_subSpot,color='red')
 
 r_a = where(lt(new_subSpot[:,0],0).and(lt(new_subSpot[:,1],0)))
 r_b = where(gt(new_subSpot[:,0],0).and(lt(new_subSpot[:,1],0)))
@@ -86,40 +94,49 @@ print 'pinch:',pinch
 print 'diag1:',diag1
 print 'diag2:',diag2
 
-stop
-
-plot(4,new_dep0-x_offset,new_spot+y_offset)
-
-print spot
-#formatDataSet(spot,'/tmp/TEMP.txt')
-
-dotArray = ones(xx.length(),yy.length())
-dotArray.putProperty(QDataSet.DEPEND_0,xx)
-dotArray.putProperty(QDataSet.DEPEND_1,yy)
-plot(3,dotArray,renderType='colorScatter')
-
-dotArray = ones(spot.length(),spot.length())
-new_spot_xxLin = linspace(min(new_dep0),max(new_dep0),len(new_dep0))
-new_spot_yyLin = linspace(min(new_spot),max(new_spot),len(new_spot))
-
-dotArray.putProperty(QDataSet.DEPEND_0,new_spot_xxLin)
-dotArray.putProperty(QDataSet.DEPEND_1,new_spot_yyLin)
-
-formatDataSet(dotArray,'/tmp/TEMP.txt')
-
-for x in xrange(int(len(new_dep0)/2.)):
-    r = where(gt(dotArray.property(QDataSet.DEPEND_1),spot[x]))
-    dotArray[x,r]=0
+if plotStuff == True:
+    #setLayoutOverplot(5)
+    plot(0,detector)
     
-dotIndexArray = ones(spot.length(),spot.length())
-for x in xrange(int(len(new_dep0))):
-    dotIndexArray[x,:]=dotArray.property(QDataSet.DEPEND_1)
-    
-plot(3,new_spot_xxLin-x_offset,new_spot_yyLin+y_offset,dotIndexArray)
-#plot(3,spot_dep0,spot,dotArray)
+    plot(1,linspace(-circle_radius,circle_radius,line_length),zeros(line_length))
+    plot(2,zeros(line_length),linspace(-circle_radius,circle_radius,line_length))
+    plot(3,new_subSpot,color='red')
+    plot(4,new_spot)
 
-#plot(4,xx,yy,xx*yy)
-
-
-
-
+#stop
+#
+#plot(4,new_dep0-x_offset,new_spot+y_offset)
+#
+#print spot
+##formatDataSet(spot,'/tmp/TEMP.txt')
+#
+#dotArray = ones(xx.length(),yy.length())
+#dotArray.putProperty(QDataSet.DEPEND_0,xx)
+#dotArray.putProperty(QDataSet.DEPEND_1,yy)
+#plot(3,dotArray,renderType='colorScatter')
+#
+#dotArray = ones(spot.length(),spot.length())
+#new_spot_xxLin = linspace(min(new_dep0),max(new_dep0),len(new_dep0))
+#new_spot_yyLin = linspace(min(new_spot),max(new_spot),len(new_spot))
+#
+#dotArray.putProperty(QDataSet.DEPEND_0,new_spot_xxLin)
+#dotArray.putProperty(QDataSet.DEPEND_1,new_spot_yyLin)
+#
+#formatDataSet(dotArray,'/tmp/TEMP.txt')
+#
+#for x in xrange(int(len(new_dep0)/2.)):
+#    r = where(gt(dotArray.property(QDataSet.DEPEND_1),spot[x]))
+#    dotArray[x,r]=0
+#
+#dotIndexArray = ones(spot.length(),spot.length())
+#for x in xrange(int(len(new_dep0))):
+#    dotIndexArray[x,:]=dotArray.property(QDataSet.DEPEND_1)
+#
+#plot(3,new_spot_xxLin-x_offset,new_spot_yyLin+y_offset,dotIndexArray)
+##plot(3,spot_dep0,spot,dotArray)
+#
+##plot(4,xx,yy,xx*yy)
+#
+#
+#
+#

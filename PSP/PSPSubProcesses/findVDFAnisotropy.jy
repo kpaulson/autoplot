@@ -1,0 +1,352 @@
+
+def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_in, vdf_full_in, Nx_temp_in, Ny_temp_in, Nz_temp_in):
+    '''
+    Process that is the heart of SPC script calculating the anisotropy of a given VDF
+    using the pre-calculated plasma deflection angle/velocity for each energy channel
+    per timestep. (maybe pinch too if I've gotten to that yet)
+     - Should I just bundle up the various variables to clean everything up?
+    
+    Inputs:
+        v_z_in         = rank2 DEPEND_1 of the VDF. velocity of each bin across sweep for each timestamp
+        vz_tanPhi_in   = rank2 deflection velocity in s/c y-direction for each bin across sweep for each timestamp
+        vz_tanTheta_in = rank2 deflection velocity in s/c x-direction for each bin across sweep for each timestamp
+        u_x_in         = rank1 bulk plasma flow velocity in s/c x-direction
+        u_y_in         = rank1 bulk plasma flow velocity in s/c y-direction
+        u_z_in         = rank1 bulk plasma flow velocity in s/c z-direction
+        vdf_full_in    = rank2 calculated (or fit) velocity distribution function 
+        Nx_temp_in     = rank1 unit vector of magnetic field strength in s/c x-direction
+        Ny_temp_in     = rank1 unit vector of magnetic field strength in s/c y-direction
+        Nz_temp_in     = rank1 unit vector of magnetic field strength in s/c z-direction
+    Outputs:
+        
+    '''
+    # Now time for the real work
+    inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
+    chiline                = None
+    psiline                = None
+    epsilonEpoch           = None
+    chiSquaredReduced_chi  = None
+    chiSquaredReduced_psi  = None
+    rSquared_chi           = None
+    rSquared_psi           = None
+    slopeError_chi         = None
+    slopeError_psi         = None
+    TEMP_anisotropy_chi    = None
+    TEMP_anisotropy_psi    = None
+    time_last = TimeUtil.now()
+    
+    if ge(fitSeconds,1.):
+        dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(fitSeconds),tr)
+        dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$(S,span=%s)'%(fitSeconds),tr)
+    elif lt(fitSeconds,1.):
+        dds= generateTimeRanges('$Y-$m-$d $H:$M:$S.$(milli,span=%s)'%int(fitSeconds*1E3),tr)
+        dds_title= generateTimeRanges('$Y-$m-$d_$H-$M-$S.$(milli,span=%s)'%int(fitSeconds*1E3),tr)
+    
+    time_fit_begin = TimeUtil.now()
+    monitor.setTaskSize(len(dds))
+    for ind in xrange(len(dds)):
+        monitor.setTaskProgress(ind)
+        monitor.setLabel('Linear Fits') 
+        
+        
+        if ( monitor.cancelled ):
+            print 'Canceling Process at (%s %s)'%(str(int(100.*ind/(len(dds)-1.))),'%')
+            break
+        
+        try:
+            tr_dds = dds[ind]+' to '+str( datum(dds[ind])+datum('%s s'%fitSeconds) )
+            #print tr_dds
+            
+            # Manual way to Create Event
+#                event = dblarr(1,4)
+#                event[0,0] = dataset(datumRange(tr_dds).min())
+#                event[0,1] = dataset(datumRange(tr_dds).max())
+#                event[0,2] = dataset(0x666600FF)
+#                event[0,3] = dataset('event')
+
+            # Correct way to Create Event
+            event = createEvent( None, datumRange(tr_dds), 0x666600FF, 'Selected Spectrum' )
+            
+            if mod(ind,modFits) == 0:
+                plot(3, event , renderType='eventsBar')
+            
+            v_z_dd = trim(v_z_in,tr_dds)
+            vz_tanPhi_dd = trim(vz_tanPhi_in,tr_dds)
+            vz_tanTheta_dd = trim(vz_tanTheta_in,tr_dds)
+            
+            u_x_dd = trim(u_x_in,tr_dds)
+            u_y_dd = trim(u_y_in,tr_dds)
+            u_z_dd = trim(u_z_in,tr_dds)
+            
+            #totalFlux_dd = trim(totalFlux,tr_dds)
+            vdf_dd = trim(vdf_in,tr_dds)
+            
+            
+            Nx_temp_dd = trim(Nx_temp_in,tr_dds)
+            Ny_temp_dd = trim(Ny_temp_in,tr_dds)
+            Nz_temp_dd = mean(trim(Nz_temp_in,tr_dds))
+            
+            temp_v_z = None
+            temp_vz_tanTheta = None
+            temp_vz_tanPhi = None
+            #temp_totalFlux = None
+            temp_vdf = None
+            temp_Nx_temp_dd = None
+            temp_Ny_temp_dd = None
+            for i in xrange(len(v_z_dd)):
+                #temp_v_z         = concatenate(temp_v_z,v_z_dd[i,:])
+                #temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:])  # Vx
+                #temp_vz_tanPhi   = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:])      # Vy
+                temp_v_z         = concatenate(temp_v_z,v_z_dd[i,:]-u_z[i])
+                temp_vz_tanTheta = concatenate(temp_vz_tanTheta,vz_tanTheta_dd[i,:]-u_x[i])  # Vx
+                temp_vz_tanPhi   = concatenate(temp_vz_tanPhi,vz_tanPhi_dd[i,:]-u_y[i])      # Vy
+                #temp_totalFlux   = concatenate(temp_totalFlux,totalFlux_dd[i,:])
+                temp_vdf         = concatenate(temp_vdf,vdf_dd[i,:])
+                temp_Nx_temp_dd  = concatenate(temp_Nx_temp_dd,ones(len(v_z_dd[i,:]))*Nx_temp_dd[i])
+                temp_Ny_temp_dd  = concatenate(temp_Ny_temp_dd,ones(len(v_z_dd[i,:]))*Ny_temp_dd[i])
+            
+            ###################
+            ###################
+            ###################
+            
+               
+            #norm_temp_totalFlux = normalize(temp_totalFlux)
+            norm_temp_vdf = normalize(temp_vdf)
+            r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
+            
+            
+            # These two lines below should create a step function on the normalized weights such that anything less than 0.5 goes to 0. The idea is that this will only fit the points that are above half the max of the peak
+            blackoutNormalized = where(lt(norm_temp_vdf,0.5))
+            norm_temp_vdf[blackoutNormalized] = 0
+            temp_vdf[blackoutNormalized] = 0
+                #plot(norm_temp_vdf[r]*100,xrange=[0,600],renderType='scatter')
+        
+        
+            f = LinFit()
+            
+            ftr_chi = CurveFitter(LevenbergMarquardtOptimizer())
+            #ftr_chi = AbstractCurveFitter(LevenbergMarquardtOptimizer())
+            ftr_psi = CurveFitter(LevenbergMarquardtOptimizer())
+            #ftr_psi = AbstractCurveFitter(LevenbergMarquardtOptimizer())
+            
+            
+            for i in xrange(len(temp_v_z[r])):
+                # This weighting uses the normalized VDF data - It isn't working because it loses the weights for some reason (floats->doubles)
+                #ftr_chi.addObservedPoint( int(float(norm_temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                #ftr_psi.addObservedPoint( int(float(norm_temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+                
+            
+                #elif separatePeaksWithL3Values == False:
+                if True:
+                    # This weighting uses the original vdf where we ignore any points below half of the normalized peak
+                    if useVDFFluxForWeights == False: #In this case, set all values above the above-listed noise floor to one so they have the same weights
+                        temp_vdf[r][i] = 1.
+                    ftr_chi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                    ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+
+        
+            try:
+                result_chi = ftr_chi.fit(f,inputGuessParams)
+            except:
+                result_chi = [-1E38,-1E38]
+                #result_chi = ftr_chi.fit(f,[float(rand(1)[0]),float(rand(1)[0])])
+            try:
+                result_psi = ftr_psi.fit(f,inputGuessParams)
+            except:
+                result_psi = [-1E38,-1E38]
+                #result_psi = ftr_chi.fit(f,[float(rand(1)[0]),float(rand(1)[0])])
+                
+            xx_x = linspace( min((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Nx_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
+            xx_y = linspace( min((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , max((temp_v_z[r]*temp_Ny_temp_dd[r])[where(valid(temp_v_z[r]))]) , 100)
+        
+            #r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
+            
+            (temp_chiSquaredReduced_chi,temp_rSquared_chi,temp_slopeError_chi) = fittingUncertainties(result_chi,temp_vdf,temp_v_z,temp_vz_tanTheta,temp_Nx_temp_dd)
+            (temp_chiSquaredReduced_psi,temp_rSquared_psi,temp_slopeError_psi) = fittingUncertainties(result_psi,temp_vdf,temp_v_z,temp_vz_tanPhi,temp_Ny_temp_dd)
+            
+            # Have to append everything at once since I was left with uneven dataset/epoch arrays
+            chiline = concatenate(chiline,result_chi[0])
+            psiline = concatenate(psiline,result_psi[0])
+            
+            chiSquaredReduced_chi = concatenate(chiSquaredReduced_chi,temp_chiSquaredReduced_chi)
+            chiSquaredReduced_psi = concatenate(chiSquaredReduced_psi,temp_chiSquaredReduced_psi)
+            
+            rSquared_chi = concatenate(rSquared_chi,temp_rSquared_chi)
+            rSquared_psi = concatenate(rSquared_psi,temp_rSquared_psi)
+            
+            slopeError_chi = concatenate(slopeError_chi,temp_slopeError_chi)
+            slopeError_psi = concatenate(slopeError_psi,temp_slopeError_psi)
+            
+            if mod(ind,modFits) == 0:    
+                print 'Calculating Uncertainties took:',TimeUtil.now()-time_last
+                time_last = TimeUtil.now()
+                print 'Total fitting function so far (%s %s) took:'%(str(int(100.*ind/(len(dds)-1.))),'%'),TimeUtil.now()-time_begin_tr
+            
+                
+            #epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+(datum(dds[ind+1])-datum(dds[ind]))/2.)
+            epsilonEpoch = concatenate(epsilonEpoch,datum(dds[ind])+datum(str(fitSeconds/2.)+' sec') )
+            #plot(4,epsilonEpoch))
+            #plot(5,rSquared_psi)
+            
+            ###########
+            ###########
+            ###########
+            if plotFitsAndPauseALot == True:
+                if 'vapAlreadyLoaded' not in locals():
+                    load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_IterativeFitPlotter.vap')
+                    plot(0,vdf_full,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
+                    #plot(1,v_z[r])
+                    vapAlreadyLoaded = None
+                    
+                
+                temp_epsilon_chi = - result_chi[0] / ( (result_chi[0]*(1 - Nz_temp_dd**2)) + Nz_temp_dd )
+                temp_epsilon_psi = - result_psi[0] / ( (result_psi[0]*(1 - Nz_temp_dd**2)) + Nz_temp_dd )
+                plot_anisotropy_chi = sqrt(temp_epsilon_chi+1)
+                plot_anisotropy_psi = sqrt(temp_epsilon_psi+1)
+                
+                print 'plot_anisotropy_chi',plot_anisotropy_chi
+                print 'plot_anisotropy_psi',plot_anisotropy_psi
+                
+                TEMP_anisotropy_chi = concatenate(TEMP_anisotropy_chi,plot_anisotropy_chi)
+                TEMP_anisotropy_psi = concatenate(TEMP_anisotropy_psi,plot_anisotropy_chi)
+                
+                
+                # The asin() is wrong, since I don't want the total orthogonality angle, just the angle between (Nx,Ny) and Nz
+                #mappedAngleIndex_chi = imin(abs(toDegrees(asin(Nx[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                #mappedAngleIndex_psi = imin(abs(toDegrees(asin(Ny[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                
+                # This atan() sould account for the above issue
+                mappedAngleIndex_chi = imin(abs(toDegrees(atan(mean(Nx_temp_dd)/Nz_temp_dd))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                mappedAngleIndex_psi = imin(abs(toDegrees(atan(mean(Ny_temp_dd)/Nz_temp_dd))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+                
+                mappedAnisotropyIndex_chi = imin(abs(plot_anisotropy_chi-anisotropy_deltaPlus.property(QDataSet.DEPEND_1))) 
+                mappedAnisotropyIndex_psi = imin(abs(plot_anisotropy_psi-anisotropy_deltaPlus.property(QDataSet.DEPEND_1))) 
+                
+                if mappedAngleIndex_chi != -1 and mappedAnisotropyIndex_chi != -1 :
+                    anisotropy_chi_deltaPlus  = anisotropy_deltaPlus[ mappedAngleIndex_chi,mappedAnisotropyIndex_chi]
+                    anisotropy_chi_deltaMinus = anisotropy_deltaMinus[mappedAngleIndex_chi,mappedAnisotropyIndex_chi]
+                else:
+                    anisotropy_chi_deltaPlus  = -1
+                    anisotropy_chi_deltaMinus = -1
+                    
+                if mappedAngleIndex_psi != -1 and mappedAnisotropyIndex_psi != -1 :
+                    anisotropy_psi_deltaPlus  = anisotropy_deltaPlus[ mappedAngleIndex_psi,mappedAnisotropyIndex_psi]
+                    anisotropy_psi_deltaMinus = anisotropy_deltaMinus[mappedAngleIndex_psi,mappedAnisotropyIndex_psi]
+                else:
+                    anisotropy_psi_deltaPlus  = -1
+                    anisotropy_psi_deltaMinus = -1
+                
+                print 'line 824'
+                #plot(3,dataset([datumRange(tr_dds).min(),datumRange(tr_dds).max(),'xff00ff','event']),renderType='eventsBar',color='magenta')
+                plot(3,event,renderType='eventsBar')
+                plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=3)
+                plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=3)
+                #plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
+                #plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
+                plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N*B!Bx!N (nT km s!U-1!N)!C!C'+tr_dds,title='Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4))+'     Anisotropy!B&Chi;!N = '+str(round(plot_anisotropy_chi,3))+' &plusmn; ['+str(round(anisotropy_chi_deltaPlus,3))+','+str(round(anisotropy_chi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!Bx!N (km s!U-1!N)')
+                plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N*B!By!N (nT km s!U-1!N)!C!C'+tr_dds,title='Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4))+'     Anisotropy!B&Psi;!N = '+str(round(plot_anisotropy_psi,3))+' &plusmn; ['+str(round(anisotropy_psi_deltaPlus,3))+','+str(round(anisotropy_psi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!By!N (km s!U-1!N)')
+                #plot(8,trim(Nz_temp,tr_dds),title=Nz_temp_dd)
+                
+#                    psiline_temp = putProperty(copy(psiline),QDataSet.DEPEND_0,epsilonEpoch)
+#                    chiline_temp = putProperty(copy(chiline),QDataSet.DEPEND_0,epsilonEpoch)
+#
+#                    (Nx_temp,Ny_temp,Nz_temp) = synchronize(chiline_temp,[Nx,Ny,Nz])
+#                    Btotal_temp = synchronize(chiline_temp,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself
+#
+#                    epsilon_chi_temp = - chiline_temp / ( (chiline_temp*(1 - Nz_temp**2)) + Nz_temp ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
+#                    epsilon_psi_temp = - psiline_temp / ( (psiline_temp*(1 - Nz_temp**2)) + Nz_temp )
+#
+#                    anisotropy_chi_temp = sqrt(epsilon_chi_temp+1)
+#                    anisotropy_psi_temp = sqrt(epsilon_psi_temp+1)
+
+                #plot(8,sqrt(temp_residualVariance_chi),renderType='scatter',color='red')
+                #plot(9,sqrt(temp_residualVariance_psi),renderType='scatter',color='blue')
+                #plot(10,sqrt(temp_totalVariance_chi),renderType='scatter',color='red')
+                #plot(11,sqrt(temp_totalVariance_psi),renderType='scatter',color='blue')
+                
+                sleep(5000)
+                print '----'
+                continue
+        except:
+            print 'oopsy, couldn\'t fit for some reason'
+            import traceback
+            traceback.print_exc()
+            print '----'
+            continue
+            
+    
+    psiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    chiline.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    chiSquaredReduced_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    chiSquaredReduced_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    rSquared_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    rSquared_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    slopeError_chi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    slopeError_psi.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    
+    
+    # ###
+    # ### FINAL CALCULATIONS
+    # ###
+    
+    (temp_Nx,temp_Ny,temp_Nz) = synchronize(chiline,[Nx,Ny,Nz])
+    #Btotal = synchronize(chiline,[Btotal])[0]   # Since synchronize puts out a list of arrays, use the [0] to choose the array itself
+    
+    epsilon_chi = - chiline / ( (chiline*(1 - temp_Nz**2)) + temp_Nz ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
+    epsilon_psi = - psiline / ( (psiline*(1 - temp_Nz**2)) + temp_Nz )
+
+    anisotropy_chi = sqrt(epsilon_chi+1)
+    anisotropy_psi = sqrt(epsilon_psi+1)
+    
+    anisotropy_chi_deltaPlus  = dblarr(len(epsilonEpoch))
+    anisotropy_chi_deltaMinus = dblarr(len(epsilonEpoch))
+    anisotropy_psi_deltaPlus  = dblarr(len(epsilonEpoch))
+    anisotropy_psi_deltaMinus = dblarr(len(epsilonEpoch))
+    for i in xrange(len(epsilonEpoch)):
+        # The asin() is wrong, since I don't want the total orthogonality angle, just the angle between (Nx,Ny) and Nz
+        #mappedAngleIndex_chi = imin(abs(toDegrees(asin(Nx[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+        #mappedAngleIndex_psi = imin(abs(toDegrees(asin(Ny[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+        
+        # This atan() sould account for the above issue
+        mappedAngleIndex_chi = imin(abs(toDegrees(atan(temp_Nx[i]/temp_Nz[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+        mappedAngleIndex_psi = imin(abs(toDegrees(atan(temp_Ny[i]/temp_Nz[i]))-anisotropy_deltaPlus.property(QDataSet.DEPEND_0))) 
+        
+        mappedAnisotropyIndex_chi = imin(abs(anisotropy_chi[i]-anisotropy_deltaPlus.property(QDataSet.DEPEND_1))) 
+        mappedAnisotropyIndex_psi = imin(abs(anisotropy_psi[i]-anisotropy_deltaPlus.property(QDataSet.DEPEND_1))) 
+        
+        if mappedAngleIndex_chi != -1 and mappedAnisotropyIndex_chi != -1 :
+            anisotropy_chi_deltaPlus[i]  = anisotropy_deltaPlus[ mappedAngleIndex_chi,mappedAnisotropyIndex_chi]
+            anisotropy_chi_deltaMinus[i] = anisotropy_deltaMinus[mappedAngleIndex_chi,mappedAnisotropyIndex_chi]
+        else:
+            anisotropy_chi_deltaPlus[i]  = -1
+            anisotropy_chi_deltaMinus[i] = -1
+            
+        if mappedAngleIndex_psi != -1 and mappedAnisotropyIndex_psi != -1 :
+            anisotropy_psi_deltaPlus[i]  = anisotropy_deltaPlus[ mappedAngleIndex_psi,mappedAnisotropyIndex_psi]
+            anisotropy_psi_deltaMinus[i] = anisotropy_deltaMinus[mappedAngleIndex_psi,mappedAnisotropyIndex_psi]
+        else:
+            anisotropy_psi_deltaPlus[i]  = -1
+            anisotropy_psi_deltaMinus[i] = -1
+        
+    anisotropy_chi_deltaPlus.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    anisotropy_chi_deltaMinus.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    anisotropy_psi_deltaPlus.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    anisotropy_psi_deltaMinus.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        
+    anisotropy_chi_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+    anisotropy_chi_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+    anisotropy_chi_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+    anisotropy_chi_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+    anisotropy_psi_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+    anisotropy_psi_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+    anisotropy_psi_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+    anisotropy_psi_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+    
+    anisotropy_chi.putProperty(QDataSet.DELTA_PLUS, anisotropy_chi_deltaPlus)
+    anisotropy_chi.putProperty(QDataSet.DELTA_MINUS,anisotropy_chi_deltaMinus)
+    anisotropy_psi.putProperty(QDataSet.DELTA_PLUS, anisotropy_psi_deltaPlus)
+    anisotropy_psi.putProperty(QDataSet.DELTA_MINUS,anisotropy_psi_deltaMinus)
+        
+       
+    
+    return(chiline, psiline, chiSquaredReduced_chi, chiSquaredReduced_psi, rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi, epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, epsilonEpoch, anisotropy_chi_deltaPlus, anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus, anisotropy_psi_deltaMinus)

@@ -1,0 +1,165 @@
+
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
+
+
+#timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
+timerange = getParam('timerange','2018-11-01 14:00 to 15:00','Timerange over which to calculate Poynting Flux')
+
+freq_min      = getParam('minFrequency', 0.01,  'Lower frequency bound of analysis (Hz)')
+freq_max      = getParam('maxFrequency', 4.,  'Upper frequency bound of analysis (Hz)')
+window        = getParam('windowWidth',  1024, 'Number of points in fft window')
+slide         = getParam('slideFactor',  8,    'Reciprocal of fraction of non-overlap between neighboring windows')
+trend_seconds = getParam('trendSeconds', 30,   'Number of seconds used to identify the background magnetic field')
+poynting_min  = getParam('poyntingMin',  1E-4, 'Minimum Poynting Flux value to be plotted (filters out noise)')
+
+useLocalSubprocesses = True
+useLocalFiles = True
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+    
+
+import sys
+try:
+    if useLocalSubprocesses == True:
+        raise stopLookingOnlineException
+        
+    ### IMPORT SUBPROCESSES
+    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+    
+    Poynting_Flux = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    execfile( Poynting_Flux.toString() )
+    
+    Hanningfft = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    execfile( Hanningfft.toString() )
+    
+    field_aligner = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    execfile( field_aligner.toString() )
+    
+    
+except:
+    print 'Unable to grab subprocess from github'
+    
+    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+    
+    Poynting_Flux = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    execfile( Poynting_Flux.toString() )
+    
+    Hanningfft = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    execfile( Hanningfft.toString() )
+    
+    field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    execfile( field_aligner.toString() )
+    
+    
+    
+    
+
+############################################################################
+##################            DEFINITIONS        ###########################
+############################################################################
+############################################################################
+    
+OS = get_os_version().split()[0]
+if OS == 'mac':
+    googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+elif OS == 'windows':
+    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    
+    
+if useLocalFiles == True:
+    cfa_sweap_file  = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+else:
+    cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+    mag_datafile    = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+    efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+                    
+    #http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf
+    
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+# ###
+# ### DOWNLOAD DATA AND INTERPOLATE
+# ###
+
+mag_data = getDataSet(mag_datafile+'?psp_fld_mag_sc',timerange)
+efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+
+mag_data = trim(mag_data,timerange)
+mag_time = mag_data.property(QDataSet.DEPEND_0)
+
+Bx = mag_data[:,0]
+By = mag_data[:,1]
+Bz = mag_data[:,2]
+Btotal = magnitude(mag_data)
+
+efield_data = synchronize(mag_data,efield_data)
+Ex = efield_data[:,0]
+Ey = efield_data[:,1]
+
+# ###
+# ### FIND THIRD EFIELD AXIS
+# ###
+
+# Probably need to filter out bad orientation cases (ie, B purely in Bx,By so Bz->0)
+Ez = -(Ex*Bx + Ey*By)/Bz
+
+# ###
+# ### FIELD-ALIGNER
+# ###
+
+# If B~=Br=Bz (in s/c coords), then P_hat is out of ecliptic, and Q_hat is in the ecliptic plane (sign can change drastically based on Br sign)
+#                      If Br>0, P_hat is south and Q_hat is in Solar rotation direction
+TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Ry = putProperty(ones( len(Btotal)),QDataSet.DEPEND_0,mag_time)
+TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+        
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+
+En = Ex*Nx + Ey*Ny + Ex*Nz
+Ep = Ex*Px + Ey*Py + Ex*Pz
+Eq = Ex*Qx + Ey*Qy + Ex*Qz
+
+
+# ###
+# ### GENERATE FFTS
+# ###
+    
+Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
+Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
+Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
+
+En_fft = Hanningfft( En , freq_min , freq_max , window , slide )
+Ep_fft = Hanningfft( Ep , freq_min , freq_max , window , slide )
+Eq_fft = Hanningfft( Eq , freq_min , freq_max , window , slide )
+
+
+# ###
+# ### CALCULATE POYNTING FLUX
+# ###
+    
+( Smag , Poynting_theta, Poynting_phi, Sn, Sp, Sq, TEMP_Sn, TEMP_Sp, TEMP_Sq ) = Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_min )
+
+
+# ###
+# ### PLOT STUFF
+# ###
+    
+plot(0, Smag)  
+plot(1, Poynting_theta) 
+plot(2, Poynting_phi)    
+    
+    

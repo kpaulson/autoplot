@@ -1,3 +1,10 @@
+
+#############################################################################################   
+        
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+
 #############################################################################################   
         
 def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_min ):
@@ -20,30 +27,10 @@ def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_
     ###
     
     monitor.setProgressMessage('Calculating Poynting Flux')
-    # try:
-          # TEMP_MLat = getDataSet( ephem_file+'&column=EDMAG_MLAT' )
-    # except:
-        # try:
-            # TEMP_MLat = getDataSet(ephem_file_T89D+'&column=EDMAG_MLAT') 
-        # except:
-            # try:
-                # TEMP_MLat = getDataSet(ephem_file_T89Q+'&column=EDMAG_MLAT') 
-            # except:
-                # TEMP_MLat = getDataSet(ephem_file_OP77Q+'&column=EDMAG_MLAT')
-                    
-    # ephem_time = TEMP_MLat.property(QDataSet.DEPEND_0)
     
-    # if ( len(ephem_time) != len(uniq(ephem_time)) ):
-        # uniqueness = uniq(ephem_time)
-        # ephem_time = ephem_time[uniqueness] 
-        # TEMP_MLat = TEMP_MLat[uniqueness] 
-    
-    # fft_time = Bn_fft.property( QDataSet.DEPEND_0 )       
-    # frequency_axis = Bn_fft.property( QDataSet.DEPEND_1 )  
+    fft_time = Bn_fft.property( QDataSet.DEPEND_0 )       
+    frequency_axis = Bn_fft.property( QDataSet.DEPEND_1 ) 
         
-    # ephem_to_fft_time_ratio = findex( ephem_time , fft_time )
-    # MLat_fftcadence = interpolate ( TEMP_MLat , ephem_to_fft_time_ratio )
-    # del ( TEMP_MLat )
 
     TEMP_Sn = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
     TEMP_Sp = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
@@ -79,7 +66,7 @@ def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_
     putProps( [ TEMP_Sq ], QDataSet.DEPEND_0, fft_time )
     putProps( [ TEMP_Sq ], QDataSet.DEPEND_1, frequency_axis )
     
-    Smag.putProperty( QDataSet.UNITS , wpm2 )
+    Smag.putProperty( QDataSet.UNITS , Units.wpm2 )
 
     Sn = TEMP_Sn / Smag
     Sp = TEMP_Sp / Smag

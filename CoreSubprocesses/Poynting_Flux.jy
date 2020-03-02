@@ -8,7 +8,8 @@ def putProps( dss, name='DEPEND_0', value=None ):
 #############################################################################################   
         
 def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_min ):
-    """3D Poynting analysis performed on spectral components.
+    '''
+    3D Poynting analysis performed on spectral components.
     
     Parameters:
         Bn_fft = rank3 fft of field-aligned magnetic component.
@@ -20,7 +21,8 @@ def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_
         poynting_min = minimum value of Poynting flux to be kept in mW/m/Hz (all lower values discarded).
     
     Returns:
-        Smag , Poynting_theta, Poynting_phi, Sn, Sp, Sq, TEMP_Sn, TEMP_Sp, TEMP_Sq"""
+        Smag , Poynting_theta, Poynting_phi, Sn, Sp, Sq, TEMP_Sn, TEMP_Sp, TEMP_Sq
+    '''
     
     ###
     ### RUN POYNTING FLUX ANALYSIS
@@ -73,7 +75,7 @@ def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_
     Sq = TEMP_Sq / Smag
 
     Poynting_theta = acos( Sn ) * ( 180 / PI )
-    Poynting_phi = atan2( Sp , Sq ) * ( 180 / PI )
+    Poynting_phi = atan2( Sq , Sp ) * ( 180 / PI ) # arctan(q/p) so phi=0 is p_hat, phi=90 is q_hat
 
     if (poynting_min > 0 ): # this executes a step function zero-ing out poynting flux where there are no waves, since I am plotting it as a factor of total flux
         r = where(lt(Smag,poynting_min))

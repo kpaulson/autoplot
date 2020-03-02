@@ -71,7 +71,7 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
     
     Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
         
-    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction
+    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction (for earth coords)
     Py = TEMP_Py / Pmag
     Pz = TEMP_Pz / Pmag
     

@@ -16,7 +16,8 @@ trend_seconds = getParam('trendSeconds', 30,   'Number of seconds used to identi
 poynting_min  = getParam('poyntingMin',  1E-4, 'Minimum Poynting Flux value to be plotted (filters out noise)')
 
 useLocalSubprocesses = True
-useLocalFiles = True
+useLocalFiles = False
+writeStuff = False
 
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -76,12 +77,14 @@ elif OS == 'windows':
     
 if useLocalFiles == True:
     cfa_sweap_file  = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+    #mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
 else:
     cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-    mag_datafile    = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-    efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    #mag_datafile    = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+    mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
                     
     #http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf
     
@@ -95,7 +98,7 @@ else:
 # ### DOWNLOAD DATA AND INTERPOLATE
 # ###
 
-mag_data = getDataSet(mag_datafile+'?psp_fld_mag_sc',timerange)
+mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
 efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
 
 mag_data = trim(mag_data,timerange)
@@ -121,13 +124,27 @@ Ez = -(Ex*Bx + Ey*By)/Bz
 # ### FIELD-ALIGNER
 # ###
 
-# If B~=Br=Bz (in s/c coords), then P_hat is out of ecliptic, and Q_hat is in the ecliptic plane (sign can change drastically based on Br sign)
-#                      If Br>0, P_hat is south and Q_hat is in Solar rotation direction
-TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-TEMP_Ry = putProperty(ones( len(Btotal)),QDataSet.DEPEND_0,mag_time)
-TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+# If B~=Br=-Bz (in s/c coords), then P_hat is generally in RTN_T=sc_x direction, and Q_hat is generally in the RTN_N=-sc_y direction (out of the ecliptic plane)
+scy_x = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+scy_y = putProperty(ones( len(Btotal)),QDataSet.DEPEND_0,mag_time)
+scy_z = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
         
-( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By , Bz , Btotal , scy_x , scy_y , scy_z , trend_seconds )
+
+# Reverse direction for positive Bz periods so that we are always looking at wave propagation relative to sun->sc direction 
+posBz = where(gt(Bz,0))
+Bn[posBz] = -Bn[posBz]
+Bp[posBz] = -Bp[posBz]
+Bq[posBz] = -Bq[posBz]
+Nx[posBz] = -Nx[posBz]
+Ny[posBz] = -Ny[posBz]
+Nz[posBz] = -Nz[posBz]
+Px[posBz] = -Px[posBz]
+Py[posBz] = -Py[posBz]
+Pz[posBz] = -Pz[posBz]
+Qx[posBz] = -Qx[posBz]
+Qy[posBz] = -Qy[posBz]
+Qz[posBz] = -Qz[posBz]
 
 En = Ex*Nx + Ey*Ny + Ex*Nz
 Ep = Ex*Px + Ey*Py + Ex*Pz
@@ -146,11 +163,15 @@ En_fft = Hanningfft( En , freq_min , freq_max , window , slide )
 Ep_fft = Hanningfft( Ep , freq_min , freq_max , window , slide )
 Eq_fft = Hanningfft( Eq , freq_min , freq_max , window , slide )
 
+fft_time = Bn_fft.property(QDataSet.DEPEND_0)
+frequency_axis = Bn_fft.property(QDataSet.DEPEND_1)
 
 # ###
 # ### CALCULATE POYNTING FLUX
 # ###
     
+# With reversal of -Bz above, theta is now relative to Sun->s/c line, so 0 is away from sun, 180 is towards sun
+# This makes phi=0 in the Sun's rotation direction in ecliptic, and phi=90 in the Sun's axis direction out of ecliptic
 ( Smag , Poynting_theta, Poynting_phi, Sn, Sp, Sq, TEMP_Sn, TEMP_Sp, TEMP_Sq ) = Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_min )
 
 
@@ -158,8 +179,26 @@ Eq_fft = Hanningfft( Eq , freq_min , freq_max , window , slide )
 # ### PLOT STUFF
 # ###
     
-plot(0, Smag)  
-plot(1, Poynting_theta) 
-plot(2, Poynting_phi)    
+plot(0, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})')  
+#plot(1, Poynting_theta) 
+#plot(2, Poynting_phi)   
+plot(1, Sn, ztitle='Sn (along B)') 
+plot(2, Sp, ztitle='Sp (~RTN!BT!N)')    
+plot(3, Sq, ztitle='Sq (~RTN!BN!N)')    
     
+
+# ###
+# ### WRITE STUFF
+# ###
     
+if writeStuff == True:
+    poyntingFiles_directory = googleDrive_path+'Research/PSP/WaveAnalysis/PSP_Poynting/Poynting_Files/'
+    outputFile = poyntingFiles_directory+'PSP_Poynting_%s.cdf'%(tr_filename)
+    monitor.setProgressMessage('Writing to File')
+    
+    mag_time.putProperty(QDataSet.NAME,'Bfield_time')
+    fft_time.putProperty(QDataSet.NAME,'FFT_time')
+    frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
+    
+    formatDataSet(mag_time,outputFile)
+        

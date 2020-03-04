@@ -84,13 +84,13 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
                       # kz[i,j] = Jxy_prime_img[i,j] / img_mag[i,j]
 	
     
-	trace = Jxx_prime + Jyy_prime + Jzz_prime	
-	r = where(lt(abs(img_mag) , 1E-5))
+    trace = Jxx_prime + Jyy_prime + Jzz_prime	
+    r = where(lt(abs(img_mag) , 1E-5))
     kx[r] = sqrt( Jxx_prime[r] / trace[r] )
     ky[r] = Jxy_prime_real[r] / ( trace[r] * Jxx_prime[r] )
     kz[r] = Jxz_prime_real[r] / ( trace[r] * Jxx_prime[r] )
 					  
-	r0 = where(ge(abs(img_mag) , 1E-5))
+    r0 = where(ge(abs(img_mag) , 1E-5))
     kx[r0] = Jyz_prime_img[r0] / img_mag[r0]
     ky[r0] = -Jxz_prime_img[r0] / img_mag[r0]
     kz[r0] = Jxy_prime_img[r0] / img_mag[r0]
@@ -130,8 +130,8 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
                       # kx[i,j] = -kx[i,j]
                       # ky[i,j] = -ky[i,j]
                       # kz[i,j] = -kz[i,j]
-	#This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
-	r = where(lt( (kx[i,j] * Nx_fftarray[i,j]) + (ky[i,j]* Ny_fftarray[i,j]) + (kz[i,j] * Nz_fftarray[i,j]) ) , 0 )
+    #This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
+    r = where(lt( ((kx * Nx_fftarray) + (ky* Ny_fftarray) + (kz * Nz_fftarray)) , 0 ))
     kx[r] = -kx[r]
     ky[r] = -ky[r]
     kz[r] = -kz[r]
@@ -147,8 +147,8 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     factor = sin( theta )
 #    monitor.setTaskProgress(53)
     
-	r = where(gt(theta , (PI/2)))
-	theta[r] = PI - theta[r]
+    r = where(gt(theta , (PI/2)))
+    theta[r] = PI - theta[r]
     # for j in xrange( len(kx[1,:]) ):
           # for i in xrange( len(kx[:,1]) ):
                 # if ( theta[i,j] > (PI/2) ):
@@ -227,15 +227,15 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     
     # del ( [ TEMP_Jxx , TEMP_Jyy , TEMP_Jzz , TEMP_Jxy_real , TEMP_Jxy_img ] )
     
-	Jxx      = smooth1(Jxx     ,freq_avg)
-	Jyy      = smooth1(Jyy     ,freq_avg)
-	Jzz      = smooth1(Jzz     ,freq_avg)
-	Jxy_real = smooth1(Jxy_real,freq_avg)
-	Jxy_img  = smooth1(Jxy_img ,freq_avg)
-	
+    Jxx      = smooth1(Jxx     ,freq_avg)
+    Jyy      = smooth1(Jyy     ,freq_avg)
+    Jzz      = smooth1(Jzz     ,freq_avg)
+    Jxy_real = smooth1(Jxy_real,freq_avg)
+    Jxy_img  = smooth1(Jxy_img ,freq_avg)
+    
     putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_0, fft_time )
     putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_1, frequency_axis )
-
+    
     
     J_det =  ( Jxx*Jyy - (Jxy_real*Jxy_real + Jxy_img*Jxy_img) )
 
@@ -266,7 +266,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Coherency = sqrt( (Jxy_real*Jxy_real + Jxy_img*Jxy_img) / (Jxx * Jyy) )
     Coherency.putProperty ( QDataSet.VALID_MIN , 0 )
 
-    #Angle_Polarization = toDegrees( 0.5 * atan((2 * Jxx) / (Jxx - Jyy)) ) # sure Jxx isn't supposed to be Jxy_real?
+    Angle_Polarization = toDegrees( 0.5 * atan((2 * Jxx) / (Jxx - Jyy)) ) # sure Jxx isn't supposed to be Jxy_real?
 
 #    monitor.setTaskProgress(57)
     monitor.setProgressMessage('Calculating Ellipticity and Handedness')
@@ -300,7 +300,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### SPIT OUT RESULTS
     ###
     
-    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization ) 
+    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp ) 
 
 
 # ############################################################################################

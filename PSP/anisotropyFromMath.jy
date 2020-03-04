@@ -11,10 +11,10 @@ timerange = getParam('timerange','2018-11-01 06:00 to 06:10','Iteration Timerang
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.4','Version number to be appended to filenames')
 
-separatePeaksWithL3Values = True
+separatePeaksWithL3Values = False
 writeStuff = True
 useVDFFluxForWeights = True
-conflateAndDownsampleSpectra = True
+conflateAndDownsampleSpectra = False
 analyzingTimeWidthComparisons = False
 
 

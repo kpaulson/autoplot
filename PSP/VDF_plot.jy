@@ -84,6 +84,7 @@ for tr in trs:
         #spc_list = [spc_a,spc_b,spc_c,spc_d]
         
         MODE_FLAG = getDataSet(cfa_sweap_file+'?MODE_FLAG',tr)
+        #where=MODE_FLAG.eq(0)
         
         spc_a = trim(spc_a,tr)
         spc_b = trim(spc_b,tr)
@@ -212,13 +213,15 @@ for tr in trs:
         time_last = TimeUtil.now()
         
         #setLayoutOverplot(2)
+        load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
         waitUntilIdle()
         
         #tempTime = timegen('October 1st, 2019','0.8sec',len(vdf))
         
-        plot(0,vdf,zlog=True,zrange=[0.05,20])
+        plot(0,vdf,zlog=True,xrange=tr, zrange=[0.05,20], ytitle='Vz (km/s)', ztitle='VDF!C(cm!U-3!N km!U-1!N s)', title='PSP SPC VDF %s'%(timerange))
         
-        dom.plotElements[0].controller.renderer.setRebinner(org.das2.graph.SpectrogramRenderer.RebinnerEnum.lanlNearestNeighbor)
+        
+        #dom.plotElements[0].controller.renderer.setRebinner(org.das2.graph.SpectrogramRenderer.RebinnerEnum.lanlNearestNeighbor)
         plot(1,v_z[r],renderType='scatter')
         #plot(2,vdf_DELTA_VAR)
         
@@ -227,8 +230,9 @@ for tr in trs:
 #        testSlice.putProperty(QDataSet.DELTA_PLUS,vdf_DELTA_VAR[testIndex,:])
 #        testSlice.putProperty(QDataSet.DELTA_MINUS,vdf_DELTA_VAR[testIndex,:])
         #plot(3,testSlice,xrange=[0,800])
-        plot(2,U,zrange=[-45,45])
-        plot(3,V,zrange=[-45,45])
+        plot(2,U,zrange=[-18,18], ytitle='Vz (km/s)', ztitle='sc_x deflect!C(degrees)')
+        plot(3,V,zrange=[-18,18], ytitle='Vz (km/s)', ztitle='sc_y deflect!C(degrees)')
+        plot(4,pinch,zrange=[-9,9], ytitle='Vz (km/s)', ztitle='pinch')
         
         
         U.putProperty(QDataSet.UNITS,spc_a.property(QDataSet.UNITS))
@@ -244,13 +248,13 @@ for tr in trs:
         diag1.putProperty(QDataSet.DEPEND_1,v_z)
         diag2.putProperty(QDataSet.DEPEND_1,v_z)
         
-        plot(4,pinch/diag1,zrange=[-1,1])
-        plot(5,pinch/diag2,zrange=[-1,1])
-        stop
-        plot(4,spc_a.property(QDataSet.DEPEND_0),v_z,pinch/diag)
+#        plot(4,pinch/diag1,zrange=[-1,1])
+#        plot(5,pinch/diag2,zrange=[-1,1])
+#        stop
+#        plot(4,spc_a.property(QDataSet.DEPEND_0),v_z,pinch/diag)
         waitUntilIdle()
         if writeStuff == True:
-            writeToPng('C:/Users/kpaulson/Google Drive/Research/PSP/SPC/VDF/Plots/SPC_VDF_%s.png'%tr)
-            formatDataSet(vdf,'C:/Users/kpaulson/Google Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_%s.cdf'%tr)
+            writeToPng('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Plots/SPC_VDF_%s.png'%tr)
+            formatDataSet(vdf,'/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Files/SPC_VDF_%s.cdf'%tr)
     #except:
     #    continue

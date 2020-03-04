@@ -34,9 +34,9 @@ def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_
     frequency_axis = Bn_fft.property( QDataSet.DEPEND_1 ) 
         
 
-    TEMP_Sn = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
-    TEMP_Sp = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
-    TEMP_Sq = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
+    #TEMP_Sn = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
+    #TEMP_Sp = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
+    #TEMP_Sq = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
 
     TEMP_Sp = ( ( (En_fft[:,:,0]*Bq_fft[:,:,0]) + (En_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bn_fft[:,:,0]) + (Eq_fft[:,:,1]*Bn_fft[:,:,1]) ) ) / 2
     TEMP_Sq = ( ( (Ep_fft[:,:,0]*Bn_fft[:,:,0]) + (Ep_fft[:,:,1]*Bn_fft[:,:,1]) ) - ( (En_fft[:,:,0]*Bp_fft[:,:,0]) + (En_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2

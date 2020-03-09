@@ -14,7 +14,7 @@ window         = getParam('windowWidth',  1024, 'Number of points in fft window'
 slide          = getParam('slideFactor',  8,    'Reciprocal of fraction of non-overlap between neighboring windows')
 trend_seconds  = getParam('trendSeconds', 30,   'Number of seconds used to identify the background magnetic field')
 poynting_min   = getParam('poyntingMin',  1E-4, 'Minimum Poynting Flux value to be plotted (filters out noise)')
-wave_power_min = getParam('wavePowerMin',  1E-4, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
+wave_power_min = getParam('wavePowerMin', 1E-4, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
 
 
 useLocalSubprocesses = True
@@ -170,9 +170,9 @@ for tr in trs:
         # ###
     
         # If B~=Br=-Bz (in s/c coords), then P_hat is generally in RTN_T=sc_x direction, and Q_hat is generally in the RTN_N=-sc_y direction (out of the ecliptic plane)
-        scy_x = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-        scy_y = putProperty(ones( len(Btotal)),QDataSet.DEPEND_0,mag_time)
-        scy_z = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+        scy_x = putProperty(  zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+        scy_y = putProperty(-1*ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+        scy_z = putProperty(  zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
                 
         ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By , Bz , Btotal , scy_x , scy_y , scy_z , trend_seconds )
     

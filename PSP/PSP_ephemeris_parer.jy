@@ -1,0 +1,94 @@
+timerange = getParam('timerange', '2018-11-02', 'timerange of data to add to PSP ephemeris file')
+cfa_sweap_spc_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+
+PSP_ephem_directory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/'
+
+#inputEphemeris_txt_r_Sun = getDataSet(PSP_ephem_file_txt+'?r_Sun&depend0=time')
+#inputEphemeris_txt = getDataSet(PSP_ephem_file_txt+'?rank2=r_Sun-z_HCI&depend0=time')
+#time = inputEphemeris_txt.property(QDataSet.DEPEND_0)
+
+rsun = 696340.
+
+trs = generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
+    PSP_ephem_file_cdf = PSP_ephem_directory+'PSP_ephemeris_%s.cdf'%(tr)
+    PSP_ephem_file_txt = PSP_ephem_directory+'PSP_ephemeris_%s.txt'%(tr)
+    try:
+    #if True:
+        try:
+            previous_file = getFile(PSP_ephem_file_txt,None)
+        except:
+            pass
+        if 'previous_file' in globals():
+            print 'Already have data for %s'%(tr)
+            break
+            
+        try:
+            sc_pos_HCI = getDataSet(cfa_sweap_spc_L3_file+'?sc_pos_HCI',tr)
+            carr_latitude = getDataSet(cfa_sweap_spc_L3_file+'?carr_latitude',tr)
+            carr_longitude = getDataSet(cfa_sweap_spc_L3_file+'?carr_longitude',tr)
+            spc_time = sc_pos_HCI.property(QDataSet.DEPEND_0)
+        except:
+            raise noSPCDataException
+    
+        new_time = timegen(str(tr),'5 min',12*24)
+        
+#        already_there = where( time.ge(new_time[0]).and(time.le(new_time[-1])) )
+#        everything_else = where( time.lt(new_time[0]).or(time.gt(new_time[-1])) )
+#
+#        if( ( len(already_there) > 2 ) ):
+#            print 'Already have data for %s'%(tr)
+#            raise DataAlreadyThereException
+    
+        (sc_pos_HCI,carr_latitude,carr_longitude) = synchronize(new_time,[sc_pos_HCI,carr_latitude,carr_longitude])
+    
+        solar_distance = magnitude(sc_pos_HCI)/rsun
+        
+        solar_distance.putProperty(QDataSet.VALID_MIN,0)
+        solar_distance.putProperty(QDataSet.VALID_MAX,250)
+        carr_latitude.putProperty(QDataSet.VALID_MIN,-180)
+        carr_latitude.putProperty(QDataSet.VALID_MAX,180)
+        carr_longitude.putProperty(QDataSet.VALID_MIN,0)
+        carr_longitude.putProperty(QDataSet.VALID_MAX,360)
+        
+        solar_distance.putProperty(QDataSet.NAME,'r_Sun')
+        carr_latitude.putProperty( QDataSet.NAME,'latitude')
+        carr_longitude.putProperty(QDataSet.NAME,'longitude')
+        sc_pos_HCI.putProperty(    QDataSet.NAME,'sc_pos_HCI')
+        
+        solar_distance.putProperty(QDataSet.LABEL,'r_Sun')
+        carr_latitude.putProperty( QDataSet.LABEL,'latitude')
+        carr_longitude.putProperty(QDataSet.LABEL,'longitude')
+        sc_pos_HCI.putProperty(    QDataSet.LABEL,'sc_pos_HCI')
+        
+        solar_distance.putProperty(QDataSet.TITLE,'Distance from Sun to PSP in km')
+        carr_latitude.putProperty( QDataSet.TITLE,'Carrington Latitude of PSP')
+        carr_longitude.putProperty(QDataSet.TITLE,'Carrington Longitude of PSP')
+        sc_pos_HCI.putProperty(    QDataSet.TITLE,'PSP position in HCI coordinates')
+        
+        output_ephem = bundle(solar_distance,carr_latitude,carr_longitude)
+        output_ephem = bundle(output_ephem,sc_pos_HCI[:,0],sc_pos_HCI[:,1],sc_pos_HCI[:,2])
+        output_ephem.putProperty(QDataSet.DEPEND_0,new_time)
+        
+        # This part below is left over from when I had a single Ephemeris file for the whole mission. It turned into a pain, so I have switched to daily files
+#        output_ephem = concatenate(output_ephem,inputEphemeris_txt)
+#        s = sort(output_ephem.property(QDataSet.DEPEND_0))
+#        output_ephem = output_ephem[s]
+#
+#        uniqueValues = uniq(output_ephem.property(QDataSet.DEPEND_0))
+#        output_ephem = output_ephem[uniqueValues]
+        
+        formatDataSet(output_ephem, PSP_ephem_file_txt+'?header=rich')
+        
+        formatDataSet(solar_distance, PSP_ephem_file_cdf)
+        formatDataSet(carr_latitude, PSP_ephem_file_cdf+'?append=T')
+        formatDataSet(carr_longitude, PSP_ephem_file_cdf+'?append=T')
+        formatDataSet(sc_pos_HCI, PSP_ephem_file_cdf+'?append=T')
+        
+    except:
+        print 'Could not write data for %s'%(tr)
+        continue
+
+
+
+

@@ -6,13 +6,13 @@
 
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
-timerange = getParam('timerange','2018-11-01 06:00 to 06:10','Iteration Timerange')
+timerange = getParam('timerange','2020-02-01 06:00 to 06:10','Iteration Timerange')
 #timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.4','Version number to be appended to filenames')
 
 separatePeaksWithL3Values = False
-writeStuff = True
+writeStuff = False
 useVDFFluxForWeights = True
 conflateAndDownsampleSpectra = False
 analyzingTimeWidthComparisons = False
@@ -489,7 +489,7 @@ for tr in trs:
                 (Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
                 vdf_label = 'VDF!BTot.!N (cm!U-3!N km!U-1!N s)' 
                 
-                plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True)
+                plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True, xrange=tr)
                 (chiline, psiline, chiSquaredReduced_chi, chiSquaredReduced_psi,
                     rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
                     epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 

@@ -124,12 +124,6 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Nz_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
     Nz_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
     
-    # for j in xrange( len(kx[1,:]) ): #This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
-          # for i in xrange( len(kx[:,1]) ):
-                # if ( ( (kx[i,j] * Nx_fftarray[i,j]) + (ky[i,j]* Ny_fftarray[i,j]) + (kz[i,j] * Nz_fftarray[i,j]) ) < 0):
-                      # kx[i,j] = -kx[i,j]
-                      # ky[i,j] = -ky[i,j]
-                      # kz[i,j] = -kz[i,j]
     #This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
     r = where(lt( ((kx * Nx_fftarray) + (ky* Ny_fftarray) + (kz * Nz_fftarray)) , 0 ))
     kx[r] = -kx[r]
@@ -157,10 +151,16 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Rx = ((ky * Nz_fftarray) - (kz * Ny_fftarray)) / factor # R_hat = k_hat x N_hat so is perpendicular to plane of wave normal and magnetic field
     Ry = ((kz * Nx_fftarray) - (kx * Nz_fftarray)) / factor
     Rz = ((kx * Ny_fftarray) - (ky * Nx_fftarray)) / factor
-#    monitor.setTaskProgress(70)
-    Sx = (Ry * kz) - (Rz * ky)# S_hat = R_hat x k_hat so is in plane of wave normal and magnetic field
-    Sy = (Rz * kx) - (Rx * kz)
-    Sz = (Rx * ky) - (Ry * kx)
+    
+    # Below was original code, but this is not right-handed. This was edited in RBSP and MMS scripts before.
+#    Sx = (Ry * kz) - (Rz * ky)# S_hat = R_hat x k_hat so is in plane of wave normal and magnetic field
+#    Sy = (Rz * kx) - (Rx * kz)
+#    Sz = (Rx * ky) - (Ry * kx)
+    
+
+    Sx = (ky * Rz) - (kz * Ry)# S_hat = k_hat x R_hat so is in plane of wave normal and magnetic field
+    Sy = (kz * Rx) - (kx * Rz)
+    Sz = (kx * Ry) - (ky * Rx)
 #    monitor.setTaskProgress(71)
 
     Jxx = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )

@@ -19,11 +19,39 @@ wave_power_min = getParam('wavePowerMin', 1E-4, 'Minimum Wave Power value in Bfi
 
 version = '1.1'
 
-useLocalSubprocesses = True
-useLocalFiles        = False
-plotStuff            = True
-writeStuff           = True
-useRegularTimestamps = True
+useLocalSubprocesses = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
+useLocalFiles        = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
+plotStuff            = getParam('plotStuff','T','Plot dataset',['T','F'])
+writeStuff           = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
+useRegularTimestamps = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
+
+if useLocalSubprocesses == 'T':
+    useLocalSubprocesses = True
+elif useLocalSubprocesses == 'F':
+    useLocalSubprocesses = False
+    
+if useLocalFiles == 'T':
+    useLocalFiles = True
+elif useLocalFiles == 'F':
+    useLocalFiles = False
+    
+if plotStuff == 'T':
+    plotStuff = True
+elif plotStuff == 'F':
+    plotStuff = False
+    
+if writeStuff == 'T':
+    writeStuff = True
+    outputDirectory = getParam('outputDirectory','Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version),'Where to write file')
+elif writeStuff == 'F':
+    writeStuff = False
+    
+if useRegularTimestamps == 'T':
+    useRegularTimestamps = True
+elif useRegularTimestamps == 'F':
+    useRegularTimestamps = False
+
+
 
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -87,17 +115,20 @@ if OS == 'mac':
 elif OS == 'windows':
     googleDrive_path = '/Users/kpaulson/GoogleDrive/'
     
+waveAnalysisFiles_directory = googleDrive_path + outputDirectory
     
 if useLocalFiles == True:
     cfa_sweap_file  = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-    #mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    #mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    #efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
 else:
     cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-    #mag_datafile    = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-    mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-    efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+    #mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    #efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+    mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
                     
     #http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf
     
@@ -197,6 +228,13 @@ for tr in trs:
         Bp_pol = copy(Bp)
         Bq_pol = copy(Bq)
         
+        Nx_pol.putProperty(QDataSet.DEPEND_0, mag_time)
+        Ny_pol.putProperty(QDataSet.DEPEND_0, mag_time)
+        Nz_pol.putProperty(QDataSet.DEPEND_0, mag_time)
+        Bn_pol.putProperty(QDataSet.DEPEND_0, mag_time)
+        Bp_pol.putProperty(QDataSet.DEPEND_0, mag_time)
+        Bq_pol.putProperty(QDataSet.DEPEND_0, mag_time)
+        
         Bn_fft_pol = Hanningfft( Bn_pol , freq_min , freq_max , window , slide )
         Bp_fft_pol = Hanningfft( Bp_pol , freq_min , freq_max , window , slide )
         Bq_fft_pol = Hanningfft( Bq_pol , freq_min , freq_max , window , slide )
@@ -279,7 +317,6 @@ for tr in trs:
         # ###
             
         if writeStuff == True:
-            waveAnalysisFiles_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version)
             outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
             monitor.setProgressMessage('Writing to File')
             

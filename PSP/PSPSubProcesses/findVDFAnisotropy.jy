@@ -109,7 +109,8 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             ###################
             ###################
             
-               
+            temp_vdf.putProperty(QDataSet.VALID_MIN,0.01)
+            temp_vdf.putProperty(QDataSet.VALID_MAX,1E4)  #Arbitrarily-chosen upper limit
             #norm_temp_totalFlux = normalize(temp_totalFlux)
             norm_temp_vdf = normalize(temp_vdf)
             r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
@@ -117,8 +118,8 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             
             # These two lines below should create a step function on the normalized weights such that anything less than 0.5 goes to 0. The idea is that this will only fit the points that are above half the max of the peak
             blackoutNormalized = where(lt(norm_temp_vdf,0.5))
-            norm_temp_vdf[blackoutNormalized] = 0
-            temp_vdf[blackoutNormalized] = 0
+            norm_temp_vdf[blackoutNormalized] = 0.01
+            temp_vdf[blackoutNormalized] = 0.01
                 #plot(norm_temp_vdf[r]*100,xrange=[0,600],renderType='scatter')
         
         
@@ -135,14 +136,31 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 #ftr_chi.addObservedPoint( int(float(norm_temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
                 #ftr_psi.addObservedPoint( int(float(norm_temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
                 
-            
+                
                 #elif separatePeaksWithL3Values == False:
                 if True:
                     # This weighting uses the original vdf where we ignore any points below half of the normalized peak
                     if useVDFFluxForWeights == False: #In this case, set all values above the above-listed noise floor to one so they have the same weights
                         temp_vdf[r][i] = 1.
-                    ftr_chi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
-                    ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+                        norm_temp_vdf[r][i] = 1.
+                        point_weight = 1.
+                    else:    
+                        point_weight = int((float(norm_temp_vdf[r][i])*1000))
+                        
+                    #print point_weight
+                    chi_point = WeightedObservedPoint(point_weight, float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]), float(temp_vz_tanTheta[r][i]))
+                    psi_point = WeightedObservedPoint(point_weight, float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]), float(temp_vz_tanPhi[r][i]))
+                    #print 'chi_point_weight',chi_point.getWeight()
+                    #print 'psi_point_weight',psi_point.getWeight()
+                    ftr_chi.addObservedPoint( chi_point )
+                    ftr_psi.addObservedPoint( psi_point )
+                    
+                    #ftr_chi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                    #ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
+                    # Using the normalized vdf for weights:
+                    #print int((float(norm_temp_vdf[r][i])*1000))
+                    #ftr_chi.addObservedPoint( int((float(norm_temp_vdf[r][i])*1000)) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
+                    #ftr_psi.addObservedPoint( int((float(norm_temp_vdf[r][i])*1000)) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
 
         
             try:
@@ -194,7 +212,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             if plotFitsAndPauseALot == True:
                 if 'vapAlreadyLoaded' not in locals():
                     load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_IterativeFitPlotter.vap')
-                    plot(0,vdf_full,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
+                    plot(0,vdf_full,xrange=tr,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
                     #plot(1,v_z[r])
                     vapAlreadyLoaded = None
                     

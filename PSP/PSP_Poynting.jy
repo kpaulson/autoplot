@@ -146,9 +146,9 @@ Qx[posBz] = -Qx[posBz]
 Qy[posBz] = -Qy[posBz]
 Qz[posBz] = -Qz[posBz]
 
-En = Ex*Nx + Ey*Ny + Ex*Nz
-Ep = Ex*Px + Ey*Py + Ex*Pz
-Eq = Ex*Qx + Ey*Qy + Ex*Qz
+En = Ex*Nx + Ey*Ny + Ez*Nz
+Ep = Ex*Px + Ey*Py + Ez*Pz
+Eq = Ex*Qx + Ey*Qy + Ez*Qz
 
 
 # ###
@@ -179,12 +179,12 @@ frequency_axis = Bn_fft.property(QDataSet.DEPEND_1)
 # ### PLOT STUFF
 # ###
     
-plot(0, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})')  
+plot(0, Smag, colorTable='apl_rainbow_black0', ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})')  
 #plot(1, Poynting_theta) 
 #plot(2, Poynting_phi)   
-plot(1, Sn, ztitle='Sn (along B)') 
-plot(2, Sp, ztitle='Sp (~RTN!BT!N)')    
-plot(3, Sq, ztitle='Sq (~RTN!BN!N)')    
+plot(1, Sn, colorTable='blue_white_red', ztitle='Sn (along B)') 
+plot(2, Sp, colorTable='blue_white_red', ztitle='Sp (~RTN!BT!N)')    
+plot(3, Sq, colorTable='blue_white_red', ztitle='Sq (~RTN!BN!N)')    
     
 
 # ###

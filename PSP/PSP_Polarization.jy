@@ -547,6 +547,47 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
 # ############################################################################################
 # ############################################################################################
 
+import sys
+try:
+    if useLocalSubprocesses == True:
+        raise stopLookingOnlineException
+        
+    ### IMPORT SUBPROCESSES
+    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+    
+    Poynting_Flux = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    execfile( Poynting_Flux.toString() )
+    
+    Polarization_Means = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
+    execfile( Polarization_Means.toString() )
+    
+    Hanningfft = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    execfile( Hanningfft.toString() )
+    
+    field_aligner = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    execfile( field_aligner.toString() )
+    
+    
+except:
+    print 'Unable to grab subprocess from github'
+    
+    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+    
+    Poynting_Flux = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    execfile( Poynting_Flux.toString() )
+    
+    Polarization_Means = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
+    execfile( Polarization_Means.toString() )
+    
+    Hanningfft = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    execfile( Hanningfft.toString() )
+    
+    field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    execfile( field_aligner.toString() )
+    
+    
 # ############################################################################################
 # ############################################################################################
 

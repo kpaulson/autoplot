@@ -12,7 +12,7 @@ timerange = getParam('timerange','2020-02-01 06:00 to 06:10','Iteration Timerang
 version = getParam('version','0.4.4','Version number to be appended to filenames')
 
 separatePeaksWithL3Values = False
-writeStuff = False
+writeStuff = True
 useVDFFluxForWeights = True
 conflateAndDownsampleSpectra = False
 analyzingTimeWidthComparisons = False
@@ -98,6 +98,7 @@ except:
        
 from org.apache.commons.math.optimization.fitting import CurveFitter
 from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
 from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
 from org.apache.commons.math.stat.regression      import SimpleRegression
 
@@ -431,7 +432,7 @@ for tr in trs:
             load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
         
         #plot(0,totalFlux)
-        plot(0,vdf_full,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
+        plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
         plot(1,v_z[r])
         alreadyPlottedOnce = True
         #stop
@@ -445,10 +446,15 @@ for tr in trs:
             mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
             print 'Used mag data from:',mag_datafile
         except:
-            mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-            print 'Used mag data from:',mag_datafile
-            mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
-        
+            try:
+                mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+                mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                print 'Used mag data from:',mag_datafile
+            except:
+                mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
+                print 'Used mag data from:',mag_datafile
+                
         #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
         mag = trim(mag,tr)
         
@@ -464,7 +470,7 @@ for tr in trs:
         
         # These inputs are arbitrary since we don't really care what the B_perp directions are for now. Does not affect outcome
         TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-        TEMP_Ry = putProperty(ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+        TEMP_Ry = putProperty(-1*ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
         TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
         
         
@@ -498,7 +504,7 @@ for tr in trs:
                     anisotropy_psi_deltaMinus) = findVDFAnisotropy(v_z, vz_tanPhi, vz_tanTheta, 
                                                  u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
                                                  Ny_temp, Nz_temp)
-                plot(5,bundle(anisotropy_chi,anisotropy_psi),ylog=True)
+                plot(5,bundle(anisotropy_chi,anisotropy_psi),ylog=True,ytitle='%s!Canisotropy'%(vdf))
                 
             elif vdf == 'vdf_p1':
                 vdf_in = vdf_p1

@@ -1,6 +1,7 @@
 
 tr = '2019-04-01 through 2019-04-12'
 tr = '2019-04-04'
+tr = '2019-08-26'
 
 jia_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter2_anisotropy_Jia.cdf?anisotropy moment')
 

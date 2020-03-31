@@ -1,4 +1,4 @@
-def writeAnisotropyL0(time_write_begin, output_file, Bunit, chiline, psiline, 
+def writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psiline, 
     chiSquaredReduced_chi, chiSquaredReduced_psi, rSquared_chi, rSquared_psi, 
     slopeError_chi, slopeError_psi, epsilon_chi, epsilon_psi, anisotropy_chi, 
     anisotropy_psi, epsilonEpoch, anisotropy_chi_deltaPlus, anisotropy_chi_deltaMinus, 
@@ -16,7 +16,6 @@ def writeAnisotropyL0(time_write_begin, output_file, Bunit, chiline, psiline,
     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
     formatDataSet(Bunit,output_file+'?append=T')
     
-    Btotal = magnitude(Bunit)
     Btotal.putProperty(QDataSet.NAME,'B_total')
     Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
     Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)

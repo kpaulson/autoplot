@@ -1,4 +1,5 @@
-plotStuff = True
+plotStuff = False
+writeStuff = True
 #if plotStuff == True:
     #setLayoutOverplot(5)
     
@@ -22,14 +23,11 @@ collimater_length = 16.4/10.846 #In units of the circle radius
 ###################
 
 rotAngles = toRadians(linspace(0,180,19))
-x_offsets = linspace(-1,1,19)
-y_offsets = linspace(-1,1,19)
+x_offsets = linspace(-1,1,5)
+y_offsets = linspace(-1,1,5)
 eccentricities = linspace(0,1,19)
 #rotAngles = [0.35]
 
-output_U = bundle(zeros(len(rotAngles), len(x_offsets), len(y_offsets)), zeros(len(eccentricities)) )
-output_V = dblarr(len(rotAngles), len(x_offsets), len(y_offsets), len(eccentricities))
-output_pinch = dblarr(len(rotAngles), len(x_offsets), len(y_offsets), len(eccentricities))
 
 rotAngle_index = 0
 x_offset_index = 0
@@ -37,12 +35,22 @@ y_offset_index = 0
 eccentricity_index = 0
 
 for rotAngle in rotAngles:
-    for x_offset in x_offsets:
-        for y_offset in y_offsets:
-            for eccentricity in eccentricities:
+    output_U = dblarr(len(x_offsets), len(y_offsets), len(eccentricities))
+    output_V = dblarr(len(x_offsets), len(y_offsets), len(eccentricities))
+    output_pinch = dblarr(len(x_offsets), len(y_offsets), len(eccentricities))
+    
+    #for x_offset in x_offsets:
+    for x_offset_index in xrange(len(x_offsets)):
+        x_offset = x_offsets[x_offset_index]
+        #for y_offset in y_offsets:
+        for y_offset_index in xrange(len(y_offsets)):
+            y_offset = y_offsets[y_offset_index]
+            #for eccentricity in eccentricities:
+            for eccentricity_index in xrange(len(eccentricities)):
+                eccentricity = eccentricities[eccentricity_index]
                 #print rotAngle
             
-            
+                ellipse_semiminor = sqrt((1. - eccentricity**2)*(ellipse_semimajor**2)).value()
             
                 toDegrees(atan2(x_offset,collimater_length))/0.035
                 toDegrees(atan2(y_offset,collimater_length))/0.035
@@ -163,27 +171,29 @@ for rotAngle in rotAngles:
                     plot(4,new_spot)
 
                 
-                if writeStuff == True:
-                    output_U[rotAngle_index,x_offset_index,y_offset_index,eccentricity_index] = U
-                    output_V[rotAngle_index,x_offset_index,y_offset_index,eccentricity_index] = V
-                    output_pinch[rotAngle_index,x_offset_index,y_offset_index,eccentricity_index] = pinch
-                    
-                    output_U.putProperty(QDataSet.NAME,'U')
-                    output_v.putProperty(QDataSet.NAME,'V')
-                    output_pinch.putProperty(QDataSet.NAME,'pinch')
-                    
-                    output_U.putProperty(QDataSet.NAME,'U-Deflection (sc-x) as function of [B-angle, x_offset, y_offset, eccentricity]')
-                    output_V.putProperty(QDataSet.NAME,'V-Deflection (sc-y) as function of [B-angle, x_offset, y_offset, eccentricity]')
-                    output_pinch.putProperty(QDataSet.NAME,'pinch as function of [B-angle, x_offset, y_offset, eccentricity]')
-                    
-                    formatDataSet(output_U,'/tmp/TEMP.cdf')
-                    formatDataSet(output_V,'/tmp/TEMP.cdf?append=T')
-                    formatDataSet(output_pinch,'/tmp/TEMP.cdf?append=T')
+                output_U[x_offset_index,y_offset_index,eccentricity_index] = U
+                output_V[x_offset_index,y_offset_index,eccentricity_index] = V
+                output_pinch[x_offset_index,y_offset_index,eccentricity_index] = pinch
+                
 
 
-                eccentricity_index += 1
-            y_offset_index += 1
-        x_offset_index += 1
+#                eccentricity_index += 1
+#            y_offset_index += 1
+#        x_offset_index += 1
+        
+        if writeStuff == True:
+                    
+            output_U.putProperty(QDataSet.NAME,'U')
+            output_V.putProperty(QDataSet.NAME,'V')
+            output_pinch.putProperty(QDataSet.NAME,'pinch')
+            
+            output_U.putProperty(QDataSet.NAME,'U-Deflection (sc-x) as function of [B-angle, x_offset, y_offset, eccentricity]')
+            output_V.putProperty(QDataSet.NAME,'V-Deflection (sc-y) as function of [B-angle, x_offset, y_offset, eccentricity]')
+            output_pinch.putProperty(QDataSet.NAME,'pinch as function of [B-angle, x_offset, y_offset, eccentricity]')
+            
+            formatDataSet(output_U,'/tmp/output_U_%sdegrees.cdf'%round(toDegrees(rotAngle).value(),0))
+            formatDataSet(output_V,'/tmp/output_V_%sdegrees.cdf'%round(toDegrees(rotAngle).value(),0))
+            formatDataSet(output_pinch,'/tmp/output_pinch_%sdegrees.cdf'%round(toDegrees(rotAngle).value(),0))
     rotAngle_index += 1
 #stop
 #

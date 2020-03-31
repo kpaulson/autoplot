@@ -1,11 +1,12 @@
 
 
 tr = '2018-10-01 to 2019-06-08'
+tr = '2019-08-26'
 #tr = '2019-04-04'
 #tr = '2018-11-01 to 2018-11-06'
 trend_seconds = 60
 uncertainty_threshold = 2.8
-writeStuff = True
+writeStuff = False
 
 mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 mag = getDataSet(mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
@@ -18,10 +19,10 @@ t_tensor = getDataSet(SPANi_file+'?T_TENSOR',tr)
 
 ### IMPORT SUBPROCESSES
 
-rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
+rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
 execfile( rotateSPANiToSC.toString() )
 
-rotateSCToSPANi= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSCToSPANi.jy',monitor.getSubtaskMonitor('import Rotation to SPANi'))
+rotateSCToSPANi= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/rotateSCToSPANi.jy',monitor.getSubtaskMonitor('import Rotation to SPANi'))
 execfile( rotateSCToSPANi.toString() )
 
 fieldAligner= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import Field Aligner'))
@@ -176,7 +177,7 @@ T_mag.putProperty(QDataSet.DEPEND_0,time)
 T_spani = bundle(Txx,Txz,Tzz)
 T_spani.putProperty(QDataSet.DEPEND_0,time)
 
-#setLayoutOverplot(3)
+#setLayoutOverplot(4)
 #plot(0,T_spani)
 #plot(0,Txx)
 #plot(1,Txz,color='orange')

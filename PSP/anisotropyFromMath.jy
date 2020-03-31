@@ -6,7 +6,7 @@
 
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
-timerange = getParam('timerange','2020-02-01 06:00 to 06:10','Iteration Timerange')
+timerange = getParam('timerange','2019-08-26','Iteration Timerange')
 #timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.4','Version number to be appended to filenames')
@@ -22,7 +22,7 @@ analyzingTimeWidthComparisons = False
 m_p                  = 1.6726231E-24
 q                    = 1.6022E-12
 #trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
-trend_seconds        = getParam('Bfield_window' , 30 , 'Number of seconds over which to average magField to determine background field direction' )
+trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over which to average magField to determine background field direction' )
 #minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
 minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
 #fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
@@ -584,7 +584,7 @@ for tr in trs:
                     tempB = synchronize(chiline,[Nx,Ny,Nz])
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, chiline, psiline, 
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psiline, 
                          chiSquaredReduced_chi, chiSquaredReduced_psi,
                          rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
                          epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
@@ -597,7 +597,7 @@ for tr in trs:
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_p1)
                     output_file = output_folder+'SPC_Anisotropy_p1_%s_v%s.cdf'%(timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, chiline_p1, psiline_p1, 
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline_p1, psiline_p1, 
                         chiSquaredReduced_chi_p1, chiSquaredReduced_psi_p1,
                         rSquared_chi_p1, rSquared_psi_p1, slopeError_chi_p1, slopeError_psi_p1,
                         epsilon_chi_p1, epsilon_psi_p1, anisotropy_chi_p1, anisotropy_psi_p1, 
@@ -609,7 +609,7 @@ for tr in trs:
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_3)
                     output_file = output_folder+'SPC_Anisotropy_3_%s_v%s.cdf'%(timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, chiline_3, psiline_3, 
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline_3, psiline_3, 
                         chiSquaredReduced_chi_3, chiSquaredReduced_psi_3,
                         rSquared_chi_3, rSquared_psi_3, slopeError_chi_3, slopeError_psi_3,
                         epsilon_chi_3, epsilon_psi_3, anisotropy_chi_3, anisotropy_psi_3, 
@@ -621,7 +621,7 @@ for tr in trs:
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_a)
                     output_file = output_folder+'SPC_Anisotropy_a_%s_v%s.cdf'%(timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, chiline_a, psiline_a, 
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline_a, psiline_a, 
                         chiSquaredReduced_chi_a, chiSquaredReduced_psi_a,
                         rSquared_chi_a, rSquared_psi_a, slopeError_chi_a, slopeError_psi_a,
                         epsilon_chi_a, epsilon_psi_a, anisotropy_chi_a, anisotropy_psi_a, 

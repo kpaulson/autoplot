@@ -179,13 +179,17 @@ frequency_axis = Bn_fft.property(QDataSet.DEPEND_1)
 # ### PLOT STUFF
 # ###
     
-plot(0, Smag, colorTable='apl_rainbow_black0', ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})')  
+plot(0, Smag, xrange=timerange, colorTable='apl_rainbow_black0', ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})')  
 #plot(1, Poynting_theta) 
 #plot(2, Poynting_phi)   
 plot(1, Sn, colorTable='blue_white_red', ztitle='Sn (along B)') 
 plot(2, Sp, colorTable='blue_white_red', ztitle='Sp (~RTN!BT!N)')    
 plot(3, Sq, colorTable='blue_white_red', ztitle='Sq (~RTN!BN!N)')    
     
+background_grey = java.awt.Color(180,180,180,255)
+dom.plots[1].controller.dasColorBar.setFillColor(background_grey)
+dom.plots[2].controller.dasColorBar.setFillColor(background_grey)
+dom.plots[3].controller.dasColorBar.setFillColor(background_grey)
 
 # ###
 # ### WRITE STUFF

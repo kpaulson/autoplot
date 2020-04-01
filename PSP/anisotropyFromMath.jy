@@ -504,7 +504,7 @@ for tr in trs:
                     anisotropy_psi_deltaMinus) = findVDFAnisotropy(v_z, vz_tanPhi, vz_tanTheta, 
                                                  u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
                                                  Ny_temp, Nz_temp)
-                plot(5,bundle(anisotropy_chi,anisotropy_psi),ylog=True,ytitle='%s!Canisotropy'%(vdf))
+                plot(5,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True,ytitle='%s!Canisotropy'%(vdf))
                 
             elif vdf == 'vdf_p1':
                 vdf_in = vdf_p1

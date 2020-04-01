@@ -45,6 +45,7 @@ if writeStuff == 'T':
     outputDirectory = getParam('outputDirectory','Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version),'Where to write file')
 elif writeStuff == 'F':
     writeStuff = False
+    outputDirectory = '/tmp/'
     
 if useRegularTimestamps == 'T':
     useRegularTimestamps = True

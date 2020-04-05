@@ -7,11 +7,12 @@
 ############################################################################
 ############################################################################
 
-timerange          = '2018-11-03'
+timerange          = '2020-01-30'
 timeSubset_minutes = 5
 
 spc_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
+mag_L2_file_berkeley_team = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
     
         
                 
@@ -149,7 +150,10 @@ def HoffmannTellerizer(v,B):
  
 
 vp_moment_rtn = getDataSet(spc_L3_file_cfa+'?vp_moment_RTN',timerange)
-bfield_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange)
+try:
+    bfield_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange)
+except:
+    bfield_rtn = getDataSet(mag_L2_file_berkeley_team+'?psp_fld_l2_mag_RTN',timerange)
 
 vp_moment_rtn = trim(vp_moment_rtn,timerange)
 bfield_rtn = synchronize(vp_moment_rtn,bfield_rtn)

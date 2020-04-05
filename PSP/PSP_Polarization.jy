@@ -1,425 +1,481 @@
 
 
-# ############################################################################################
-
-def putProps( dss, name='DEPEND_0', value=None ):
-    for ds in dss:
-        ds.putProperty( name, value )
-        
-        
-# ############################################################################################ 
-
-
-def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
-    """Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
-	
-	Parameters:
-	    Bx = rank1 X component of magnetic field
-		By = rank1 Y component of magnetic field
-		Bz = rank1 Z component of magnetic field
-		TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
-		TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
-		TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
-		trend_seconds = rank0 number of seconds over which to average B to define as background
-		
-    Returns:
-	    (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
-		(Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
-		(Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
-		(Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
-	
-	"""
-    monitor.setLabel('Field Aligner')    
-    # ###
-    # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR
-    # ###    
-    
-    mag_time = Btotal.property(QDataSet.DEPEND_0)
-            #mag_time.putProperty(QDataSet.NAME,'B-field Time')
-            
-            #print mag_time[1]-mag_time[0]
-            #for i in xrange(len(mag_time)):
-            #    if( mag_time[i]-mag_time[0] > detrend_time ):
-            #        raise getmeouttahere
-            #print mag_time.property(QDataSet.UNITS)
-    
-    smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
-    
-    Bx_smooth = smooth(Bx,smooth_points)
-    By_smooth = smooth(By,smooth_points)
-    Bz_smooth = smooth(Bz,smooth_points)
-    Btotal_smooth = smooth(Btotal,smooth_points)
-    
-    Nx = Bx_smooth / Btotal_smooth
-    Ny = By_smooth / Btotal_smooth
-    Nz = Bz_smooth / Btotal_smooth
-    
-    
-    # ###
-    # ### PULL RADIAL VECTOR DATA AND DEFINE PERPENDICULAR VECTOR DIRECTIONS
-    # ###
-    
-    ephem_time = TEMP_Rx.property(QDataSet.DEPEND_0)
-    ephem_to_mag_ratio = findex(ephem_time,mag_time)
-    
-    TEMP_Rx = interpolate( TEMP_Rx, ephem_to_mag_ratio )
-    TEMP_Ry = interpolate( TEMP_Ry , ephem_to_mag_ratio )
-    TEMP_Rz = interpolate( TEMP_Rz , ephem_to_mag_ratio )
-    
-    TEMP_Rmag = sqrt(TEMP_Rx**2 + TEMP_Ry**2 + TEMP_Rz**2)
-    
-    Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
-    Ry = -(TEMP_Ry/TEMP_Rmag) 
-    Rz = -(TEMP_Rz/TEMP_Rmag) 
-    
-    TEMP_Px = ( Ny * Rz ) - ( Nz * Ry )
-    TEMP_Py = ( Nz * Rx ) - ( Nx * Rz )
-    TEMP_Pz = ( Nx * Ry ) - ( Ny * Rx )
-    
-    Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
-        
-    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction
-    Py = TEMP_Py / Pmag
-    Pz = TEMP_Pz / Pmag
-    
-    del( [ TEMP_Px , TEMP_Py , TEMP_Pz , Pmag ] )
-        
-    Qx = -( Py * Nz ) + ( Pz * Ny ) # N x P ~radial - positive is outward
-    Qy = -( Pz * Nx ) + ( Px * Nz )
-    Qz = -( Px * Ny ) + ( Py * Nx )
-    
-    
-    # ###
-    # ### TRANSFORM MAG DATA INTO FIELD-ALIGNED COORDINATES
-    # ###
-    
-    Bn = (Bx * Nx) + (By * Ny) + (Bz * Nz)
-    Bp = (Bx * Px) + (By * Py) + (Bz * Pz)
-    Bq = (Bx * Qx) + (By * Qy) + (Bz * Qz)
-   
-    Nx = round(Nx,3)
-    Ny = round(Ny,3)
-    Nz = round(Nz,3)     
-    
-    Px = round(Px,3)
-    Py = round(Py,3)
-    Pz = round(Pz,3) 
-    
-    Qx = round(Qx,3)
-    Qy = round(Qy,3)
-    Qz = round(Qz,3)           
-                    
-    ###
-    ### ADD LABELS AND UNITS AND STUFF, RETURN RESULTS
-    ###
-    
-    Bn.putProperty(QDataSet.LABEL,'B!B||!N')
-    Bn.putProperty(QDataSet.NAME,'B!B||!N')
-#    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
-#    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
-#    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
-#    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
-    Bp.putProperty(QDataSet.LABEL,'B!B&perp;x!N')
-    Bp.putProperty(QDataSet.NAME,'B!B&perp;x!N')
-    Bq.putProperty(QDataSet.LABEL,'B!B&perp;y!N')
-    Bq.putProperty(QDataSet.NAME,'B!B&perp;y!N')
-    Btotal.putProperty(QDataSet.LABEL,'|B|')
-    Btotal.putProperty(QDataSet.NAME,'|B|')
-    
-    
-    return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
-    
-    
-
-
-
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
 ############################################################################
 
+scrollingPlots    = False  # True spits out polarization plots by scrolling through data 
+timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
 
+freq_min       = getParam('minFrequency', 0.3,  'Lower frequency bound of analysis (Hz)')
+freq_max       = getParam('maxFrequency', 9.,  'Upper frequency bound of analysis (Hz)')
+window         = getParam('windowWidth',  1024, 'Number of points in fft window')
+slide          = getParam('slideFactor',  8,    'Reciprocal of fraction of non-overlap between neighboring windows')
+trend_seconds  = getParam('trendSeconds', 60,   'Number of seconds used to identify the background magnetic field')
+wave_power_min = getParam('wavePowerMin', 0.07, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
+
+logyn             = 'T'    # Display the frequency axis logarithmically, 'T' or 'F'?
+output_dir        = '/home/kpaulson/Research/PSP/Wave_Polarization/'      # Local directory for image/file storage
+
+    
+useLocalSubprocesses = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
+useLocalFiles        = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
+plotStuff            = getParam('plotStuff','T','Plot dataset',['T','F'])
+writeStuff           = getParam('writeStuff','F','Write dataset out to cdf file',['T','F'])
+useRegularTimestamps = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
+
+if useLocalSubprocesses == 'T':
+    useLocalSubprocesses = True
+elif useLocalSubprocesses == 'F':
+    useLocalSubprocesses = False
+    
+if useLocalFiles == 'T':
+    useLocalFiles = True
+elif useLocalFiles == 'F':
+    useLocalFiles = False
+    
+if plotStuff == 'T':
+    plotStuff = True
+elif plotStuff == 'F':
+    plotStuff = False
+    
+if writeStuff == 'T':
+    writeStuff = True
+    outputDirectory = getParam('outputDirectory','Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version),'Where to write file')
+elif writeStuff == 'F':
+    writeStuff = False
+    outputDirectory = '/tmp/'
+    
+if useRegularTimestamps == 'T':
+    useRegularTimestamps = True
+elif useRegularTimestamps == 'F':
+    useRegularTimestamps = False
+
+power_min         = wave_power_min
+power_max         = 1E2
+
+
+# # ############################################################################################
+
+# def putProps( dss, name='DEPEND_0', value=None ):
+    # for ds in dss:
+        # ds.putProperty( name, value )
         
-def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
-    """Polarization analysis performed on spectral components based on [Means 1972].
+        
+# # ############################################################################################ 
+
+
+# def field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
+    # """Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
+	
+	# Parameters:
+	    # Bx = rank1 X component of magnetic field
+		# By = rank1 Y component of magnetic field
+		# Bz = rank1 Z component of magnetic field
+		# TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
+		# TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
+		# TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
+		# trend_seconds = rank0 number of seconds over which to average B to define as background
+		
+    # Returns:
+	    # (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
+		# (Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
+		# (Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
+		# (Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
+	
+	# """
+    # monitor.setLabel('Field Aligner')    
+    # # ###
+    # # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR
+    # # ###    
     
-    Parameters:
-        Bn_fft = rank3 fft of field-aligned magnetic component.
-        Bp_fft = rank3 fft of first perpendicular magnetic component.
-        Bq_fft = rank3 fft of second perpendicular magnetic component.
-        Nx = rank1 X component of magnetic field direction in B_fft coordinate system.
-        Ny = rank1 Y component of magnetic field direction in B_fft coordinate system.
-        Nz = rank1 Z component of magnetic field direction in B_fft coordinate system.
-        wave_power_min = minimum value of wave power at which to keep returned components (all lower values discarded).
+    # mag_time = Btotal.property(QDataSet.DEPEND_0)
+            # #mag_time.putProperty(QDataSet.NAME,'B-field Time')
+            
+            # #print mag_time[1]-mag_time[0]
+            # #for i in xrange(len(mag_time)):
+            # #    if( mag_time[i]-mag_time[0] > detrend_time ):
+            # #        raise getmeouttahere
+            # #print mag_time.property(QDataSet.UNITS)
     
-    Returns:
-        Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization"""
-         
-    # ###
-    # ### RUN POLARIZATION ANALYSIS
-    # ###
-  
-    ###
-    ### DEFINE J_PRIME (INPUT) MATRIX ELEMENTS
-    ###
-
-    monitor.setProgressMessage('Defining J-Prime Matrix Components')
-
-    Jxx_prime = ( (Bp_fft[:,:,0]*Bp_fft[:,:,0]) + (Bp_fft[:,:,1]*Bp_fft[:,:,1]) )
-    Jyy_prime = ( (Bq_fft[:,:,0]*Bq_fft[:,:,0]) + (Bq_fft[:,:,1]*Bq_fft[:,:,1]) )
-    Jzz_prime = ( (Bn_fft[:,:,0]*Bn_fft[:,:,0]) + (Bn_fft[:,:,1]*Bn_fft[:,:,1]) )
-
-    Jxy_prime_real = ( (Bp_fft[:,:,0]*Bq_fft[:,:,0]) + (Bp_fft[:,:,1]*Bq_fft[:,:,1]) )
-    Jxy_prime_img = ( (Bq_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bq_fft[:,:,1]) )
-
-    Jxz_prime_real = ( (Bp_fft[:,:,0]*Bn_fft[:,:,0]) + (Bp_fft[:,:,1]*Bn_fft[:,:,1]) )
-    Jxz_prime_img = ( (Bn_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bn_fft[:,:,1]) )
-
-    Jyz_prime_real = ( (Bn_fft[:,:,0]*Bq_fft[:,:,0]) + (Bn_fft[:,:,1]*Bq_fft[:,:,1]) )
-    Jyz_prime_img = ( (Bq_fft[:,:,0]*Bn_fft[:,:,1]) - (Bn_fft[:,:,0]*Bq_fft[:,:,1]) )
-
-    fft_time = Jxx_prime.property(QDataSet.DEPEND_0)
-    frequency_axis = Jxx_prime.property(QDataSet.DEPEND_1)
-
-
-
-    ###
-    ### DEFINE K-HAT VECTOR (MEANS - IMAGINARY COMPONENTS)
-    ###
-
-    monitor.setProgressMessage('Finding Wave-Normal Direction (Means)')
-
-    img_mag = sqrt( Jxy_prime_img**2 + Jxz_prime_img**2 + Jyz_prime_img**2 )
-
-    kx = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
-    ky = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
-    kz = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
-    trace = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
-
-    trace = Jxx_prime + Jyy_prime + Jzz_prime
-    r = where(lt(abs(img_mag) , 1E-5))
-    kx[r] = sqrt( Jxx_prime[r] / trace[r] )
-    ky[r] = Jxy_prime_real[r] / ( trace[r] * Jxx_prime[r] )
-    kz[r] = Jxz_prime_real[r] / ( trace[r] * Jxx_prime[r] )
-
-    r0 = where(ge(abs(img_mag) , 1E-5))
-    kx[r0] = Jyz_prime_img[r0] / img_mag[r0]
-    ky[r0] = -Jxz_prime_img[r0] / img_mag[r0]
-    kz[r0] = Jxy_prime_img[r0] / img_mag[r0]
-
-    trace.putProperty ( QDataSet.DEPEND_0 , fft_time )
-    trace.putProperty ( QDataSet.DEPEND_1 , frequency_axis )
+    # smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
     
-    del ( img_mag )
-
-    lowering_ratio = findex( Nx.property( QDataSet.DEPEND_0 ) , fft_time )
-
-    Nx_fftcadence = interpolate ( Nx , lowering_ratio )
-    Ny_fftcadence = interpolate ( Ny , lowering_ratio )
-    Nz_fftcadence = interpolate ( Nz , lowering_ratio )
-
-    Nx_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Ny_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Nz_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-
-    for j in xrange( len( kx[1,:] ) ): # magnetic field direction is same at all times, so turn vector into an array where DEPEND_1 is constant
-          Nx_fftarray[:,j] = Nx_fftcadence
-          Ny_fftarray[:,j] = Ny_fftcadence
-          Nz_fftarray[:,j] = Nz_fftcadence
-
-    del ( [ Nx_fftcadence , Ny_fftcadence , Nz_fftcadence ] )
-
-    Nx_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
-    Nx_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
-    Ny_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
-    Ny_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
-    Nz_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
-    Nz_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    # Bx_smooth = smooth(Bx,smooth_points)
+    # By_smooth = smooth(By,smooth_points)
+    # Bz_smooth = smooth(Bz,smooth_points)
+    # Btotal_smooth = smooth(Btotal,smooth_points)
+    
+    # Nx = Bx_smooth / Btotal_smooth
+    # Ny = By_smooth / Btotal_smooth
+    # Nz = Bz_smooth / Btotal_smooth
+    
+    
+    # # ###
+    # # ### PULL RADIAL VECTOR DATA AND DEFINE PERPENDICULAR VECTOR DIRECTIONS
+    # # ###
+    
+    # ephem_time = TEMP_Rx.property(QDataSet.DEPEND_0)
+    # ephem_to_mag_ratio = findex(ephem_time,mag_time)
+    
+    # TEMP_Rx = interpolate( TEMP_Rx, ephem_to_mag_ratio )
+    # TEMP_Ry = interpolate( TEMP_Ry , ephem_to_mag_ratio )
+    # TEMP_Rz = interpolate( TEMP_Rz , ephem_to_mag_ratio )
+    
+    # TEMP_Rmag = sqrt(TEMP_Rx**2 + TEMP_Ry**2 + TEMP_Rz**2)
+    
+    # Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
+    # Ry = -(TEMP_Ry/TEMP_Rmag) 
+    # Rz = -(TEMP_Rz/TEMP_Rmag) 
+    
+    # TEMP_Px = ( Ny * Rz ) - ( Nz * Ry )
+    # TEMP_Py = ( Nz * Rx ) - ( Nx * Rz )
+    # TEMP_Pz = ( Nx * Ry ) - ( Ny * Rx )
+    
+    # Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
+        
+    # Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction
+    # Py = TEMP_Py / Pmag
+    # Pz = TEMP_Pz / Pmag
+    
+    # del( [ TEMP_Px , TEMP_Py , TEMP_Pz , Pmag ] )
+        
+    # Qx = -( Py * Nz ) + ( Pz * Ny ) # N x P ~radial - positive is outward
+    # Qy = -( Pz * Nx ) + ( Px * Nz )
+    # Qz = -( Px * Ny ) + ( Py * Nx )
+    
+    
+    # # ###
+    # # ### TRANSFORM MAG DATA INTO FIELD-ALIGNED COORDINATES
+    # # ###
+    
+    # Bn = (Bx * Nx) + (By * Ny) + (Bz * Nz)
+    # Bp = (Bx * Px) + (By * Py) + (Bz * Pz)
+    # Bq = (Bx * Qx) + (By * Qy) + (Bz * Qz)
    
-    #This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
-    r = where(lt( ((kx * Nx_fftarray) + (ky* Ny_fftarray) + (kz * Nz_fftarray)) , 0 ))
-    kx[r] = -kx[r]
-    ky[r] = -ky[r]
-    kz[r] = -kz[r]
+    # Nx = round(Nx,3)
+    # Ny = round(Ny,3)
+    # Nz = round(Nz,3)     
+    
+    # Px = round(Px,3)
+    # Py = round(Py,3)
+    # Pz = round(Pz,3) 
+    
+    # Qx = round(Qx,3)
+    # Qy = round(Qy,3)
+    # Qz = round(Qz,3)           
+                    
+    # ###
+    # ### ADD LABELS AND UNITS AND STUFF, RETURN RESULTS
+    # ###
+    
+    # Bn.putProperty(QDataSet.LABEL,'B!B||!N')
+    # Bn.putProperty(QDataSet.NAME,'B!B||!N')
+# #    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
+# #    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
+# #    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
+# #    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
+    # Bp.putProperty(QDataSet.LABEL,'B!B&perp;x!N')
+    # Bp.putProperty(QDataSet.NAME,'B!B&perp;x!N')
+    # Bq.putProperty(QDataSet.LABEL,'B!B&perp;y!N')
+    # Bq.putProperty(QDataSet.NAME,'B!B&perp;y!N')
+    # Btotal.putProperty(QDataSet.LABEL,'|B|')
+    # Btotal.putProperty(QDataSet.NAME,'|B|')
+    
+    
+    # return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+    
+    
+
+
+
+# ############################################################################
+
+
+        
+# def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
+    # """Polarization analysis performed on spectral components based on [Means 1972].
+    
+    # Parameters:
+        # Bn_fft = rank3 fft of field-aligned magnetic component.
+        # Bp_fft = rank3 fft of first perpendicular magnetic component.
+        # Bq_fft = rank3 fft of second perpendicular magnetic component.
+        # Nx = rank1 X component of magnetic field direction in B_fft coordinate system.
+        # Ny = rank1 Y component of magnetic field direction in B_fft coordinate system.
+        # Nz = rank1 Z component of magnetic field direction in B_fft coordinate system.
+        # wave_power_min = minimum value of wave power at which to keep returned components (all lower values discarded).
+    
+    # Returns:
+        # Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization"""
+         
+    # # ###
+    # # ### RUN POLARIZATION ANALYSIS
+    # # ###
+  
+    # ###
+    # ### DEFINE J_PRIME (INPUT) MATRIX ELEMENTS
+    # ###
+
+    # monitor.setProgressMessage('Defining J-Prime Matrix Components')
+
+    # Jxx_prime = ( (Bp_fft[:,:,0]*Bp_fft[:,:,0]) + (Bp_fft[:,:,1]*Bp_fft[:,:,1]) )
+    # Jyy_prime = ( (Bq_fft[:,:,0]*Bq_fft[:,:,0]) + (Bq_fft[:,:,1]*Bq_fft[:,:,1]) )
+    # Jzz_prime = ( (Bn_fft[:,:,0]*Bn_fft[:,:,0]) + (Bn_fft[:,:,1]*Bn_fft[:,:,1]) )
+
+    # Jxy_prime_real = ( (Bp_fft[:,:,0]*Bq_fft[:,:,0]) + (Bp_fft[:,:,1]*Bq_fft[:,:,1]) )
+    # Jxy_prime_img = ( (Bq_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bq_fft[:,:,1]) )
+
+    # Jxz_prime_real = ( (Bp_fft[:,:,0]*Bn_fft[:,:,0]) + (Bp_fft[:,:,1]*Bn_fft[:,:,1]) )
+    # Jxz_prime_img = ( (Bn_fft[:,:,0]*Bp_fft[:,:,1]) - (Bp_fft[:,:,0]*Bn_fft[:,:,1]) )
+
+    # Jyz_prime_real = ( (Bn_fft[:,:,0]*Bq_fft[:,:,0]) + (Bn_fft[:,:,1]*Bq_fft[:,:,1]) )
+    # Jyz_prime_img = ( (Bq_fft[:,:,0]*Bn_fft[:,:,1]) - (Bn_fft[:,:,0]*Bq_fft[:,:,1]) )
+
+    # fft_time = Jxx_prime.property(QDataSet.DEPEND_0)
+    # frequency_axis = Jxx_prime.property(QDataSet.DEPEND_1)
+
+
+
+    # ###
+    # ### DEFINE K-HAT VECTOR (MEANS - IMAGINARY COMPONENTS)
+    # ###
+
+    # monitor.setProgressMessage('Finding Wave-Normal Direction (Means)')
+
+    # img_mag = sqrt( Jxy_prime_img**2 + Jxz_prime_img**2 + Jyz_prime_img**2 )
+
+    # kx = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
+    # ky = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
+    # kz = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
+    # trace = dblarr( len(Jxx_prime[:,1]) , len(Jxx_prime[1,:]) )
+
+    # trace = Jxx_prime + Jyy_prime + Jzz_prime
+    # r = where(lt(abs(img_mag) , 1E-5))
+    # kx[r] = sqrt( Jxx_prime[r] / trace[r] )
+    # ky[r] = Jxy_prime_real[r] / ( trace[r] * Jxx_prime[r] )
+    # kz[r] = Jxz_prime_real[r] / ( trace[r] * Jxx_prime[r] )
+
+    # r0 = where(ge(abs(img_mag) , 1E-5))
+    # kx[r0] = Jyz_prime_img[r0] / img_mag[r0]
+    # ky[r0] = -Jxz_prime_img[r0] / img_mag[r0]
+    # kz[r0] = Jxy_prime_img[r0] / img_mag[r0]
+
+    # trace.putProperty ( QDataSet.DEPEND_0 , fft_time )
+    # trace.putProperty ( QDataSet.DEPEND_1 , frequency_axis )
+    
+    # del ( img_mag )
+
+    # lowering_ratio = findex( Nx.property( QDataSet.DEPEND_0 ) , fft_time )
+
+    # Nx_fftcadence = interpolate ( Nx , lowering_ratio )
+    # Ny_fftcadence = interpolate ( Ny , lowering_ratio )
+    # Nz_fftcadence = interpolate ( Nz , lowering_ratio )
+
+    # Nx_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    # Ny_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    # Nz_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+
+    # for j in xrange( len( kx[1,:] ) ): # magnetic field direction is same at all times, so turn vector into an array where DEPEND_1 is constant
+          # Nx_fftarray[:,j] = Nx_fftcadence
+          # Ny_fftarray[:,j] = Ny_fftcadence
+          # Nz_fftarray[:,j] = Nz_fftcadence
+
+    # del ( [ Nx_fftcadence , Ny_fftcadence , Nz_fftcadence ] )
+
+    # Nx_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
+    # Nx_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    # Ny_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
+    # Ny_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
+    # Nz_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
+    # Nz_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
+   
+    # #This is necessary because the direction of k is not the same as the direction of the wave-normal, it will depend on |B| (Look up the Means paper if confused, this took a while to understand)
+    # r = where(lt( ((kx * Nx_fftarray) + (ky* Ny_fftarray) + (kz * Nz_fftarray)) , 0 ))
+    # kx[r] = -kx[r]
+    # ky[r] = -ky[r]
+    # kz[r] = -kz[r]
                 
-    ###
-    ### DEFINE WAVE-NORMAL COORDINATES AND ROTATE J-PRIME - DEFINE J MATRIX IN _|_ DIRECTIONS
-    ###
+    # ###
+    # ### DEFINE WAVE-NORMAL COORDINATES AND ROTATE J-PRIME - DEFINE J MATRIX IN _|_ DIRECTIONS
+    # ###
 
-    monitor.setProgressMessage('Creating Wave-Normal Coordinate System')
+    # monitor.setProgressMessage('Creating Wave-Normal Coordinate System')
      
-    theta = acos( kx*Nx_fftarray + ky*Ny_fftarray + kz*Nz_fftarray )
-    factor = sin( theta )
+    # theta = acos( kx*Nx_fftarray + ky*Ny_fftarray + kz*Nz_fftarray )
+    # factor = sin( theta )
     
-    r = where(gt(theta , (PI/2)))
-    theta[r] = PI - theta[r]
+    # r = where(gt(theta , (PI/2)))
+    # theta[r] = PI - theta[r]
 
-    Rx = ((ky * Nz_fftarray) - (kz * Ny_fftarray)) / factor # R_hat = k_hat x N_hat so is perpendicular to plane of wave normal and magnetic field
-    Ry = ((kz * Nx_fftarray) - (kx * Nz_fftarray)) / factor
-    Rz = ((kx * Ny_fftarray) - (ky * Nx_fftarray)) / factor
+    # Rx = ((ky * Nz_fftarray) - (kz * Ny_fftarray)) / factor # R_hat = k_hat x N_hat so is perpendicular to plane of wave normal and magnetic field
+    # Ry = ((kz * Nx_fftarray) - (kx * Nz_fftarray)) / factor
+    # Rz = ((kx * Ny_fftarray) - (ky * Nx_fftarray)) / factor
 
-    Sx = (Ry * kz) - (Rz * ky)# S_hat = R_hat x k_hat so is in plane of wave normal and magnetic field
-    Sy = (Rz * kx) - (Rx * kz)
-    Sz = (Rx * ky) - (Ry * kx)
+    # Sx = (Ry * kz) - (Rz * ky)# S_hat = R_hat x k_hat so is in plane of wave normal and magnetic field
+    # Sy = (Rz * kx) - (Rx * kz)
+    # Sz = (Rx * ky) - (Ry * kx)
 
-    Jxx = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Jyy = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Jzz = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Jxy_real = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Jxy_img = dblarr( len( kx[:,1] ) , len( kx[1,:] ) ) 
+    # Jxx = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    # Jyy = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    # Jzz = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    # Jxy_real = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    # Jxy_img = dblarr( len( kx[:,1] ) , len( kx[1,:] ) ) 
 
-    monitor.setProgressMessage('Rotating J-Prime into Wave-Normal')
+    # monitor.setProgressMessage('Rotating J-Prime into Wave-Normal')
 
-    ###
-    ### BELOW ROTATION VECTOR TAKES UNIT VECTORS  AS COLUMNS  - correct, at least on paper I think
-    ###
+    # ###
+    # ### BELOW ROTATION VECTOR TAKES UNIT VECTORS  AS COLUMNS  - correct, at least on paper I think
+    # ###
 
-#    Jxx = (Jxx_prime * (Rx**2)) + (Jyy_prime * (Sx**2)) + (Jzz_prime * (kx**2)) + 2*(Jxy_prime_real*Rx*Sx + Jxz_prime_real*Rx*kx + Jyz_prime_real*Sx*kx) # THIS IS WRONG... It fucked up a lot of things and results from taking [J]=[r][J'][r]^-1 instead of [J]=[r]^-1[J'][r] (or vice versa, I can't remember now)
-#    Jyy = (Jxx_prime * (Ry**2)) + (Jyy_prime * (Sy**2)) + (Jzz_prime * (ky**2)) + 2*(Jxy_prime_real*Ry*Sy + Jxz_prime_real*Ry*ky + Jyz_prime_real*Sy*ky)
-#    Jzz = (Jxx_prime * (Rz**2)) + (Jyy_prime * (Sz**2)) + (Jzz_prime * (kz**2)) + 2*(Jxy_prime_real*Rz*Sz + Jxz_prime_real*Rz*kz + Jyz_prime_real*Sz*kz)
+# #    Jxx = (Jxx_prime * (Rx**2)) + (Jyy_prime * (Sx**2)) + (Jzz_prime * (kx**2)) + 2*(Jxy_prime_real*Rx*Sx + Jxz_prime_real*Rx*kx + Jyz_prime_real*Sx*kx) # THIS IS WRONG... It fucked up a lot of things and results from taking [J]=[r][J'][r]^-1 instead of [J]=[r]^-1[J'][r] (or vice versa, I can't remember now)
+# #    Jyy = (Jxx_prime * (Ry**2)) + (Jyy_prime * (Sy**2)) + (Jzz_prime * (ky**2)) + 2*(Jxy_prime_real*Ry*Sy + Jxz_prime_real*Ry*ky + Jyz_prime_real*Sy*ky)
+# #    Jzz = (Jxx_prime * (Rz**2)) + (Jyy_prime * (Sz**2)) + (Jzz_prime * (kz**2)) + 2*(Jxy_prime_real*Rz*Sz + Jxz_prime_real*Rz*kz + Jyz_prime_real*Sz*kz)
 
-    Jxx = (Jxx_prime * (Rx**2)) + (Jyy_prime * (Ry**2)) + (Jzz_prime * (Rz**2)) + 2*(Jxy_prime_real*Rx*Ry + Jxz_prime_real*Rx*Rz + Jyz_prime_real*Ry*Rz)
-    Jyy = (Jxx_prime * (Sx**2)) + (Jyy_prime * (Sy**2)) + (Jzz_prime * (Sz**2)) + 2*(Jxy_prime_real*Sx*Sy + Jxz_prime_real*Sx*Sz + Jyz_prime_real*Sy*Sz)
-    Jzz = (Jxx_prime * (kx**2)) + (Jyy_prime * (ky**2)) + (Jzz_prime * (kz**2)) + 2*(Jxy_prime_real*kx*ky + Jxz_prime_real*kx*kz + Jyz_prime_real*ky*kz)
+    # Jxx = (Jxx_prime * (Rx**2)) + (Jyy_prime * (Ry**2)) + (Jzz_prime * (Rz**2)) + 2*(Jxy_prime_real*Rx*Ry + Jxz_prime_real*Rx*Rz + Jyz_prime_real*Ry*Rz)
+    # Jyy = (Jxx_prime * (Sx**2)) + (Jyy_prime * (Sy**2)) + (Jzz_prime * (Sz**2)) + 2*(Jxy_prime_real*Sx*Sy + Jxz_prime_real*Sx*Sz + Jyz_prime_real*Sy*Sz)
+    # Jzz = (Jxx_prime * (kx**2)) + (Jyy_prime * (ky**2)) + (Jzz_prime * (kz**2)) + 2*(Jxy_prime_real*kx*ky + Jxz_prime_real*kx*kz + Jyz_prime_real*ky*kz)
 
-    Jxy_real = Jxx_prime*Rx*Ry + Jyy_prime*Sx*Sy + Jzz_prime*kx*ky + Jxy_prime_real*(Rx*Sy + Sx*Ry) + Jxz_prime_real*(Rx*ky + Ry*kx) + Jyz_prime_real*(ky*Sx + Sy*kx) # These two parts of the rotation are the same no matter what
-    Jxy_img = Jxy_prime_img*(Rx*Sy - Sx*Ry) + Jxz_prime_img*(Rx*ky - kx*Ry) + Jyz_prime_img*(ky*Sx - Sy*kx)
+    # Jxy_real = Jxx_prime*Rx*Ry + Jyy_prime*Sx*Sy + Jzz_prime*kx*ky + Jxy_prime_real*(Rx*Sy + Sx*Ry) + Jxz_prime_real*(Rx*ky + Ry*kx) + Jyz_prime_real*(ky*Sx + Sy*kx) # These two parts of the rotation are the same no matter what
+    # Jxy_img = Jxy_prime_img*(Rx*Sy - Sx*Ry) + Jxz_prime_img*(Rx*ky - kx*Ry) + Jyz_prime_img*(ky*Sx - Sy*kx)
 
-    Wave_Power = Jxx + Jyy
+    # Wave_Power = Jxx + Jyy
 
-    del ( [ factor , kx , ky , kz , Nx , Ny , Nz , Rx , Ry , Rz , Sx , Sy , Sz , Jxy_prime_real , Jxz_prime_real , Jyz_prime_real , Jxy_prime_img , Jxz_prime_img , Jyz_prime_img ] )
+    # del ( [ factor , kx , ky , kz , Nx , Ny , Nz , Rx , Ry , Rz , Sx , Sy , Sz , Jxy_prime_real , Jxz_prime_real , Jyz_prime_real , Jxy_prime_img , Jxz_prime_img , Jyz_prime_img ] )
 
-    ###
-    ### SMOOTHING OVER FREQUENCY BINS (NECESSARY FOR POLARIZATION COMPARISON ANALYSIS)
-    ###
+    # ###
+    # ### SMOOTHING OVER FREQUENCY BINS (NECESSARY FOR POLARIZATION COMPARISON ANALYSIS)
+    # ###
 
-    monitor.setProgressMessage('Smoothing Across Frequency Bins')
+    # monitor.setProgressMessage('Smoothing Across Frequency Bins')
     
-    if ( len( Jxx[1,:] ) < 5 ):
-          freq_avg = 3 #number of frequency bins to average over for polarization, must be odd (is 5 too much? Its is what is in Means paper)
-    else:
-          freq_avg = 5
+    # if ( len( Jxx[1,:] ) < 5 ):
+          # freq_avg = 3 #number of frequency bins to average over for polarization, must be odd (is 5 too much? Its is what is in Means paper)
+    # else:
+          # freq_avg = 5
 
-    Jxx      = smooth1(Jxx     ,freq_avg)
-    Jyy      = smooth1(Jyy     ,freq_avg)
-    Jzz      = smooth1(Jzz     ,freq_avg)
-    Jxy_real = smooth1(Jxy_real,freq_avg)
-    Jxy_img  = smooth1(Jxy_img ,freq_avg)
+    # Jxx      = smooth1(Jxx     ,freq_avg)
+    # Jyy      = smooth1(Jyy     ,freq_avg)
+    # Jzz      = smooth1(Jzz     ,freq_avg)
+    # Jxy_real = smooth1(Jxy_real,freq_avg)
+    # Jxy_img  = smooth1(Jxy_img ,freq_avg)
     
-    putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_0, fft_time )
-    putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_1, frequency_axis )
+    # putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_0, fft_time )
+    # putProps( [ Jxx, Jyy, Jzz, Jxy_real, Jxy_img, theta  ], QDataSet.DEPEND_1, frequency_axis )
 
     
-    J_det =  ( Jxx*Jyy - (Jxy_real*Jxy_real + Jxy_img*Jxy_img) )
+    # J_det =  ( Jxx*Jyy - (Jxy_real*Jxy_real + Jxy_img*Jxy_img) )
 
-    ###
-    ### POWER IN MAGNETIC FIELD DIRECTIONS
-    ###
+    # ###
+    # ### POWER IN MAGNETIC FIELD DIRECTIONS
+    # ###
 
-    #monitor.setProgressMessage('Defining Wave Intensity')
+    # #monitor.setProgressMessage('Defining Wave Intensity')
 
-    Power_compressional = Jzz_prime
-    Power_perp = sqrt(Jxx**2 + Jyy**2) 
-    #Power_transverse = Jxx_prime + Jyy_prime # upon recommendation from Chuck, this is the wave intensity rather than magnitude of diagonal elements
+    # Power_compressional = Jzz_prime
+    # Power_perp = sqrt(Jxx**2 + Jyy**2) 
+    # #Power_transverse = Jxx_prime + Jyy_prime # upon recommendation from Chuck, this is the wave intensity rather than magnitude of diagonal elements
          
          
-    ###
-    ### DEFINE POLARIZATION PARAMETERS USING J MATRIX
-    ###
+    # ###
+    # ### DEFINE POLARIZATION PARAMETERS USING J MATRIX
+    # ###
           
-    #monitor.setProgressMessage('Calculating Degree of Polarization')
-    Deg_Polarization = sqrt ( 1 - ( (4 * J_det) / ( (Jxx + Jyy)**2 ) ) )
-    Deg_Polarization.putProperty ( QDataSet.VALID_MIN , 0 )
+    # #monitor.setProgressMessage('Calculating Degree of Polarization')
+    # Deg_Polarization = sqrt ( 1 - ( (4 * J_det) / ( (Jxx + Jyy)**2 ) ) )
+    # Deg_Polarization.putProperty ( QDataSet.VALID_MIN , 0 )
 
-    #monitor.setProgressMessage('Calculating Coherency')
-    Coherency = sqrt( (Jxy_real*Jxy_real + Jxy_img*Jxy_img) / (Jxx * Jyy) )
-    Coherency.putProperty ( QDataSet.VALID_MIN , 0 )
+    # #monitor.setProgressMessage('Calculating Coherency')
+    # Coherency = sqrt( (Jxy_real*Jxy_real + Jxy_img*Jxy_img) / (Jxx * Jyy) )
+    # Coherency.putProperty ( QDataSet.VALID_MIN , 0 )
 
-    Angle_Polarization = toDegrees( 0.5 * atan((2 * Jxx) / (Jxx - Jyy)) ) # sure Jxx isn't supposed to be Jxy_real?
+    # Angle_Polarization = toDegrees( 0.5 * atan((2 * Jxx) / (Jxx - Jyy)) ) # sure Jxx isn't supposed to be Jxy_real?
 
-    monitor.setProgressMessage('Calculating Ellipticity and Handedness')
-    Handedness = ( (1 * (2 * Jxy_img) / sqrt( (Jxx + Jyy)**2 - (4 * J_det) ) ))
-    Ellipticity = ( tan ( 0.5 * asin( Handedness ) ))
-    Ellipticity.putProperty ( QDataSet.VALID_MIN , -1 )
+    # monitor.setProgressMessage('Calculating Ellipticity and Handedness')
+    # Handedness = ( (1 * (2 * Jxy_img) / sqrt( (Jxx + Jyy)**2 - (4 * J_det) ) ))
+    # Ellipticity = ( tan ( 0.5 * asin( Handedness ) ))
+    # Ellipticity.putProperty ( QDataSet.VALID_MIN , -1 )
 
-    monitor.setProgressMessage('Definining Wave-Normal angle relative to |B|')
-    Angle_Normal = toDegrees( theta )
-    Angle_Normal.putProperty ( QDataSet.VALID_MIN , 0 )
+    # monitor.setProgressMessage('Definining Wave-Normal angle relative to |B|')
+    # Angle_Normal = toDegrees( theta )
+    # Angle_Normal.putProperty ( QDataSet.VALID_MIN , 0 )
     
     
-    del ( [ Jxx , Jyy , Jzz , Jxy_real , Jxy_img , theta ] )
+    # del ( [ Jxx , Jyy , Jzz , Jxy_real , Jxy_img , theta ] )
 
 
-    ###
-    ### ONLY KEEPING TERMS WITH WAVE POWER ASSOCIATED
-    ###
+    # ###
+    # ### ONLY KEEPING TERMS WITH WAVE POWER ASSOCIATED
+    # ###
     
-    monitor.setProgressMessage('Throwing out Values of Low Wave Power')
-    if ( wave_power_min > 0 ): # this executes a step function zero-ing out spectra where there are no waves (to make it easier to see what is happening) 
-        r = where(lt(Wave_Power,wave_power_min))
-        Angle_Normal[r] = -1
-        Ellipticity[r]  = -2
-        Coherency[r]    = -1
+    # monitor.setProgressMessage('Throwing out Values of Low Wave Power')
+    # if ( wave_power_min > 0 ): # this executes a step function zero-ing out spectra where there are no waves (to make it easier to see what is happening) 
+        # r = where(lt(Wave_Power,wave_power_min))
+        # Angle_Normal[r] = -1
+        # Ellipticity[r]  = -2
+        # Coherency[r]    = -1
 
     
-    ###
-    ### SPIT OUT RESULTS
-    ###
+    # ###
+    # ### SPIT OUT RESULTS
+    # ###
     
-    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization , Wave_Power , Power_compressional , Power_perp) 
+    # return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization , Wave_Power , Power_compressional , Power_perp) 
 
 
 
 
-# ############################################################################################
+# # ############################################################################################
 
-def Hanningfft( ds , freq_min , freq_max , window , slide ):
-    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+# def Hanningfft( ds , freq_min , freq_max , window , slide ):
+    # """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
     
-    Parameters:
-        ds = The rank1 time-series input data.
-        freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
-        freq_max = Upper end of frequency range.
-        window = Length of window to be taken measured in number of data points.
-        slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
+    # Parameters:
+        # ds = The rank1 time-series input data.
+        # freq_min = Lower end of frequency range to be preserved (excess thrown out to speed up subsequent processing).
+        # freq_max = Upper end of frequency range.
+        # window = Length of window to be taken measured in number of data points.
+        # slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
         
-    Returns:
-        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+    # Returns:
+        # waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
     
-    ds_time = ds.property(QDataSet.DEPEND_0)
+    # ds_time = ds.property(QDataSet.DEPEND_0)
     
-    ds_cadence = convertUnitsTo((ds_time[1]-ds_time[0]),Units.seconds)
-    per_sec = int(1./ds_cadence)
+    # ds_cadence = convertUnitsTo((ds_time[1]-ds_time[0]),Units.seconds)
+    # per_sec = int(1./ds_cadence)
     
-    processed_ds = hanning(ds,window)
+    # processed_ds = hanning(ds,window)
 
-    for i in xrange( slide ):
-        try:
-            processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
-        except( java.lang.ArrayIndexOutOfBoundsException ):
-            pass
+    # for i in xrange( slide ):
+        # try:
+            # processed_ds = trim_it_merge_it(ds,ds_time,processed_ds,window,window*(i+1)/slide)
+        # except( java.lang.ArrayIndexOutOfBoundsException ):
+            # pass
 
-    TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
+    # TEMP_waveform_fft = dblarr( len(processed_ds[:,0]) , len(processed_ds[0,:]) , 2 )
 
-    for i in xrange( len(processed_ds[:,0]) ):
-        processed_ds_fft = 2 * fft( processed_ds[i,:] )
-        TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/per_sec) / 1.725
+    # for i in xrange( len(processed_ds[:,0]) ):
+        # processed_ds_fft = 2 * fft( processed_ds[i,:] )
+        # TEMP_waveform_fft[i,:,:] = processed_ds_fft * sqrt(float(window)/per_sec) / 1.725
 
-    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , processed_ds.property(QDataSet.DEPEND_0) )
-    TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , processed_ds_fft[:,0].property(QDataSet.DEPEND_0)*per_sec )
-    TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
+    # TEMP_waveform_fft.putProperty( QDataSet.DEPEND_0 , processed_ds.property(QDataSet.DEPEND_0) )
+    # TEMP_waveform_fft.putProperty( QDataSet.DEPEND_1 , processed_ds_fft[:,0].property(QDataSet.DEPEND_0)*per_sec )
+    # TEMP_waveform_fft.property(QDataSet.DEPEND_1).putProperty( QDataSet.UNITS , Units.hertz )
 
-    frequency_range = where( TEMP_waveform_fft.property(QDataSet.DEPEND_1).ge(freq_min).and(TEMP_waveform_fft.property(QDataSet.DEPEND_1).le(freq_max)) )
-    waveform_fft = TEMP_waveform_fft[:,frequency_range,:]
-    waveform_fft.putProperty( QDataSet.DEPEND_1 , TEMP_waveform_fft.property(QDataSet.DEPEND_1)[frequency_range] )
-    del ( TEMP_waveform_fft )
+    # frequency_range = where( TEMP_waveform_fft.property(QDataSet.DEPEND_1).ge(freq_min).and(TEMP_waveform_fft.property(QDataSet.DEPEND_1).le(freq_max)) )
+    # waveform_fft = TEMP_waveform_fft[:,frequency_range,:]
+    # waveform_fft.putProperty( QDataSet.DEPEND_1 , TEMP_waveform_fft.property(QDataSet.DEPEND_1)[frequency_range] )
+    # del ( TEMP_waveform_fft )
     
-    uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
-    waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
-    waveform_fft = waveform_fft[uniqueness,:,:]
-    waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
+    # uniqueness = uniq( waveform_fft.property(QDataSet.DEPEND_0) )
+    # waveform_fft_time = waveform_fft.property(QDataSet.DEPEND_0)[uniqueness]
+    # waveform_fft = waveform_fft[uniqueness,:,:]
+    # waveform_fft.putProperty( QDataSet.DEPEND_0 , waveform_fft_time )
     
-    return ( waveform_fft )
+    # return ( waveform_fft )
         
 
-# ############################################################################################
+# # ############################################################################################
 
 def HanningfftNoTrim( ds , freq_min , freq_max , window , slide ):
     """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
@@ -514,40 +570,48 @@ def HanningfftNoTrim( ds , freq_min , freq_max , window , slide ):
 
 # ############################################################################################ 
 
-def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
-    """Used in conjunction with Hanningfft to create the sliding window function
+# def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    # """Used in conjunction with Hanningfft to create the sliding window function
     
-    Parameters:
-        ds = The rank1 time-series input data.
-        ds_time = Timestamps for input data (not sure why I don't just use the associated timestamps)
-        processed_ds = Previously processed data that will be merged with this pass of sliding function
-        window = Length of window to be taken measured in number of data points.
-        leading_points = Number of points to skip forward in dataset (defined by window size and slide value)
+    # Parameters:
+        # ds = The rank1 time-series input data.
+        # ds_time = Timestamps for input data (not sure why I don't just use the associated timestamps)
+        # processed_ds = Previously processed data that will be merged with this pass of sliding function
+        # window = Length of window to be taken measured in number of data points.
+        # leading_points = Number of points to skip forward in dataset (defined by window size and slide value)
         
-    Returns:
-        result = Dataset advanced by slide parameter with window function applied merged into previously processed data."""
+    # Returns:
+        # result = Dataset advanced by slide parameter with window function applied merged into previously processed data."""
     
-    ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    # ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
     
-    trimmed_ds = trim(ds,int(leading_points),int(len(ds)))
-    trimmed_ds.putProperty( QDataSet.DEPEND_0 , trim(ds_time,int(leading_points),int(len(ds))) )
+    # trimmed_ds = trim(ds,int(leading_points),int(len(ds)))
+    # trimmed_ds.putProperty( QDataSet.DEPEND_0 , trim(ds_time,int(leading_points),int(len(ds))) )
     
-    processed_ds_too = hanning( trimmed_ds , window )
-    processed_ds_too.putProperty( QDataSet.DEPEND_1 , ds.property(QDataSet.DEPEND_1) )
+    # processed_ds_too = hanning( trimmed_ds , window )
+    # processed_ds_too.putProperty( QDataSet.DEPEND_1 , ds.property(QDataSet.DEPEND_1) )
     
-    processed_ds_time = processed_ds.property( QDataSet.DEPEND_0 )
-    processed_ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
-    processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
+    # processed_ds_time = processed_ds.property( QDataSet.DEPEND_0 )
+    # processed_ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
+    # processed_ds.putProperty( QDataSet.DEPEND_0 , processed_ds_time )
     
-    result = merge( processed_ds , processed_ds_too )
+    # result = merge( processed_ds , processed_ds_too )
     
-    return( result )
+    # return( result )
 
 
 # ############################################################################################
 # ############################################################################################
+
+
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
 
 import sys
+import java
 try:
     if useLocalSubprocesses == True:
         raise stopLookingOnlineException
@@ -556,8 +620,8 @@ try:
     get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
     
-    Poynting_Flux = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
-    execfile( Poynting_Flux.toString() )
+    #Poynting_Flux = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    #execfile( Poynting_Flux.toString() )
     
     Polarization_Means = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
     execfile( Polarization_Means.toString() )
@@ -575,8 +639,8 @@ except:
     get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
     
-    Poynting_Flux = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
-    execfile( Poynting_Flux.toString() )
+    #Poynting_Flux = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    #execfile( Poynting_Flux.toString() )
     
     Polarization_Means = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
     execfile( Polarization_Means.toString() )
@@ -586,40 +650,19 @@ except:
     
     field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
+    print 'HERE'
     
     
 # ############################################################################################
 # ############################################################################################
 
 
-scrollingPlots    = True  # True spits out polarization plots by scrolling through data 
-timerange         = '2018-10-01 through 2019-06-15'
-
-freq_min          = 0.2    # Minimum frequency kept for analysis
-freq_max          = 8.     # Maximum frequency kept for analysis (cutting out unwanted data helps speed things up)
-window            = 2048   # Number of points for FFT window -> TODO: change this to seconds?
-slide             = 4      # Amount of overlap if sliding window (2=1/2, 4=3/4, 8=7/8, etc.)
-
-wave_power_min    = 0.07   # Minimum amount of wave power in (nT^2/Hz) to keep for analysis (set to 0 to skip)
-
-trend_seconds     = 10     # Number of seconds over which to average magField to determine background field direction
-
-logyn             = 'T'    # Display the frequency axis logarithmically, 'T' or 'F'?
-output_dir        = '/home/kpaulson/Research/PSP/Wave_Polarization/'      # Local directory for image/file storage
-write_stuff       = True   # Write the results to a cdf file in addition to the plot
-
-    
-
 # ############################################################################################
 # ############################################################################################
 
 # ############################################################################################
 # ############################################################################################
 
-import java
-
-power_min         = wave_power_min
-power_max         = 1E2
 
 
 if scrollingPlots == True:
@@ -833,7 +876,7 @@ if scrollingPlots == True:
                 # ###
                 
                 
-                if write_stuff == True:
+                if writeStuff == True:
                     
                     monitor.setProgressMessage('Writing to File')
                     
@@ -902,16 +945,36 @@ elif scrollingPlots == False:
     #tr = dds[ind]+' to '+str(dds[ind+1])
     tr = timerange
 
-
-    mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-    mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
     
+    if useLocalFiles == True:
+        cfa_sweap_file  = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+        #mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+        mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+        efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    else:
+        cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+        #mag_datafile    = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+        mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+        efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+                   
+    try:
+        title_warning = ''
+        mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
+        efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+    except:
+        title_warning = '  - Uncalibrated Fields Data'
+        mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+        efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+        mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
+        efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+    print 'mag data used:',mag_datafile
+     
     #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
-    mag = trim(mag,tr)
+    mag = trim(mag_data,tr)
     
     mag_time = mag.property(QDataSet.DEPEND_0)
     
-    pos = getDataSet('http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+    pos = getDataSet(cfa_sweap_file+'?sc_pos_HCI',tr)
     pos_time = pos.property(QDataSet.DEPEND_0)
     
     Bx = mag[:,0]
@@ -930,8 +993,8 @@ elif scrollingPlots == False:
     TEMP_Ry = pos[:,1]
     TEMP_Rz = pos[:,2]
     
-    TEMP_Rx = ones(len(pos))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
-    TEMP_Ry = zeros(len(pos))
+    TEMP_Rx = zeros(len(pos))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
+    TEMP_Ry = ones(len(pos))
     TEMP_Rz = zeros(len(pos))
     TEMP_Rx.putProperty(QDataSet.DEPEND_0,pos_time)
     TEMP_Ry.putProperty(QDataSet.DEPEND_0,pos_time)
@@ -1090,8 +1153,7 @@ elif scrollingPlots == False:
     # ### WRITE STUFF
     # ###
     
-    write_stuff = False
-    if write_stuff == True:
+    if writeStuff == True:
         
         monitor.setProgressMessage('Writing to File')
         

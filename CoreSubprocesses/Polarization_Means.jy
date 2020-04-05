@@ -1,4 +1,10 @@
-# ############################################################################################
+#############################################################################################   
+        
+def putProps( dss, name='DEPEND_0', value=None ):
+    for ds in dss:
+        ds.putProperty( name, value )
+
+#############################################################################################  
         
 def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     """Polarization analysis performed on spectral components based on [Means 1972].

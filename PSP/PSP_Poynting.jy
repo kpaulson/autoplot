@@ -98,8 +98,17 @@ else:
 # ### DOWNLOAD DATA AND INTERPOLATE
 # ###
 
-mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
-efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+try:
+    title_warning = ''
+    mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
+    efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+except:
+    title_warning = '  - Uncalibrated Fields Data'
+    mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+    mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
+    efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+print 'mag data used:',mag_datafile
 
 mag_data = trim(mag_data,timerange)
 mag_time = mag_data.property(QDataSet.DEPEND_0)
@@ -179,7 +188,7 @@ frequency_axis = Bn_fft.property(QDataSet.DEPEND_1)
 # ### PLOT STUFF
 # ###
     
-plot(0, Smag, xrange=timerange, colorTable='apl_rainbow_black0', ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})')  
+plot(0, Smag, xrange=timerange, title='PSP Poynting Flux'+title_warning, colorTable='apl_rainbow_black0', ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})')  
 #plot(1, Poynting_theta) 
 #plot(2, Poynting_phi)   
 plot(1, Sn, colorTable='blue_white_red', ztitle='Sn (along B)') 

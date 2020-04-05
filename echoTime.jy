@@ -1,2 +1,0 @@
-tr= getParam( 'timerange', '2014-01-09', 'timerange to load' )
-print tr

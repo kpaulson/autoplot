@@ -6,7 +6,7 @@
 ############################################################################
 
 scrollingPlots    = False  # True spits out polarization plots by scrolling through data 
-timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
+timerange = getParam('timerange','2019-04-01 02:45 to 03:25','Timerange over which to calculate Poynting Flux')
 
 freq_min       = getParam('minFrequency', 0.3,  'Lower frequency bound of analysis (Hz)')
 freq_max       = getParam('maxFrequency', 9.,  'Upper frequency bound of analysis (Hz)')
@@ -650,7 +650,6 @@ except:
     
     field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
-    print 'HERE'
     
     
 # ############################################################################################
@@ -1029,8 +1028,8 @@ elif scrollingPlots == False:
     
     monitor.setProgressMessage('Running Polarization')
 
-    ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization , Wave_Power) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min )
-    
+    ( Handedness, Ellipticity, Angle_Normal, Deg_Polarization, Coherency, Angle_Polarization, Power_compressional, Power_perp ) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min )
+    Wave_Power = Power_perp
     
     # ###
     # ### PREPARE STUFF

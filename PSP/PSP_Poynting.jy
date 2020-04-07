@@ -15,7 +15,7 @@ slide         = getParam('slideFactor',  8,    'Reciprocal of fraction of non-ov
 trend_seconds = getParam('trendSeconds', 30,   'Number of seconds used to identify the background magnetic field')
 poynting_min  = getParam('poyntingMin',  1E-4, 'Minimum Poynting Flux value to be plotted (filters out noise)')
 
-useLocalSubprocesses = True
+useLocalSubprocesses = False
 useLocalFiles = False
 writeStuff = False
 

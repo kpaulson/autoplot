@@ -326,6 +326,7 @@ for tr in trs:
             frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
             
             formatDataSet(fft_time,outputFile)
+            formatDataSet(mag_time,outputFile+'?append=T')
             
             Ellipticity.putProperty(        QDataSet.NAME,'ellipticity')
             Angle_Normal.putProperty(       QDataSet.NAME,'wave_normal')

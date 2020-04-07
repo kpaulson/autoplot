@@ -42,8 +42,8 @@ def getTrimDataSet(ds_string,ds_timerange):
 import sys
 
 tr = getParam('timerange','2019-08-26','Timerange over which to generate combined anisotropy measurement')
-version_L0 = '0.4.2'
-version_L1 = '1.1.3'
+version_L0 = '0.4.4'
+version_L1 = '1.1.4'
 
 writeStuff = getParam('writeFiles','F','Write out the L1 files with this version of the code?',['T','F'])
 if writeStuff == 'T':

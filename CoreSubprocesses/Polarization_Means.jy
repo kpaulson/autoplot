@@ -276,12 +276,14 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
 
 #    monitor.setTaskProgress(57)
     monitor.setProgressMessage('Calculating Ellipticity and Handedness')
+    
     Handedness = ( (1 * (2 * Jxy_img) / sqrt( (Jxx + Jyy)**2 - (4 * J_det) ) ))
     Ellipticity = ( tan ( 0.5 * asin( Handedness ) ))
     Ellipticity.putProperty ( QDataSet.VALID_MIN , -1 )
 
 #    monitor.setTaskProgress(58)
     monitor.setProgressMessage('Definining Wave-Normal angle relative to |B|')
+    
     Angle_Normal = toDegrees( theta )
     Angle_Normal.putProperty ( QDataSet.VALID_MIN , 0 )
     
@@ -295,6 +297,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     
 #    monitor.setTaskProgress(59)
     monitor.setProgressMessage('Throwing out Values of Low Wave Power')
+    
     if ( wave_power_min > 0 ): # this executes a step function zero-ing out spectra where there are no waves (to make it easier to see what is happening) 
         r = where(lt(Wave_Power,wave_power_min))
         Angle_Normal[r] = -1

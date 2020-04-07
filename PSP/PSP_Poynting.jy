@@ -141,7 +141,7 @@ scy_z = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
 ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By , Bz , Btotal , scy_x , scy_y , scy_z , trend_seconds )
 
 # Reverse direction for positive Bz periods so that we are always looking at wave propagation relative to sun->sc direction 
-posBz = where(gt(Bz,0))
+posBz = where(gt(smooth(Bz,30),0))
 Bn[posBz] = -Bn[posBz]
 Bp[posBz] = -Bp[posBz]
 Bq[posBz] = -Bq[posBz]

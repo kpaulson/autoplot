@@ -1,3 +1,4 @@
+
 def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
     '''
     Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
@@ -24,9 +25,11 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
     
     trs_downsampler= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%smoothSeconds,str(datumRange('%s to %s'%(str(temp_time[0]),str(temp_time[-1])))) )
     
-    spc_ds_smooth_downsampled = dblarr(len(trs_downsampler),len(spc_ds[0,:]))
-    mv_lo_downsampled = dblarr(len(trs_downsampler),len(spc_ds[0,:]))
-    time_downsampled = dblarr(len(trs_downsampler))
+    spc_ds_smooth_downsampled_mean = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    spc_ds_smooth_downsampled_median = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    spc_ds_smooth_downsampled_mode = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    mv_lo_downsampled = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    time_downsampled = -1*ones(len(trs_downsampler))
     
     tr_downsampler_index = 0
     for tr_downsampler in trs_downsampler:
@@ -56,7 +59,9 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
             for mv in uniq_mv_lo:
                 r = where(eq(mv_lo_temp,mv))
                 
-                spc_ds_smooth_downsampled[tr_downsampler_index,mv_index] = mean(spc_ds_temp[r])
+                spc_ds_smooth_downsampled_mean[tr_downsampler_index,mv_index] = mean(spc_ds_temp[r])
+                spc_ds_smooth_downsampled_median[tr_downsampler_index,mv_index] = median(spc_ds_temp[r])
+                spc_ds_smooth_downsampled_mode[tr_downsampler_index,mv_index] = mode(spc_ds_temp[r])
                 mv_lo_downsampled[tr_downsampler_index,mv_index] = mv
                 
                 mv_index += 1
@@ -66,9 +71,15 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
             continue
         tr_downsampler_index += 1
         
-    spc_ds_smooth_downsampled.putProperty(QDataSet.DEPEND_0,time_downsampled)
-    spc_ds_smooth_downsampled.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
+    spc_ds_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    spc_ds_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
+    spc_ds_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    spc_ds_smooth_downsampled_median.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
+    spc_ds_smooth_downsampled_mode.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    spc_ds_smooth_downsampled_mode.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
   
-
-    spc_ds_smooth_downsampled.putProperty(QDataSet.VALID_MIN,0)
-    return(spc_ds_smooth_downsampled)
+    spc_ds_smooth_downsampled_mean.putProperty(QDataSet.VALID_MIN,0)
+    spc_ds_smooth_downsampled_median.putProperty(QDataSet.VALID_MIN,0)
+    spc_ds_smooth_downsampled_mode.putProperty(QDataSet.VALID_MIN,0)
+    
+    return(spc_ds_smooth_downsampled_mean, spc_ds_smooth_downsampled_median, spc_ds_smooth_downsampled_mode)

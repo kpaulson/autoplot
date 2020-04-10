@@ -8,10 +8,10 @@ import org.das2.graph.SpectrogramRenderer
 
 timerange = getParam('timerange','2018-11-01','Iteration Timerange')
 #version = getParam('version','0.4.1','Version number to be appended to filenames')
-writeStuff = False
+writeStuff = True
 manuallyRemoveFullScans = False
 
-plotFitsAndPauseALot = True
+plotFitsAndPauseALot = False
 separatePeaksWithL3Values = False
 calculateVDFUncertainty = False
 

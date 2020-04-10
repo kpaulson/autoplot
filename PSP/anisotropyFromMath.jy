@@ -6,16 +6,16 @@
 
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
-timerange = getParam('timerange','2019-08-26','Iteration Timerange')
+#timerange = getParam('timerange','2019-08-26','Iteration Timerange')
 timerange = getParam('timerange','2019-04-05 19:00 to 19:10','Iteration Timerange')
 #timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 version = getParam('version','0.4.4','Version number to be appended to filenames')
 
 separatePeaksWithL3Values = False
-writeStuff = True
+writeStuff = False
 useVDFFluxForWeights = True
-conflateAndDownsampleSpectra = False
+conflateAndDownsampleSpectra = True
 analyzingTimeWidthComparisons = False
 
 
@@ -27,7 +27,7 @@ trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over w
 #minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
 minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
 #fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
-fitSeconds           = getParam('fit_window' , 8 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
 #smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
 smoothSeconds = fitSeconds
@@ -237,13 +237,23 @@ for tr in trs:
         if conflateAndDownsampleSpectra == True:
             monitor.setLabel('Downsampling') 
             
-            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds/3.)
-            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds/3.)
-            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds/3.)
-            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds/3.)
+            (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds)
+            (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds)
+            (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds)
+            (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds)
+            
+            spc_a = spc_a_smooth_downsampled_mean
+            spc_b = spc_b_smooth_downsampled_mean
+            spc_c = spc_c_smooth_downsampled_mean
+            spc_d = spc_d_smooth_downsampled_mean
+#            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds/3.)
+#            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds/3.)
+#            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds/3.)
+#            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds/3.)
             
             mv_lo = spc_a.property(QDataSet.DEPEND_1)
-            mv_hi = synchronize(mv_lo,mv_hi)
+            mv_lo.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+            mv_hi = synchronize(mv_lo,mv_hi) #This will lead to some errors when interpolating across changing bin sizes. Could fix in the smoothAndD... subprocess
             
         
         print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last

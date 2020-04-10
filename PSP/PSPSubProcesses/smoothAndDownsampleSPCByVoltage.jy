@@ -1,5 +1,5 @@
 
-def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
+def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
     '''
     Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
     rather than just smoothing across indices. Replaces smoothSPCByVoltage() by smoothing
@@ -7,7 +7,8 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
     
     input:
         spc_ds         = rank2 dataset - raw measurements
-        mv_lo          = rank2 dataset that acts as spc_ds DEPEND_1 variable
+        mv_lo          = rank2 dataset that acts as spc_ds DEPEND_1 variable - lower bound
+        mv_hi          = rank2 dataset that acts as spc_ds DEPEND_1 variable - upper bound
         smoothSeconds  = number of seconds over which to smooth (corresponded to spectra on SPC)
     output:
         spc_ds_smooth_downsampled  = rank2 dataset - smoothed and downsampled to smoothSeconds cadence
@@ -29,6 +30,7 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
     spc_ds_smooth_downsampled_median = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
     spc_ds_smooth_downsampled_mode = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
     mv_lo_downsampled = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    mv_hi_downsampled = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
     time_downsampled = -1*ones(len(trs_downsampler))
     
     tr_downsampler_index = 0
@@ -38,6 +40,7 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
             
             spc_ds_temp = trim(spc_ds,tr_downsampler_timerange)
             mv_lo_temp = trim(mv_lo,tr_downsampler_timerange)
+            mv_hi_temp = trim(mv_hi,tr_downsampler_timerange)
             timestamp = mean(spc_ds_temp.property(QDataSet.DEPEND_0))
             
             mv_lo_range = extent(mv_lo_temp)
@@ -63,6 +66,7 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
                 spc_ds_smooth_downsampled_median[tr_downsampler_index,mv_index] = median(spc_ds_temp[r])
                 spc_ds_smooth_downsampled_mode[tr_downsampler_index,mv_index] = mode(spc_ds_temp[r])
                 mv_lo_downsampled[tr_downsampler_index,mv_index] = mv
+                mv_hi_downsampled[tr_downsampler_index,mv_index] = median(mv_hi_temp[r])
                 
                 mv_index += 1
                 
@@ -82,4 +86,4 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
     spc_ds_smooth_downsampled_median.putProperty(QDataSet.VALID_MIN,0)
     spc_ds_smooth_downsampled_mode.putProperty(QDataSet.VALID_MIN,0)
     
-    return(spc_ds_smooth_downsampled_mean, spc_ds_smooth_downsampled_median, spc_ds_smooth_downsampled_mode)
+    return(spc_ds_smooth_downsampled_mean, spc_ds_smooth_downsampled_median, spc_ds_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled)

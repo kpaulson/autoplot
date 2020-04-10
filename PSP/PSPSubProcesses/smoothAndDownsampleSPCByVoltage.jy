@@ -1,4 +1,3 @@
-
 def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
     '''
     Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
@@ -17,60 +16,59 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,smoothSeconds):
               using only values from uniq_mv_lo
     '''
     
-    mv_lo_range = extent(mv_lo)
-    min_mv_lo = mv_lo_range[0]
-    max_mv_lo = mv_lo_range[1]
-    
-    valid_mv_lo = where(valid(mv_lo))
-    min_mv_lo_sliceIndex = where(eq(mv_lo,min_mv_lo))
-    min_mv_lo_sliceIndex = min_mv_lo_sliceIndex[imin(min_mv_lo_sliceIndex[:,1]),0]
-    max_mv_lo_sliceIndex = where(eq(mv_lo,max_mv_lo))
-    max_mv_lo_sliceIndex = max_mv_lo_sliceIndex[imax(max_mv_lo_sliceIndex[:,1]),0]
-    
-    TEMP_mv_lo = concatenate(mv_lo[min_mv_lo_sliceIndex,:],mv_lo[max_mv_lo_sliceIndex,:])
-    
-    s = sort(TEMP_mv_lo)
-    uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+    import java
     
     temp_time = spc_ds.property(QDataSet.DEPEND_0)
     temp_time.putProperty(QDataSet.NAME,None)
     minimumCadence = min(diff(temp_time)[where(ne(diff(temp_time),0))])
+    
+    trs_downsampler= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%smoothSeconds,str(datumRange('%s to %s'%(str(temp_time[0]),str(temp_time[-1])))) )
+    
+    spc_ds_smooth_downsampled = dblarr(len(trs_downsampler),len(spc_ds[0,:]))
+    mv_lo_downsampled = dblarr(len(trs_downsampler),len(spc_ds[0,:]))
+    time_downsampled = dblarr(len(trs_downsampler))
+    
+    tr_downsampler_index = 0
+    for tr_downsampler in trs_downsampler:
+        try:
+            tr_downsampler_timerange = datumRange( '%s to %s'%(tr_downsampler,datum(tr_downsampler)+datum('%ssec'%smoothSeconds)) )
+            
+            spc_ds_temp = trim(spc_ds,tr_downsampler_timerange)
+            mv_lo_temp = trim(mv_lo,tr_downsampler_timerange)
+            timestamp = mean(spc_ds_temp.property(QDataSet.DEPEND_0))
+            
+            mv_lo_range = extent(mv_lo_temp)
+            min_mv_lo = mv_lo_range[0]
+            max_mv_lo = mv_lo_range[1]
+            
+            valid_mv_lo = where(valid(mv_lo_temp))
+            min_mv_lo_sliceIndex = where(eq(mv_lo_temp,min_mv_lo))
+            min_mv_lo_sliceIndex = min_mv_lo_sliceIndex[imin(min_mv_lo_sliceIndex[:,1]),0]
+            max_mv_lo_sliceIndex = where(eq(mv_lo_temp,max_mv_lo))
+            max_mv_lo_sliceIndex = max_mv_lo_sliceIndex[imax(max_mv_lo_sliceIndex[:,1]),0]
+            
+            TEMP_mv_lo = concatenate(mv_lo_temp[min_mv_lo_sliceIndex,:],mv_lo_temp[max_mv_lo_sliceIndex,:])
+            
+            s = sort(TEMP_mv_lo)
+            uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+                
+            mv_index = 0
+            for mv in uniq_mv_lo:
+                r = where(eq(mv_lo_temp,mv))
+                
+                spc_ds_smooth_downsampled[tr_downsampler_index,mv_index] = mean(spc_ds_temp[r])
+                mv_lo_downsampled[tr_downsampler_index,mv_index] = mv
+                
+                mv_index += 1
+                
+            time_downsampled[tr_downsampler_index] = timestamp
+        except(java.lang.IndexOutOfBoundsException):
+            continue
+        tr_downsampler_index += 1
+        
+    spc_ds_smooth_downsampled.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    spc_ds_smooth_downsampled.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
+  
 
-    highestRes_time = timegen(str(temp_time[0]),str(minimumCadence),int((temp_time[-1]-temp_time[0])/minimumCadence))
-    
-    smoothPoints = int(smoothSeconds/(convertUnitsTo(minimumCadence,Units.seconds).value()))
-    
-    if smoothPoints != 0:
-        temp_time_to_highestRes_time_ratio = findex(temp_time,highestRes_time)
-        spc_ds_highRes = interpolate(spc_ds,temp_time_to_highestRes_time_ratio)
-        mv_lo_ds_highRes = interpolate(mv_lo,temp_time_to_highestRes_time_ratio)
-        
-        spc_ds_highRes.putProperty(QDataSet.DEPEND_1,mv_lo_ds_highRes)
-        
-    
-        spc_ds_smooth = dblarr(len(spc_ds[:,0]),len(spc_ds[0,:]))
-        
-        for mv in uniq_mv_lo:
-            r = where(eq(mv_lo,mv))
-            r_highestRes = where(eq(mv_lo_ds_highRes,mv))
-            
-            temp_spc_ds = ones(len(spc_ds_highRes))*-1
-            temp_spc_ds.putProperty(QDataSet.VALID_MIN,0)
-            
-            temp_spc_ds[r_highestRes[:,0]] = spc_ds_highRes[r_highestRes]
-            temp_spc_ds_smooth = smooth(temp_spc_ds,smoothPoints)
-            
-            highestRes_time_to_temp_time_ratio = findex(highestRes_time,temp_time)
-            temp_spc_ds_smooth = interpolate(temp_spc_ds_smooth,highestRes_time_to_temp_time_ratio)
-            spc_ds_smooth[r] = temp_spc_ds_smooth[r[:,0]]
-            
-    
-        spc_ds_smooth.putProperty(QDataSet.DEPEND_0,spc_ds.property(QDataSet.DEPEND_0))
-        spc_ds_smooth.putProperty(QDataSet.DEPEND_1,mv_lo)
-        spc_ds_smooth.putProperty(QDataSet.VALID_MIN,0)
-        
-        spc_ds_smooth_downsampled = spc_ds_smooth[::smoothPoints,:]
-    else:
-        spc_ds_smooth_downsampled = spc_ds
-
+    spc_ds_smooth_downsampled.putProperty(QDataSet.VALID_MIN,0)
     return(spc_ds_smooth_downsampled)

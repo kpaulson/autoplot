@@ -1,0 +1,318 @@
+
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
+
+
+#timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
+#timerange = getParam('timerange','2019-08-26','Iteration Timerange')
+timerange = getParam('timerange','2019-04-05 19:00 to 19:10','Iteration Timerange')
+#timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
+#timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
+version = getParam('version','0.4.4','Version number to be appended to filenames')
+
+separatePeaksWithL3Values = False
+writeStuff = False
+useVDFFluxForWeights = True
+conflateAndDownsampleSpectra = True
+analyzingTimeWidthComparisons = False
+
+
+
+m_p                  = 1.6726231E-24
+q                    = 1.6022E-12
+#trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
+trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over which to average magField to determine background field direction' )
+#minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
+minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
+#fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
+fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
+#smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
+smoothSeconds = fitSeconds
+
+angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
+anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
+
+cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+
+useLocalSubprocesses = True
+
+plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+    
+
+import sys
+try:
+    if useLocalSubprocesses == True:
+        raise stopLookingOnlineException
+    ### IMPORT SUBPROCESSES
+    findVDFAnisotropy = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+    execfile( findVDFAnisotropy.toString() )
+    
+    writeAnisotropyL0 = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+    execfile( writeAnisotropyL0.toString() )
+    
+    field_aligner = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    execfile( field_aligner.toString() )
+
+    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+
+    getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+
+    smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+    execfile( smoothSPCByVoltage.toString() )
+
+    smoothAndDownsampleSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    execfile( smoothAndDownsampleSPCByVoltage.toString() )
+    
+except:
+    print 'Unable to grab subprocess from github'
+    
+    findVDFAnisotropy = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+    execfile( findVDFAnisotropy.toString() )
+    
+    writeAnisotropyL0 = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+    execfile( writeAnisotropyL0.toString() )
+    
+    field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    execfile( field_aligner.toString() )
+
+    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+
+    getSPCAnisotropyUncertaintyMaps = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+
+    smoothSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+    execfile( smoothSPCByVoltage.toString() )
+
+    smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    execfile( smoothAndDownsampleSPCByVoltage.toString() )
+       
+from org.apache.commons.math.optimization.fitting import CurveFitter
+from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
+from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+from org.apache.commons.math.stat.regression      import SimpleRegression
+
+OS = get_os_version().split()[0]
+if OS == 'mac':
+    googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+elif OS == 'windows':
+    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+
+addToSearchPath(sys.path,googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar',monitor)
+
+from org.apache.commons.math3.fitting import AbstractCurveFitter
+from org.apache.commons.math3.fitting import SimpleCurveFitter
+from org.apache.commons.math3.fitting.leastsquares import LevenbergMarquardtOptimizer as LMO
+from org.apache.commons.math3.fitting.leastsquares import GaussNewtonOptimizer
+from org.apache.commons.math3.analysis import ParametricUnivariateFunction
+
+class LinFit(ParametricRealFunction):
+#class LinFit(ParametricUnivariateFunction):
+    def value(self, x, params):
+        a = params[0]
+        b = params[1]
+        return (a*x + b)
+    def gradient(self, x, params):
+        a = params[0]
+        b = params[1]
+        return [x,1]
+
+
+############################################################################
+##################            DEFINITIONS        ###########################
+############################################################################
+############################################################################
+    
+    
+if analyzingTimeWidthComparisons == True:
+    output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version)
+elif analyzingTimeWidthComparisons == False:
+    output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+    
+if plotFitsAndPauseALot_yn == 'T':
+    plotFitsAndPauseALot = True
+elif plotFitsAndPauseALot_yn == 'F':
+    plotFitsAndPauseALot = False
+    
+    
+def fittingUncertainties(fitResult,tempVDF,tempvz,tempvq,tempBq):
+    r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
+    VDF_fitValues = where(gt(tempVDF[r],0))
+    temp_fitValues = (fitResult[0]*(tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) + fitResult[1])
+    temp_residualVariance = ( tempvq[r][VDF_fitValues] - temp_fitValues )**2
+    
+    try:
+        temp_chiSquared = total( abs( temp_residualVariance / temp_fitValues ) )
+        temp_chiSquaredReduced = temp_chiSquared / (len(tempvz[r][VDF_fitValues]) - 2)
+    except:
+        temp_chiSquaredReduced = -1E38
+    try:
+        temp_totalVariance = (tempvq[r][VDF_fitValues] - mean(tempvq[r][VDF_fitValues]))**2
+        temp_rSquared = 1 - ( total(temp_residualVariance) / total(temp_totalVariance) )
+        temp_abscissaVariance = ( (tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) - mean((tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues])) )**2
+        temp_slopeError = sqrt( total(temp_residualVariance) / total(temp_abscissaVariance) ) / (len(tempvz[r][VDF_fitValues]) - 2)
+    except:
+        temp_rSquared = -1E38
+        temp_slopeError = -1E38
+    
+    return(temp_chiSquaredReduced,temp_rSquared,temp_slopeError)
+                        
+    
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+import java
+time_begin = TimeUtil.now()    
+
+    
+        
+# Set up error/uncertainty maps
+(anisotropy_deltaPlus,anisotropy_deltaMinus) = getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS)
+   
+anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+anisotropy_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+
+
+# Split analysis by day
+monitor.started()
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
+    time_begin_tr = TimeUtil.now() 
+    timeTitle = str(tr)    
+    
+    if lt(datumRange(timerange).width(), datumRange(tr).width()):
+        tr = timerange
+        tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
+        tp_end = TimeParser.create('-$H$M')
+        timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
+
+        
+    #try:
+    if True:
+        monitor.setLabel('Downloading SPC') 
+        
+        monitor.setProgressMessage(tr)
+        
+        try:
+            print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
+            spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+            spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+            spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+            spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+            
+            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+        except:
+            noSPCData = None
+            raise java.io.FileNotFoundException
+        
+            
+        print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
+        time_last = TimeUtil.now()
+        #spc_list = [spc_a,spc_b,spc_c,spc_d]
+        
+        spc_a = trim(spc_a,tr)
+        spc_b = trim(spc_b,tr)
+        spc_c = trim(spc_c,tr)
+        spc_d = trim(spc_d,tr)
+        
+        mv_lo = trim(mv_lo,tr)
+        mv_hi = trim(mv_hi,tr)
+        
+        if conflateAndDownsampleSpectra == True:
+            monitor.setLabel('Downsampling') 
+            
+            (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
+            (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,mv_hi,smoothSeconds)
+            (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,mv_hi,smoothSeconds)
+            (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,mv_hi,smoothSeconds)
+            
+            spc_a = spc_a_smooth_downsampled_mean
+            spc_b = spc_b_smooth_downsampled_mean
+            spc_c = spc_c_smooth_downsampled_mean
+            spc_d = spc_d_smooth_downsampled_mean
+#            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds/3.)
+#            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds/3.)
+#            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds/3.)
+#            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds/3.)
+            
+            mv_lo = mv_lo_downsampled
+            mv_hi = mv_hi_downsampled
+            
+            #mv_lo = spc_a.property(QDataSet.DEPEND_1)
+            mv_lo.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+            #mv_hi = synchronize(mv_lo,mv_hi) #This will lead to some errors when interpolating across changing bin sizes. Could fix in the smoothAndD... subprocess
+            
+        
+        print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last
+        time_last = TimeUtil.now()
+        
+        monitor.setLabel('Flow Angles') 
+        spc_list = [spc_a,spc_b,spc_c,spc_d]
+        del(spc_a,spc_b,spc_c,spc_d)
+        
+        totalFlux = sum(spc_list)
+        
+        fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
+        fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
+        
+        U = (fluxDifference_scy/totalFlux)/0.035
+        V = (fluxDifference_scx/totalFlux)/0.035
+        
+        U.putProperty(QDataSet.VALID_MIN,None)
+        V.putProperty(QDataSet.VALID_MIN,None)
+        U.putProperty(QDataSet.VALID_MAX,None)
+        V.putProperty(QDataSet.VALID_MAX,None)
+        
+
+        # This part is in there to match Mike's measurement of Bulk Flow Directions, 
+        # but we should pull it out for our fitting, right? - Yes, right now it filters over index for rank2 instead of DEPEND_1 so you get bad results
+#        for j in xrange(len(U[0,:])):
+#            try:
+#                U[:,j] = medianFilter(U[:,j],3)
+#            except:
+#                continue
+#            try:
+#                V[:,j] = medianFilter(V[:,j],3)
+#            except:
+#                continue
+        
+        U.putProperty(QDataSet.UNITS,Units.degrees)
+        V.putProperty(QDataSet.UNITS,Units.degrees)
+        
+        
+        
+        #Are you measuring the slope near the peak in current or near the peak in the velocity distribution function? 
+        #(the VDF goes like current divided by speed time window width in speed units)
+        
+        print 'Calculating Flow Angles took:',TimeUtil.now()-time_last
+        time_last = TimeUtil.now()
+        
+        
+        monitor.setLabel('Defining VDF')
+        vdfList = list() 
+        v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+        windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
+        vdf_full = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
+        vdf_full.putProperty(QDataSet.DEPEND_1,v_z)
+        vdfList.append('vdf_full')
+        del(windowWidths,mv_hi)
+        
+        
+        plot(2,vdf_full)

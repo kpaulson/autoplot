@@ -74,7 +74,19 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
         except(java.lang.IndexOutOfBoundsException):
             continue
         tr_downsampler_index += 1
+    
+    goodValues = where(gt(putProperty(copy(time_downsampled),QDataSet.UNITS,None),0))
+    
+    spc_ds_smooth_downsampled_mean   = spc_ds_smooth_downsampled_mean[goodValues,:]
+    spc_ds_smooth_downsampled_median = spc_ds_smooth_downsampled_median[goodValues,:]
+    spc_ds_smooth_downsampled_mode   = spc_ds_smooth_downsampled_mode[goodValues,:]
+    mv_lo_downsampled                = mv_lo_downsampled[goodValues,:]
+    mv_hi_downsampled                = mv_hi_downsampled[goodValues,:]
+    time_downsampled                 = time_downsampled[goodValues]
         
+    mv_lo_downsampled.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    mv_hi_downsampled.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    
     spc_ds_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_0,time_downsampled)
     spc_ds_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
     spc_ds_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0,time_downsampled)

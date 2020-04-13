@@ -6,18 +6,25 @@
 
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
-#timerange = getParam('timerange','2019-08-26','Iteration Timerange')
-timerange = getParam('timerange','2019-04-05 19:00 to 19:10','Iteration Timerange')
-#timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
-#timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
+timerange = getParam('timerange','2018-09-05','Iteration Timerange')
+#timerange = getParam('timerange','2019-04-05 18:00 to 19:30','Iteration Timerange')
 version = getParam('version','0.4.4','Version number to be appended to filenames')
 
-separatePeaksWithL3Values = False
-writeStuff = False
-useVDFFluxForWeights = True
-conflateAndDownsampleSpectra = True
-analyzingTimeWidthComparisons = False
+#separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
+#writeStuff                     = True  #Write out L0 anisotropy file
+#useVDFFluxForWeights           = True  #Weight linear fits by normalized flux around peak (points at peak take precendence)
+#conflateAndDownsampleSpectra   = True  #Downsample the spectra for individual pads (smoothSeconds parameter)
+#analyzingTimeWidthComparisons  = False #Run Routine for various timewidths to compare end results (TESTING ONLY)
+#usePreviouslyDownsampledData   = True  #Use Downsampled data file created previously
+#useLocalSubprocesses           = True  #Use local script call files instead of pulling from github
 
+separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
+useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
+usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
+writeStuff                     = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
+useVDFFluxForWeights           = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
+conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
+analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
 
 
 m_p                  = 1.6726231E-24
@@ -27,20 +34,57 @@ trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over w
 #minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
 minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
 #fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
-fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+fitSeconds           = getParam('fit_window' , 10 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
-#smoothPoints         = getParam('smoothPoints' , 5 , 'Number of spectra to average together before defining flow directions')
-smoothSeconds = fitSeconds
+smoothSeconds        = getParam('smoothSeconds' , 5 , 'Number of seconds over which to average spectra together before defining flow directions')
+#smoothSeconds = fitSeconds
 
 angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
 anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
-useLocalSubprocesses = True
 
 plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
 
+
+
+if useLocalSubprocesses == 'T':
+    useLocalSubprocesses = True
+elif useLocalSubprocesses == 'F':
+    useLocalSubprocesses = False
+    
+if usePreviouslyDownsampledData == 'T':
+    usePreviouslyDownsampledData = True
+elif usePreviouslyDownsampledData == 'F':
+    usePreviouslyDownsampledData = False
+    
+if writeStuff == 'T':
+    writeStuff = True
+elif writeStuff == 'F':
+    writeStuff = False
+    
+if useVDFFluxForWeights == 'T':
+    useVDFFluxForWeights = True
+elif useVDFFluxForWeights == 'F':
+    useVDFFluxForWeights = False
+    
+if conflateAndDownsampleSpectra == 'T':
+    conflateAndDownsampleSpectra = True
+elif conflateAndDownsampleSpectra == 'F':
+    conflateAndDownsampleSpectra = False
+    
+if analyzingTimeWidthComparisons == 'T':
+    analyzingTimeWidthComparisons = True
+elif analyzingTimeWidthComparisons == 'F':
+    analyzingTimeWidthComparisons = False
+    
+if separatePeaksWithL3Values == 'T':
+    separatePeaksWithL3Values = True
+elif separatePeaksWithL3Values == 'F':
+    separatePeaksWithL3Values = False
+    
+    
 ############################################################################
 ##################            IMPORTS            ###########################
 ############################################################################
@@ -148,6 +192,7 @@ elif plotFitsAndPauseALot_yn == 'F':
     
 def fittingUncertainties(fitResult,tempVDF,tempvz,tempvq,tempBq):
     r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
+    r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
     VDF_fitValues = where(gt(tempVDF[r],0))
     temp_fitValues = (fitResult[0]*(tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) + fitResult[1])
     temp_residualVariance = ( tempvq[r][VDF_fitValues] - temp_fitValues )**2
@@ -204,60 +249,96 @@ for tr in trs:
 
         
     try:
-        monitor.setLabel('Downloading SPC') 
+        
         
         monitor.setProgressMessage(tr)
         
-        try:
-            print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
-            spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
-            spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
-            spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
-            spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+        if usePreviouslyDownsampledData == True:
+            monitor.setLabel('Using Local SPC Downsample') 
             
-            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
-            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
-        except:
-            noSPCData = None
-            raise java.io.FileNotFoundException
-        
+            localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
+            localDownsampledDataFile = localDownsampledDataDirectory+'SPC_DownsampledSpectra_$Y-$m-$d_%ssec.cdf'%(smoothSeconds)
+            try:
+                print localDownsampledDataFile+'?spc_a_mean'
+                spc_a = getDataSet(localDownsampledDataFile+'?spc_a_mean',tr)
+                spc_b = getDataSet(localDownsampledDataFile+'?spc_b_mean',tr)
+                spc_c = getDataSet(localDownsampledDataFile+'?spc_c_mean',tr)
+                spc_d = getDataSet(localDownsampledDataFile+'?spc_d_mean',tr)
+                
+                mv_lo = getDataSet(localDownsampledDataFile+'?mv_lo',tr)
+                mv_hi = getDataSet(localDownsampledDataFile+'?mv_hi',tr)
+                
+                spc_a = trim(spc_a,tr)
+                spc_b = trim(spc_b,tr)
+                spc_c = trim(spc_c,tr)
+                spc_d = trim(spc_d,tr)
+                
+                mv_lo = trim(mv_lo,tr)
+                mv_hi = trim(mv_hi,tr)
+                
+                print 'Loading downsampled SPC L2 data took:',TimeUtil.now()-time_begin_tr
+                time_last = TimeUtil.now()
+                
+            except:
+                usePreviouslyDownsampledData = False
+                raise java.io.FileNotFoundException
+                
+        elif usePreviouslyDownsampledData == False:
+            monitor.setLabel('Downloading SPC') 
+            try:
+                print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
+                spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+                spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+                spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+                spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+                
+                mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+                mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+            except:
+                noSPCData = None
+                raise java.io.FileNotFoundException
             
-        print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
-        time_last = TimeUtil.now()
-        #spc_list = [spc_a,spc_b,spc_c,spc_d]
-        
-        spc_a = trim(spc_a,tr)
-        spc_b = trim(spc_b,tr)
-        spc_c = trim(spc_c,tr)
-        spc_d = trim(spc_d,tr)
-        
-        mv_lo = trim(mv_lo,tr)
-        mv_hi = trim(mv_hi,tr)
-        
-        if conflateAndDownsampleSpectra == True:
-            monitor.setLabel('Downsampling') 
+                
+            print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
+            time_last = TimeUtil.now()
+            #spc_list = [spc_a,spc_b,spc_c,spc_d]
             
-            (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds)
-            (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds)
-            (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds)
-            (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds)
+            spc_a = trim(spc_a,tr)
+            spc_b = trim(spc_b,tr)
+            spc_c = trim(spc_c,tr)
+            spc_d = trim(spc_d,tr)
             
-            spc_a = spc_a_smooth_downsampled_mean
-            spc_b = spc_b_smooth_downsampled_mean
-            spc_c = spc_c_smooth_downsampled_mean
-            spc_d = spc_d_smooth_downsampled_mean
-#            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds/3.)
-#            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds/3.)
-#            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds/3.)
-#            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds/3.)
+            mv_lo = trim(mv_lo,tr)
+            mv_hi = trim(mv_hi,tr)
             
-            mv_lo = spc_a.property(QDataSet.DEPEND_1)
-            mv_lo.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
-            mv_hi = synchronize(mv_lo,mv_hi) #This will lead to some errors when interpolating across changing bin sizes. Could fix in the smoothAndD... subprocess
+            if conflateAndDownsampleSpectra == True:
+                monitor.setLabel('Downsampling') 
+                
+                (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
+                (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,mv_hi,smoothSeconds)
+                (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,mv_hi,smoothSeconds)
+                (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,mv_hi,smoothSeconds)
+                
+                spc_a = spc_a_smooth_downsampled_mean
+                spc_b = spc_b_smooth_downsampled_mean
+                spc_c = spc_c_smooth_downsampled_mean
+                spc_d = spc_d_smooth_downsampled_mean
+    #            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds/3.)
+    #            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds/3.)
+    #            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds/3.)
+    #            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds/3.)
+                
+                mv_lo = mv_lo_downsampled
+                mv_hi = mv_hi_downsampled
+                
+                #mv_lo = spc_a.property(QDataSet.DEPEND_1)
+                mv_lo.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+                mv_hi.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+                #mv_hi = synchronize(mv_lo,mv_hi) #This will lead to some errors when interpolating across changing bin sizes. Could fix in the smoothAndD... subprocess
+                
             
-        
-        print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last
-        time_last = TimeUtil.now()
+            print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last
+            time_last = TimeUtil.now()
         
         monitor.setLabel('Flow Angles') 
         spc_list = [spc_a,spc_b,spc_c,spc_d]
@@ -268,7 +349,7 @@ for tr in trs:
         fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
         fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
         
-        U = (fluxDifference_scy/totalFlux)/0.035
+        U = -(fluxDifference_scy/totalFlux)/0.035
         V = (fluxDifference_scx/totalFlux)/0.035
         
         U.putProperty(QDataSet.VALID_MIN,None)
@@ -310,6 +391,7 @@ for tr in trs:
         vdfList.append('vdf_full')
         del(windowWidths,mv_hi)
         
+        
         # This step is meant to be a further step in removing full scans, but is probably not set properly
 #        if manuallyRemoveFullScans == True:
 #            for i in xrange(len(v_z)):
@@ -320,6 +402,7 @@ for tr in trs:
         #peaks = reduceMax(totalFlux,1)
         #r = where(eq(totalFlux,peaks))
         peaks = reduceMax(vdf_full,1)
+        peaks = synchronize( vdf_full, medianFilter(peaks[where(valid(peaks))],5) )
         r = where(eq(vdf_full,peaks))
         
         print 'Defining VDF took:',TimeUtil.now()-time_last
@@ -415,9 +498,9 @@ for tr in trs:
             vdf_a.putProperty(QDataSet.VALID_MIN,0)
             vdf_a.putProperty(QDataSet.VALID_MAX,1E20)
             
-            plot(0,vdf_p1)
-            plot(1,vdf_3)
-            plot(2,vdf_a)
+            #plot(0,vdf_p1)
+            #plot(1,vdf_3)
+            #plot(2,vdf_a)
             
             vdfList.append('vdf_p1')
             vdfList.append('vdf_3')
@@ -434,9 +517,12 @@ for tr in trs:
         #stop
         
         # Define background flow to avoid weird slope values?
-        u_x = vz_tanTheta[r]
-        u_y = vz_tanPhi[r]
-        u_z = v_z[r]
+        #u_x = vz_tanTheta[r]
+        #u_y = vz_tanPhi[r]
+        #u_z = v_z[r]
+        u_x = 0*vz_tanTheta[r]
+        u_y = 0*vz_tanPhi[r]
+        u_z = 0*v_z[r]
         
         if 'alreadyPlottedOnce' not in globals():
             #setLayoutOverplot(4) 
@@ -445,7 +531,7 @@ for tr in trs:
         #plot(0,totalFlux)
         plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
         plot(1,v_z[r])
-        alreadyPlottedOnce = True
+        #alreadyPlottedOnce = True
         #stop
         #plot(0,vz_tanTheta-synchronize(vz_tanTheta,u_x))
         
@@ -494,8 +580,9 @@ for tr in trs:
         print 'Downloading MAG Data took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
-        
-        
+        plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+        #plot(6,mag_time,bundle(toDegrees(atan2(Nx,Nz)),toDegrees(atan2(Ny,Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+            
         
         for vdf in vdfList:
             if vdf == 'vdf_full':
@@ -515,7 +602,8 @@ for tr in trs:
                     anisotropy_psi_deltaMinus) = findVDFAnisotropy(v_z, vz_tanPhi, vz_tanTheta, 
                                                  u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
                                                  Ny_temp, Nz_temp)
-                plot(5,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True,ytitle='%s!Canisotropy'%(vdf))
+                plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+                plot(5,epsilonEpoch,bundle(slopeError_chi,slopeError_psi), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
                 
             elif vdf == 'vdf_p1':
                 vdf_in = vdf_p1
@@ -575,7 +663,9 @@ for tr in trs:
                 plot(6,bundle(anisotropy_chi_a,anisotropy_psi_a),ylog=True)
         
         
-        #Bunit = bundle(Nx,Ny,Nz)
+        Btotal = synchronize(chiline,Btotal)
+        
+        
         
         # ###
         # ### WRITE STUFF
@@ -602,6 +692,8 @@ for tr in trs:
                          epsilonEpoch, anisotropy_chi_deltaPlus,
                          anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
                          anisotropy_psi_deltaMinus)
+                     #plot(epsilonEpoch)
+                     #print epsilonEpoch.property(QDataSet.UNITS)
                          
                 elif vdf == 'vdf_p1':
                     tempB = synchronize(chiline_p1,[Nx,Ny,Nz])

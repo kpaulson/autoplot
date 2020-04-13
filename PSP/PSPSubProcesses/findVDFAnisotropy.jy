@@ -152,8 +152,9 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                     psi_point = WeightedObservedPoint(point_weight, float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]), float(temp_vz_tanPhi[r][i]))
                     #print 'chi_point_weight',chi_point.getWeight()
                     #print 'psi_point_weight',psi_point.getWeight()
-                    ftr_chi.addObservedPoint( chi_point )
-                    ftr_psi.addObservedPoint( psi_point )
+                    if float(norm_temp_vdf[r][i]) >= 0.5:
+                        ftr_chi.addObservedPoint( chi_point )
+                        ftr_psi.addObservedPoint( psi_point )
                     
                     #ftr_chi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
                     #ftr_psi.addObservedPoint( int(float(temp_vdf[r][i])*1000) , float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]) , float(temp_vz_tanPhi[r][i]))
@@ -179,8 +180,10 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
         
             #r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
             
-            (temp_chiSquaredReduced_chi,temp_rSquared_chi,temp_slopeError_chi) = fittingUncertainties(result_chi,temp_vdf,temp_v_z,temp_vz_tanTheta,temp_Nx_temp_dd)
-            (temp_chiSquaredReduced_psi,temp_rSquared_psi,temp_slopeError_psi) = fittingUncertainties(result_psi,temp_vdf,temp_v_z,temp_vz_tanPhi,temp_Ny_temp_dd)
+            #(temp_chiSquaredReduced_chi,temp_rSquared_chi,temp_slopeError_chi) = fittingUncertainties(result_chi,temp_vdf,temp_v_z,temp_vz_tanTheta,temp_Nx_temp_dd)
+            #(temp_chiSquaredReduced_psi,temp_rSquared_psi,temp_slopeError_psi) = fittingUncertainties(result_psi,temp_vdf,temp_v_z,temp_vz_tanPhi,temp_Ny_temp_dd)
+            (temp_chiSquaredReduced_chi,temp_rSquared_chi,temp_slopeError_chi) = fittingUncertainties(result_chi,norm_temp_vdf,temp_v_z,temp_vz_tanTheta,temp_Nx_temp_dd)
+            (temp_chiSquaredReduced_psi,temp_rSquared_psi,temp_slopeError_psi) = fittingUncertainties(result_psi,norm_temp_vdf,temp_v_z,temp_vz_tanPhi,temp_Ny_temp_dd)
             
             # Have to append everything at once since I was left with uneven dataset/epoch arrays
             chiline = concatenate(chiline,result_chi[0])

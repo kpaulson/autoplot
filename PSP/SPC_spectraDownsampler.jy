@@ -1,0 +1,253 @@
+
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
+
+
+#timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
+#timerange = getParam('timerange','2019-08-26','Iteration Timerange')
+timerange = getParam('timerange','2019-03-29','Iteration Timerange')
+#timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
+#timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
+#version = getParam('version','0.4.4','Version number to be appended to filenames')
+
+separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
+writeStuff                     = True  #Write out L0 anisotropy file
+useVDFFluxForWeights           = True  #Weight linear fits by normalized flux around peak (points at peak take precendence)
+conflateAndDownsampleSpectra   = True  #Downsample the spectra for individual pads (smoothSeconds parameter)
+analyzingTimeWidthComparisons  = False #Run Routine for various timewidths to compare end results (TESTING ONLY)
+usePreviouslyDownsampledData   = False #Run Routine for various timewidths to compare end results (TESTING ONLY)
+
+
+
+m_p                  = 1.6726231E-24
+q                    = 1.6022E-12
+#trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
+#trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over which to average magField to determine background field direction' )
+#minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
+#minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
+#fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
+#fitSeconds           = getParam('fit_window' , 10 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+#modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
+smoothSeconds        = getParam('smoothSeconds' , 5 , 'Number of spectra to average together before defining flow directions')
+#smoothSeconds = fitSeconds
+
+#angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
+#anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
+
+cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+
+useLocalSubprocesses = True
+
+#plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+    
+
+import sys
+try:
+    if useLocalSubprocesses == True:
+        raise stopLookingOnlineException
+    ### IMPORT SUBPROCESSES
+
+    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+
+    smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+    execfile( smoothSPCByVoltage.toString() )
+
+    smoothAndDownsampleSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    execfile( smoothAndDownsampleSPCByVoltage.toString() )
+    
+except:
+    print 'Unable to grab subprocess from github'
+    
+    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+
+    smoothSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+    execfile( smoothSPCByVoltage.toString() )
+
+    smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    execfile( smoothAndDownsampleSPCByVoltage.toString() )
+       
+OS = get_os_version().split()[0]
+if OS == 'mac':
+    googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+elif OS == 'windows':
+    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+
+############################################################################
+##################            DEFINITIONS        ###########################
+############################################################################
+############################################################################
+    
+    
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+import java
+time_begin = TimeUtil.now()    
+
+    
+
+# Split analysis by day
+monitor.started()
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
+    time_begin_tr = TimeUtil.now() 
+    timeTitle = str(tr)    
+    
+    if lt(datumRange(timerange).width(), datumRange(tr).width()):
+        tr = timerange
+        tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
+        tp_end = TimeParser.create('-$H$M')
+        timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
+
+        
+    #try:
+    if True:
+        monitor.setLabel('Downloading SPC') 
+        
+        monitor.setProgressMessage(tr)
+        
+        try:
+            print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
+            spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+            spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+            spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+            spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+            
+            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+        except:
+            noSPCData = None
+            raise java.io.FileNotFoundException
+        
+            
+        print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
+        time_last = TimeUtil.now()
+        #spc_list = [spc_a,spc_b,spc_c,spc_d]
+        
+        spc_a = trim(spc_a,tr)
+        spc_b = trim(spc_b,tr)
+        spc_c = trim(spc_c,tr)
+        spc_d = trim(spc_d,tr)
+        
+        mv_lo = trim(mv_lo,tr)
+        mv_hi = trim(mv_hi,tr)
+        
+        monitor.setLabel('Downsampling A') 
+        (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
+        monitor.setLabel('Downsampling B') 
+        (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,mv_hi,smoothSeconds)
+        monitor.setLabel('Downsampling C') 
+        (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,mv_hi,smoothSeconds)
+        monitor.setLabel('Downsampling D') 
+        (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,mv_hi,smoothSeconds)
+            
+        mv_lo = mv_lo_downsampled
+        mv_hi = mv_hi_downsampled
+        time = spc_a_smooth_downsampled_mean.property(QDataSet.DEPEND_0)
+            
+            
+        ###
+        ### WRITE STUFF
+        ###
+        
+        localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
+        localDownsampledDataFile = localDownsampledDataDirectory+'SPC_DownsampledSpectra_%s_%ssec.cdf'%(tr,smoothSeconds)
+        
+        time.putProperty(QDataSet.NAME,'epoch')
+        
+        mv_lo.putProperty(QDataSet.DEPEND_0,time)
+        mv_hi.putProperty(QDataSet.DEPEND_0,time)
+        
+        spc_a_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+        spc_a_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+        spc_a_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+                                                             
+        spc_b_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+        spc_b_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+        spc_b_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+                                                            
+        spc_c_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+        spc_c_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+        spc_c_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+                                                            
+        spc_d_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+        spc_d_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+        spc_d_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+        
+        
+        
+        spc_a_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_a_mean')
+        spc_a_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_a_median')
+        spc_a_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_a_mode')
+        
+        spc_b_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_b_mean')
+        spc_b_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_b_median')
+        spc_b_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_b_mode')
+        
+        spc_c_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_c_mean')
+        spc_c_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_c_median')
+        spc_c_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_c_mode')
+        
+        spc_d_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_d_mean')
+        spc_d_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_d_median')
+        spc_d_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_d_mode')
+        
+        mv_lo.putProperty(  QDataSet.NAME,'mv_lo')
+        mv_hi.putProperty(  QDataSet.NAME,'mv_hi')
+        
+        time.putProperty(QDataSet.TITLE,'Epoch')
+        
+        spc_a_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc a-current downsampled as mean over %s seconds'%smoothSeconds)
+        spc_a_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_a-current downsampled as median over %s seconds'%smoothSeconds)
+        spc_a_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_a-current downsampled as mode over %s seconds'%smoothSeconds)
+                                                                        
+        spc_b_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_b-current downsampled as mean over %s seconds'%smoothSeconds)
+        spc_b_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_b-current downsampled as median over %s seconds'%smoothSeconds)
+        spc_b_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_b-current downsampled as mode over %s seconds'%smoothSeconds)
+                                                                                                     
+        spc_c_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_c-current downsampled as mean over %s seconds'%smoothSeconds)
+        spc_c_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_c-current downsampled as median over %s seconds'%smoothSeconds)
+        spc_c_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_c-current downsampled as mode over %s seconds'%smoothSeconds)
+                                                                                                      
+        spc_d_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_d-current downsampled as mean over %s seconds'%smoothSeconds)
+        spc_d_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_d-current downsampled as median over %s seconds'%smoothSeconds)
+        spc_d_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_d-current downsampled as mode over %s seconds'%smoothSeconds)
+        
+        mv_lo.putProperty(  QDataSet.TITLE,'minimum voltage of each bin downsampled over %s seconds'%smoothSeconds)
+        mv_hi.putProperty(  QDataSet.TITLE,'maximum voltage of each bin downsampled over %s seconds'%smoothSeconds)
+        
+
+        formatDataSet(time,localDownsampledDataFile)
+        formatDataSet(mv_lo,localDownsampledDataFile+'?append=T')
+        formatDataSet(mv_hi,localDownsampledDataFile+'?append=T')
+        
+        formatDataSet(spc_a_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+        formatDataSet(spc_a_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+        #formatDataSet(spc_a_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                                
+        formatDataSet(spc_b_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+        formatDataSet(spc_b_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+        #formatDataSet(spc_b_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                            
+        formatDataSet(spc_c_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+        formatDataSet(spc_c_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+        #formatDataSet(spc_c_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                           
+        formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+        formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+        #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+        
+    #except:
+    #    continue

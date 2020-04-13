@@ -1,0 +1,34 @@
+freq_min       = getParam('minFrequency', 0.03,  'Lower frequency bound of analysis (Hz)')
+freq_max       = getParam('maxFrequency', 4.,  'Upper frequency bound of analysis (Hz)')
+window         = getParam('windowWidth',  2048, 'Number of points in fft window')
+slide          = getParam('slideFactor',  16,    'Reciprocal of fraction of non-overlap between neighboring windows')
+
+
+
+
+spc_time = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2020/02/spp_swp_spc_l2ifa_20200203_v02.cdf?measurement_time')
+spc_a = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2020/02/spp_swp_spc_l2ifa_20200203_v02.cdf?a_current')
+
+time = spc_a.property(QDataSet.DEPEND_0)
+
+tempTime = dblarr(len(spc_a[:,0])*len(spc_a[0,:]))
+temp_spc_a = dblarr(len(spc_a[:,0])*len(spc_a[0,:]))
+
+for i in xrange(len(time)):
+    tempTime[i*len(spc_a[0,:]):(i+1)*len(spc_a[0,:])] = time[i]+spc_time[i,:]
+    temp_spc_a[i*len(spc_a[0,:]):(i+1)*len(spc_a[0,:])] = spc_a[i,:]
+
+temp_spc_a.putProperty(QDataSet.DEPEND_0,tempTime)
+
+print time
+print tempTime
+plot(0,time[0]+spc_time[0,:],spc_a[0,:])
+plot(0,tempTime,temp_spc_a)
+
+Hanningfft = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+execfile( Hanningfft.toString() )
+
+spc_a_fft = Hanningfft( temp_spc_a , freq_min , freq_max , window , slide )
+spc_a_fft_power = sqrt(spc_a_fft[:,:,0]**2 + spc_a_fft[:,:,1]**2)
+
+plot(1,spc_a_fft_power,zrange=[1E-2,1E2],zlog=True)

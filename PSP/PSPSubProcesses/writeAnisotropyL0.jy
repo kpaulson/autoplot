@@ -8,18 +8,22 @@ def writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psi
     This will produce separate files for the total moments and fits at this point.
     '''
     
+    useBindleBundle = True
+    
     epsilonEpoch.putProperty(QDataSet.NAME,'Epoch')
-    formatDataSet(epsilonEpoch,output_file)
+    epsilonEpoch = convertUnitsTo(epsilonEpoch,Units.cdfTT2000)
+    #print epsilonEpoch
+    #print epsilonEpoch[100]
+    #print epsilonEpoch.property(QDataSet.UNITS)
                  
     Bunit.putProperty(QDataSet.NAME,'B_hat')
     Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))
     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-    formatDataSet(Bunit,output_file+'?append=T')
+    
     
     Btotal.putProperty(QDataSet.NAME,'B_total')
     Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
     Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-    formatDataSet(Btotal,output_file+'?append=T')
     
     
     psiline.putProperty(QDataSet.NAME,'Psi')
@@ -42,36 +46,10 @@ def writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psi
     slopeError_psi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Psi')
     
     
-    formatDataSet(chiline,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(psiline,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(rSquared_chi,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(rSquared_psi,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(slopeError_chi,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(slopeError_psi,output_file+'?append=T')
-    
-    
-    epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')
-    epsilon_psi.putProperty(QDataSet.NAME,'Epsilon_psi')
-    waitUntilIdle()
-    formatDataSet(epsilon_chi,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(epsilon_psi,output_file+'?append=T')
-    
     anisotropy_chi.putProperty(QDataSet.NAME,'Anisotropy_chi')
     anisotropy_chi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vx/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
     anisotropy_psi.putProperty(QDataSet.NAME,'Anisotropy_psi')
     anisotropy_psi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vy/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
-    
-    
     
     
     anisotropy_chi_deltaPlus.putProperty(QDataSet.NAME, 'anisotropy_chi_deltaPlus')
@@ -85,20 +63,86 @@ def writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psi
     
     anisotropy_psi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaMinus')
     anisotropy_psi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
-    			
-    waitUntilIdle()
-    formatDataSet(anisotropy_chi,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(anisotropy_psi,output_file+'?append=T')
+    	
+    epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')
+    epsilon_psi.putProperty(QDataSet.NAME,'Epsilon_psi')
     
-    waitUntilIdle()
-    formatDataSet(anisotropy_chi_deltaPlus, output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(anisotropy_chi_deltaMinus,output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(anisotropy_psi_deltaPlus, output_file+'?append=T')
-    waitUntilIdle()
-    formatDataSet(anisotropy_psi_deltaMinus,output_file+'?append=T')
+    ###############
+    
+    if useBindleBundle == True:
+    
+        Nx = Bunit[:,0]
+        Nx.putProperty(QDataSet.NAME,'Nx')
+        Nx.putProperty(QDataSet.TITLE,'S/C x-component of unit vector of background B-field direction using %s-second average'%(trend_seconds))
+        Nx.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        
+        Ny = Bunit[:,1]
+        Ny.putProperty(QDataSet.NAME,'Ny')
+        Ny.putProperty(QDataSet.TITLE,'S/C y-component of unit vector of background B-field direction using %s-second average'%(trend_seconds))
+        Ny.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        
+        Nz = Bunit[:,2]
+        Nz.putProperty(QDataSet.NAME,'Nz')
+        Nz.putProperty(QDataSet.TITLE,'S/C z-component of unit vector of background B-field direction using %s-second average'%(trend_seconds))
+        Nz.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+    
+        bindle = bundle(Nx, Ny, Nz, Btotal)
+        bindle = bundle(bindle, chiline, psiline, chiSquaredReduced_chi)
+        bindle = bundle(bindle, chiSquaredReduced_psi, rSquared_chi, rSquared_psi)
+        bindle = bundle(bindle, slopeError_chi, slopeError_psi, epsilon_chi)
+        bindle = bundle(bindle, epsilon_psi, anisotropy_chi, anisotropy_psi)
+        bindle = bundle(bindle, anisotropy_chi_deltaPlus, anisotropy_chi_deltaMinus)
+        bindle = bundle(bindle, anisotropy_psi_deltaPlus, anisotropy_psi_deltaMinus)
+        
+        bindle.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+        
+        formatDataSet(bindle,output_file+'?bundle=T')
+        waitUntilIdle()
+        
+    else:
+        formatDataSet(epsilonEpoch,output_file)
+        waitUntilIdle()
+        
+        formatDataSet(Bunit,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(Btotal,output_file+'?append=T')
+        waitUntilIdle()
+        
+        formatDataSet(chiline,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(psiline,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(chiSquaredReduced_chi,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(chiSquaredReduced_psi,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(rSquared_chi,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(rSquared_psi,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(slopeError_chi,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(slopeError_psi,output_file+'?append=T')
+        
+        
+        waitUntilIdle()
+        formatDataSet(epsilon_chi,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(epsilon_psi,output_file+'?append=T')
+        
+        waitUntilIdle()
+        formatDataSet(anisotropy_chi,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(anisotropy_psi,output_file+'?append=T')
+        
+        waitUntilIdle()
+        formatDataSet(anisotropy_chi_deltaPlus, output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(anisotropy_chi_deltaMinus,output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(anisotropy_psi_deltaPlus, output_file+'?append=T')
+        waitUntilIdle()
+        formatDataSet(anisotropy_psi_deltaMinus,output_file+'?append=T')
     
     
     

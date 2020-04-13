@@ -249,10 +249,15 @@ anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
 ##########
 #####
 
-B_hat = getDataSet(filename+'?B_hat',tr)#print filename
-Nx = B_hat[:,0]
-Ny = B_hat[:,1]
-Nz = B_hat[:,2]
+try:
+    B_hat = getDataSet(filename+'?B_hat',tr)
+    Nx = B_hat[:,0]
+    Ny = B_hat[:,1]
+    Nz = B_hat[:,2]
+except:
+    Nx = getDataSet(filename+'?Nx',tr)#print filename
+    Ny = getDataSet(filename+'?Ny',tr)#print filename
+    Nz = getDataSet(filename+'?Nz',tr)#print filename
 
 epsilonEpoch = epoch
 anisotropy_chi = chi
@@ -526,7 +531,7 @@ rebin_anisotropyVsBeta = rebin( link(beta_parallel_SI,average_anisotropy,ones(le
 #plot(3,beta_cgs/beta_SI)
 plot(3,beta_SI)
 plot(4,beta_parallel_SI)
-plot(5,beta_perp_SI)
+plot(5,beta_perp_SI,xrange=tr)
 #plot(4,(B_parallel*1E-9)**2/(2*mu_0))
 #plot(3,beta_parallel_SI,average_anisotropy,renderType='scatter',ylog=True,xlog=True,ytitle='T!B&perp;!N/T!B||!N',xtitle='&beta;!B||')
 #plot(3,((4.03E-11)*(np)*(Tp*8.6174E-5)*((Bmag*1E-5)**-2))/beta_SI)

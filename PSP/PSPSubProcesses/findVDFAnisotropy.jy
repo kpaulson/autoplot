@@ -20,6 +20,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
     Outputs:
         
     '''
+    
     # Now time for the real work
     inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
     chiline                = None

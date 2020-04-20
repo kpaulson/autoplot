@@ -6,9 +6,9 @@
 
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
-timerange = getParam('timerange','2018-09-05','Iteration Timerange')
-#timerange = getParam('timerange','2019-04-05 18:00 to 19:30','Iteration Timerange')
-version = getParam('version','0.4.4','Version number to be appended to filenames')
+#timerange = getParam('timerange','2018-09-05','Iteration Timerange')
+timerange = getParam('timerange','2019-04-05 18:00 to 19:30','Iteration Timerange')
+version = getParam('version','0.5.4','Version number to be appended to filenames')
 
 #separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
 #writeStuff                     = True  #Write out L0 anisotropy file
@@ -18,10 +18,10 @@ version = getParam('version','0.4.4','Version number to be appended to filenames
 #usePreviouslyDownsampledData   = True  #Use Downsampled data file created previously
 #useLocalSubprocesses           = True  #Use local script call files instead of pulling from github
 
-separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
+separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','T','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
 useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
 usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
-writeStuff                     = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
+writeStuff                     = getParam('writeStuff','F','Write out L0 anisotropy file',['T','F'])
 useVDFFluxForWeights           = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
 conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
 analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
@@ -349,7 +349,7 @@ for tr in trs:
         fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
         fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
         
-        U = -(fluxDifference_scy/totalFlux)/0.035
+        U = -(fluxDifference_scy/totalFlux)/0.035 #Negative symbol needed to align with Mike's calculations
         V = (fluxDifference_scx/totalFlux)/0.035
         
         U.putProperty(QDataSet.VALID_MIN,None)
@@ -404,6 +404,7 @@ for tr in trs:
         peaks = reduceMax(vdf_full,1)
         peaks = synchronize( vdf_full, medianFilter(peaks[where(valid(peaks))],5) )
         r = where(eq(vdf_full,peaks))
+        
         
         print 'Defining VDF took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()

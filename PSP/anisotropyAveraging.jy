@@ -45,7 +45,7 @@ tr = getParam('timerange','2019-08-26','Timerange over which to generate combine
 version_L0 = '0.4.4'
 version_L1 = '1.1.4'
 
-writeStuff = getParam('writeFiles','F','Write out the L1 files with this version of the code?',['T','F'])
+writeStuff = getParam('writeFiles','T','Write out the L1 files with this version of the code?',['T','F'])
 if writeStuff == 'T':
     writeStuff = True
 elif writeStuff == 'F':
@@ -555,22 +555,20 @@ if writeStuff == True:
     else:
         output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
         output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
+    
+    if 'B_hat' in locals():
+        formatDataSet(B_hat,                                     output_anitostropyL1_directory + output_anitostropyL1_file)
+        formatDataSet(Bmag,                                      output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+        formatDataSet(average_anisotropy,                        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+        formatDataSet(average_anisotropy_uncertainty_deltaPlus,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+        formatDataSet(average_anisotropy_uncertainty_deltaMinus, output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+        formatDataSet(beta_SI,                                   output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+        formatDataSet(beta_parallel_SI,                          output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+        formatDataSet(beta_perp_SI,                              output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+    else:
+        bindle = bundle(Nx, Ny, Nz, Bmag)
+        bindle = bundle(bindle, average_anisotropy, average_anisotropy_uncertainty_deltaPlus, average_anisotropy_uncertainty_deltaMinus)
+        bindle = bundle(bindle, beta_SI, beta_parallel_SI, beta_perp_SI)
+        bindle.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         
-    #formatDataSet(epoch,output_anitostropyL1_file)
-    #print output_anitostropyL1_file
-    #print B_npq
-    #f = open(output_anitostropyL1_directory + output_anitostropyL1_file,"w+")
-    #formatDataSet(B_npq,               f)
-    #formatDataSet(Bmag,                output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    #formatDataSet(average_anisotropy,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    #formatDataSet(beta_SI,             output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    #formatDataSet(beta_parallel_SI,    output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    #formatDataSet(beta_perp_SI,        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(B_hat,                                     output_anitostropyL1_directory + output_anitostropyL1_file)
-    formatDataSet(Bmag,                                      output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(average_anisotropy,                        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(average_anisotropy_uncertainty_deltaPlus,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(average_anisotropy_uncertainty_deltaMinus, output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(beta_SI,                                   output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(beta_parallel_SI,                          output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
-    formatDataSet(beta_perp_SI,                              output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+        formatDataSet(bindle, output_anitostropyL1_directory + output_anitostropyL1_file + '?bundle=T')

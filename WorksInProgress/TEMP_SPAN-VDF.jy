@@ -5,6 +5,7 @@ tr = '2019-04-04 18:55:06 to 18:55:26'
 #tr = '2019-04-06 16:41:20 to 16:43:47'  # See the whole peak
 #tr = '2019-04-06 16:57:20 to 16:58:47'  # Not able to see the full distribution
 tr = '2019-04-06 17:49:00 to 17:49:30'  # 
+tr = '2020-01-30 12:18:15 to 12:18:25'  # 
 #tr = '2019-04-06 17:20 to 17:22'  # 
 #tr = '2019-04-06 15:00 to 19:30'  # 
 trend_seconds = 60
@@ -22,14 +23,15 @@ electronCharge  = 1 # in eV, obviously
 L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L2/$Y/$m/spi_sf00/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
 L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
 L2_spani_local_file = 'C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
-L2_spani_w3sweap_file = L2_spani_local_file
+#L2_spani_w3sweap_file = L2_spani_local_file
 L2draft_mag_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
 L2_mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+L2_mag_1min_file_teamSite = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 
 ### IMPORTS
-rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
+rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
 execfile( rotateSPANiToSC.toString() )
-rotateSCToSPANi= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/rotateSCToSPANi.jy',monitor.getSubtaskMonitor('import Rotation to SPANi'))
+rotateSCToSPANi= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/rotateSCToSPANi.jy',monitor.getSubtaskMonitor('import Rotation to SPANi'))
 execfile( rotateSCToSPANi.toString() )
 fieldAligner= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import Field Aligner'))
 execfile( fieldAligner.toString() )
@@ -38,7 +40,10 @@ execfile( fieldAligner.toString() )
 
 # Download and trim down magnetic field data
 #mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
-mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
+try:
+    mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
+except:
+    mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
 mag_sc = trim(mag_sc,tr_outer)
 print mag_sc
 
@@ -143,7 +148,7 @@ collapsedSPANBundle_vyvz = bundle( vy_Collapsed,vz_Collapsed,vdfCollapsed)
 
 
 timestamp = mean(time)
-timeWidth = str(datumRange(tr).width()/2.)
+timeWidth = str( round(datumRange(tr).width()/2E6, 1) )
 #plot(0,collapsedSPANBundle_vxvy,symbolSize=10,title=timestamp,xlog=False,ylog=False)
 #plot(1,collapsedSPANBundle_vxvz,symbolSize=10,title=timestamp,xlog=False,ylog=False)
 #plot(2,collapsedSPANBundle_vyvz,symbolSize=10,title=timestamp)#,renderType='nnSpectrogram')
@@ -165,9 +170,9 @@ vz_bins = linspace(-600,600,20)
 rebinnedSPANBundle_vxvy = rebin( link(-vx,vy,vdf) , vx_bins , vy_bins )
 rebinnedSPANBundle_vxvz = rebin( link(-vx,vz,vdf) , vx_bins , vz_bins )
 
-plot(0,rebinnedSPANBundle_vxvy,xtitle='v!Bx!N',ytitle='v!By!N')
+plot(0,rebinnedSPANBundle_vxvy,xtitle='v!Bx!N',ytitle='v!By!N',title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf')
 plot(1,mag_span[:,0],mag_span[:,1],color='red')
-plot(2,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)')
+plot(2,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)', ztitle='vdf')
 plot(3,mag_span[:,0],mag_span[:,2],color='red')
 stop
 

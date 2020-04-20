@@ -1,20 +1,37 @@
 
 
 tr = '2018-10-01 to 2019-06-08'
-tr = '2019-08-26'
-tr = '2019-04-05'
+#tr = '2019-08-26'
+#tr = '2019-04-05'
+tr = '2020-01-26 to 2020-02-05'
+tr = '2020-01-31'
 #tr = '2018-11-01 to 2018-11-06'
 trend_seconds = 60
 uncertainty_threshold = 2.8
 writeStuff = False
+onlyPlotGoodSPAN = True
 
-mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
-mag = getDataSet(mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
+#mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+#mag = getDataSet(mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
+
+L2_mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+L2_mag_1min_file_teamSite = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+
+try:
+    mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
+except:
+    mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
+
 
 SPANi_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
 t_tensor = getDataSet(SPANi_file+'?T_TENSOR',tr)
 
-
+if onlyPlotGoodSPAN == True:
+    peakObservationFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt'
+    peakObservationFlags = getDataSet(peakObservationFile+'?depend0=Epoch&column=VDF_Peak_Obs',tr)
+    
+    r = where(eq(peakObservationFlags,0))
+    t_tensor = t_tensor[r,:]
 
 
 ### IMPORT SUBPROCESSES
@@ -42,7 +59,7 @@ from org.apache.commons.math.linear import RealVector
 
 # Define variables
 t_tensor = trim(t_tensor,tr)
-mag_sc = synchronize(t_tensor,mag)
+mag_sc = synchronize(t_tensor,mag_sc)
 time = mag_sc.property(QDataSet.DEPEND_0)
 
 Txx = t_tensor[:,0]
@@ -200,21 +217,21 @@ T_mag_para = T_mag_para[goodData]
 T_mag_perp = T_mag_perp[goodData]
 T_mag_perp_uncertainty = T_mag_perp_uncertainty[goodData]
 
-plot(3,anisotropy_mcmannis,color='dark green')
+plot(6,anisotropy_mcmannis,color='dark green')
 anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_mag_perp_uncertainty/T_mag_para)
 anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_mag_perp_uncertainty/T_mag_para)
 #setLayoutOverplot(4)
-plot(2,anisotropy_mcmannis,color='green')
+plot(5,anisotropy_mcmannis,color='green')
 #plot(3,T_mag_perp_uncertainty/T_mag_para)
 #plot(6,putProperty(T_mag[:,0]/T_mag[:,2],QDataSet.VALID_MIN,1E-10))
-
+stop
 if writeStuff == True:
     outputDirectory = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/McMannis_Method/'
     days = generateTimeRanges('$Y-$m-$d',tr)
     for day in days:
         formatDataSet(trim(anisotropy_mcmannis,day),outputDirectory+'SPANi_Anisotropy_L1_%s_v1.0.0.txt'%day)
 
-spc_anisotropy_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.3.cdf'
+spc_anisotropy_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.4.cdf'
 
 spc_anisotropy = getDataSet(spc_anisotropy_file+'?Anisotropy',tr)
 spc_anisotropy_deltaPlus = getDataSet(spc_anisotropy_file+'?anisotropy_deltaPlus',tr)

@@ -173,7 +173,8 @@ from org.apache.commons.math.stat.regression      import SimpleRegression
 
 OS = get_os_version().split()[0]
 if OS == 'mac':
-    googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+    googleDrive_path = '/Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+    googleDrive_path = '/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
     googleDrive_path = '/Users/kpaulson/GoogleDrive/'
 

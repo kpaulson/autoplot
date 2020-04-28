@@ -5,15 +5,16 @@
 ############################################################################
 
 
-#timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
+timerange = getParam('timerange','2018-11-01 06:00 to 06:15','Iteration Timerange')
 #timerange = getParam('timerange','2019-08-26','Iteration Timerange')
-timerange = getParam('timerange','2019-03-29','Iteration Timerange')
+#timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
 #timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
 #timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
 #version = getParam('version','0.4.4','Version number to be appended to filenames')
 
 separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
 writeStuff                     = True  #Write out L0 anisotropy file
+writeBundle                    = False  #Write cdf as a bundle instead of appending individual variables
 useVDFFluxForWeights           = True  #Weight linear fits by normalized flux around peak (points at peak take precendence)
 conflateAndDownsampleSpectra   = True  #Downsample the spectra for individual pads (smoothSeconds parameter)
 analyzingTimeWidthComparisons  = False #Run Routine for various timewidths to compare end results (TESTING ONLY)
@@ -30,7 +31,7 @@ q                    = 1.6022E-12
 #fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
 #fitSeconds           = getParam('fit_window' , 10 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 #modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
-smoothSeconds        = getParam('smoothSeconds' , 5 , 'Number of spectra to average together before defining flow directions')
+smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of spectra to average together before defining flow directions')
 #smoothSeconds = fitSeconds
 
 #angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
@@ -40,7 +41,7 @@ cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp
 
 useLocalSubprocesses = True
 
-#plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+
 
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -80,6 +81,7 @@ if OS == 'mac':
     googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
     googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+       
 
 ############################################################################
 ##################            DEFINITIONS        ###########################
@@ -97,11 +99,15 @@ import java
 time_begin = TimeUtil.now()    
 
     
-
 # Split analysis by day
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
+        
+    localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
+    localDownsampledDataFile = localDownsampledDataDirectory+'SPC_DownsampledSpectra_%s_%ssec.cdf'%(tr,smoothSeconds)
+    
+    fileAlreadyExists = False
     time_begin_tr = TimeUtil.now() 
     timeTitle = str(tr)    
     
@@ -110,10 +116,18 @@ for tr in trs:
         tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
         tp_end = TimeParser.create('-$H$M')
         timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
-
-        
+    
+    try:
+        TEMP_epoch = getDataSet(localDownsampledDataFile+'?epoch')
+        if ne( long(mode(copy(TEMP_epoch))) ,0):
+            print 'File already exists for %s'%(tr)
+            fileAlreadyExists = True
+    except:
+        fileAlreadyExists = False
+    
     #try:
-    if True:
+    #if True:
+    if fileAlreadyExists == False:
         monitor.setLabel('Downloading SPC') 
         
         monitor.setProgressMessage(tr)
@@ -156,14 +170,30 @@ for tr in trs:
         mv_lo = mv_lo_downsampled
         mv_hi = mv_hi_downsampled
         time = spc_a_smooth_downsampled_mean.property(QDataSet.DEPEND_0)
-            
-            
+        
+        mv_lo = mv_lo[:,0:32]
+        mv_hi = mv_hi[:,0:32]   
+        
+        spc_a_smooth_downsampled_mean   = spc_a_smooth_downsampled_mean[:,0:32]
+        spc_a_smooth_downsampled_median = spc_a_smooth_downsampled_median[:,0:32]
+        spc_a_smooth_downsampled_mode   = spc_a_smooth_downsampled_mode[:,0:32]
+        
+        spc_b_smooth_downsampled_mean   = spc_b_smooth_downsampled_mean[:,0:32]
+        spc_b_smooth_downsampled_median = spc_b_smooth_downsampled_median[:,0:32]
+        spc_b_smooth_downsampled_mode   = spc_b_smooth_downsampled_mode[:,0:32]
+        
+        spc_c_smooth_downsampled_mean   = spc_c_smooth_downsampled_mean[:,0:32]
+        spc_c_smooth_downsampled_median = spc_c_smooth_downsampled_median[:,0:32]
+        spc_c_smooth_downsampled_mode   = spc_c_smooth_downsampled_mode[:,0:32]
+        
+        spc_d_smooth_downsampled_mean   = spc_d_smooth_downsampled_mean[:,0:32]
+        spc_d_smooth_downsampled_median = spc_d_smooth_downsampled_median[:,0:32]
+        spc_d_smooth_downsampled_mode   = spc_d_smooth_downsampled_mode[:,0:32]
+        
+        
         ###
         ### WRITE STUFF
         ###
-        
-        localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
-        localDownsampledDataFile = localDownsampledDataDirectory+'SPC_DownsampledSpectra_%s_%ssec.cdf'%(tr,smoothSeconds)
         
         time.putProperty(QDataSet.NAME,'epoch')
         
@@ -228,26 +258,37 @@ for tr in trs:
         mv_lo.putProperty(  QDataSet.TITLE,'minimum voltage of each bin downsampled over %s seconds'%smoothSeconds)
         mv_hi.putProperty(  QDataSet.TITLE,'maximum voltage of each bin downsampled over %s seconds'%smoothSeconds)
         
-
-        formatDataSet(time,localDownsampledDataFile)
-        formatDataSet(mv_lo,localDownsampledDataFile+'?append=T')
-        formatDataSet(mv_hi,localDownsampledDataFile+'?append=T')
-        
-        formatDataSet(spc_a_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-        formatDataSet(spc_a_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-        #formatDataSet(spc_a_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+        if writeBundle == True:
+            bindle = bundle(mv_lo, mv_hi)
+            bindle = bundle(bindle, spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median)
+            bindle = bundle(bindle, spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median)
+            bindle = bundle(bindle, spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median)
+            bindle = bundle(bindle, spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median)
+            
+            bindle.putProperty(QDataSet.DEPEND_0, time)
+            
+            formatDataSet(bindle,localDownsampledDataFile+'?bundle=T')
+            
+        else:
+            formatDataSet(time,localDownsampledDataFile)
+            formatDataSet(mv_lo,localDownsampledDataFile+'?append=T')
+            formatDataSet(mv_hi,localDownsampledDataFile+'?append=T')
+            
+            formatDataSet(spc_a_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+            formatDataSet(spc_a_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+            #formatDataSet(spc_a_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                                    
+            formatDataSet(spc_b_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+            formatDataSet(spc_b_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+            #formatDataSet(spc_b_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
                                                                                 
-        formatDataSet(spc_b_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-        formatDataSet(spc_b_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-        #formatDataSet(spc_b_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
-                                                                            
-        formatDataSet(spc_c_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-        formatDataSet(spc_c_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-        #formatDataSet(spc_c_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
-                                                                           
-        formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-        formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-        #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+            formatDataSet(spc_c_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+            formatDataSet(spc_c_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+            #formatDataSet(spc_c_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                               
+            formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+            formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+            #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
         
     #except:
     #    continue

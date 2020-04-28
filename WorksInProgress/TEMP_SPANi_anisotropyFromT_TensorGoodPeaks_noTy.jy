@@ -1,15 +1,16 @@
 
 
-tr = '2018-10-01 to 2019-06-08'
-#tr = '2019-08-26'
-#tr = '2019-04-05'
-tr = '2020-01-26 to 2020-02-05'
-tr = '2020-01-31'
-#tr = '2018-11-01 to 2018-11-06'
+timerange = '2018-10-01 to 2019-06-08'
+#timerange = '2019-08-26'
+#timerange = '2019-04-05'
+timerange = '2020-01-26 to 2020-02-05'
+timerange = getParam('timerange','2020-01-31','Timerange for processing')
+#timerange = '2018-11-01 to 2018-11-06'
 trend_seconds = 60
 uncertainty_threshold = 2.8
-writeStuff = False
-onlyPlotGoodSPAN = True
+writeStuff = True
+plotStuff = False
+onlyPlotGoodSPAN = False
 
 #mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 #mag = getDataSet(mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
@@ -17,21 +18,9 @@ onlyPlotGoodSPAN = True
 L2_mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 L2_mag_1min_file_teamSite = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 
-try:
-    mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
-except:
-    mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
 
 
 SPANi_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
-t_tensor = getDataSet(SPANi_file+'?T_TENSOR',tr)
-
-if onlyPlotGoodSPAN == True:
-    peakObservationFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt'
-    peakObservationFlags = getDataSet(peakObservationFile+'?depend0=Epoch&column=VDF_Peak_Obs',tr)
-    
-    r = where(eq(peakObservationFlags,0))
-    t_tensor = t_tensor[r,:]
 
 
 ### IMPORT SUBPROCESSES
@@ -56,199 +45,231 @@ from org.apache.commons.math.linear import RealVector
 
 ### SCIENCE!
 
-
-# Define variables
-t_tensor = trim(t_tensor,tr)
-mag_sc = synchronize(t_tensor,mag_sc)
-time = mag_sc.property(QDataSet.DEPEND_0)
-
-Txx = t_tensor[:,0]
-Txz = t_tensor[:,4] # NO IDEA IF THIS IS THE CORRECT ELEMENT (NO LABELS IN CDF)
-Tzz = t_tensor[:,2]
-
-Tperp1 = dblarr(len(time))
-Tperp2 = dblarr(len(time))
-Tpara = dblarr(len(time))
-
-
-# Find field-aligned coords
-sunDirection = bundle(ones(len(time)),zeros(len(time)),zeros(len(time)))
-sunDirection.putProperty(QDataSet.DEPEND_0,time)
-
-( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( mag_sc[:,0] , mag_sc[:,1] , mag_sc[:,2] , magnitude(mag_sc) , sunDirection[:,0] , sunDirection[:,1] , sunDirection[:,2] , trend_seconds )
-
-N_hat_sc = putProperty(bundle(Nx,Ny,Nz),QDataSet.DEPEND_0,time)
-P_hat_sc = putProperty(bundle(Px,Py,Pz),QDataSet.DEPEND_0,time)
-Q_hat_sc = putProperty(bundle(Qx,Qy,Qz),QDataSet.DEPEND_0,time)
-N_hat_spani = rotateSCToSPANi(N_hat_sc)
-P_hat_spani = rotateSCToSPANi(P_hat_sc)
-Q_hat_spani = rotateSCToSPANi(Q_hat_sc)
-
-# So, we now can take the bfield vectors written in SPANi coordinates to rotate SPANi into mag-coords
-#     This should be matrix R as written in Michael McManus' document 
-#     ie, for 
-#                | a  b  c |
-#            R = | d  e  f |      where     R T R^-1 = T'
-#                | g  h  i |
-#
-#     we would write
-#
-#                | Nx_spani  Ny_spani  Nz_spani |
-#            R = | Px_spani  Py_spani  Pz_spani |   
-#                | Qx_spani  Qy_spani  Qz_spani |
-#
-#      (but for our rotation we only have   R T = T'  , this doesn't seem right)
-#            
-#
-#     We will invert
-#
-#                | aa  dd  gg |   | Nx_spani*Nx_spani  Px_spani*Px_spani  Qx_spani*Qx_spani |
-#            R = | ac  df  gi | = | Nx_spani*Nz_spani  Px_spani*Pz_spani  Qx_spani*Qz_spani |   
-#                | cc  ff  ii |   | Nz_spani*Nz_spani  Pz_spani*Pz_spani  Qz_spani*Qz_spani |
-#
-#
-#     to solve
-#            | aa  dd  gg |  | T_perp1 |     | T_xx |
-#            | ac  df  gi |  | T_perp2 |  =  | T_xz |   
-#            | cc  ff  ii |  | T_para  |     | T_zz |
-#            
-#     for T_perp1, T_perp2, T_para
-#
-#
-#
-
-
-realMatrix = RealMatrix
-#print realMatrix
-#stop
-rotate_SPANiT_to_magT = Array2DRowRealMatrix(3,3)
-T_tensor_SPANi = Array2DRowRealMatrix(3,1)
-#print rotate_SPANiT_to_magT
-#stop
-#rotate_SPANiT_to_magT = realMatrix.createMatrix(3,3)
-#stop
-#T_tensor_SPANi = RealVector.createVector(3)
-
-#if True:
-#    rotate_SPANiT_to_magT.setEntry(0,0,N_hat_spani[:,0].value()*N_hat_spani[:,0].value())
-#    rotate_SPANiT_to_magT.setEntry(0,1,P_hat_spani[:,0].value()*P_hat_spani[:,0].value())
-#    rotate_SPANiT_to_magT.setEntry(0,2,Q_hat_spani[:,0].value()*Q_hat_spani[:,0].value())
-#    rotate_SPANiT_to_magT.setEntry(1,0,N_hat_spani[:,0].value()*N_hat_spani[:,2].value())
-#    rotate_SPANiT_to_magT.setEntry(1,1,P_hat_spani[:,0].value()*P_hat_spani[:,2].value())
-#    rotate_SPANiT_to_magT.setEntry(1,2,Q_hat_spani[:,0].value()*Q_hat_spani[:,2].value())
-#    rotate_SPANiT_to_magT.setEntry(2,0,N_hat_spani[:,2].value()*N_hat_spani[:,2].value())
-#    rotate_SPANiT_to_magT.setEntry(2,1,P_hat_spani[:,2].value()*P_hat_spani[:,2].value())
-#    rotate_SPANiT_to_magT.setEntry(2,2,Q_hat_spani[:,2].value()*Q_hat_spani[:,2].value())
-#
-#
-#    T_tensor_SPANi.setEntry(0,0,Txx[:].value())
-#    T_tensor_SPANi.setEntry(0,0,Txz[:].value())
-#    T_tensor_SPANi.setEntry(0,0,Tzz[:].value())
-#
-#
-#    solver = LUDecompositionImpl(rotate_SPANiT_to_magT).getSolver()
-#    rotate_SPANiT_to_magT_inverse = solver.getInverse()
-#
-#    T_tensor_mag = rotate_SPANiT_to_magT_inverse.multiply(T_tensor_SPANi)
-#
-#    print 'T_tensor_mag',T_tensor_mag
-#    print 'T_tensor_SPANi',T_tensor_SPANi
-#    stop
-for i in xrange(len(time)):
-    rotate_SPANiT_to_magT.setEntry(0,0,N_hat_spani[i,0].value()*N_hat_spani[i,0].value())
-    rotate_SPANiT_to_magT.setEntry(0,1,P_hat_spani[i,0].value()*P_hat_spani[i,0].value())
-    rotate_SPANiT_to_magT.setEntry(0,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,0].value())
-    rotate_SPANiT_to_magT.setEntry(1,0,N_hat_spani[i,0].value()*N_hat_spani[i,2].value())
-    rotate_SPANiT_to_magT.setEntry(1,1,P_hat_spani[i,0].value()*P_hat_spani[i,2].value())
-    rotate_SPANiT_to_magT.setEntry(1,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,2].value())
-    rotate_SPANiT_to_magT.setEntry(2,0,N_hat_spani[i,2].value()*N_hat_spani[i,2].value())
-    rotate_SPANiT_to_magT.setEntry(2,1,P_hat_spani[i,2].value()*P_hat_spani[i,2].value())
-    rotate_SPANiT_to_magT.setEntry(2,2,Q_hat_spani[i,2].value()*Q_hat_spani[i,2].value())
-    
-    
-    T_tensor_SPANi.setEntry(0,0,Txx[i].value())
-    T_tensor_SPANi.setEntry(1,0,Txz[i].value())
-    T_tensor_SPANi.setEntry(2,0,Tzz[i].value())
+outputDirectory = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/McMannis_Method/'
+trs = generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
     
     try:
-        solver = LUDecompositionImpl(rotate_SPANiT_to_magT).getSolver()
-        rotate_SPANiT_to_magT_inverse = solver.getInverse()
-        
-        T_tensor_mag = rotate_SPANiT_to_magT_inverse.multiply(T_tensor_SPANi)
-        
-        print 'T_tensor_mag',T_tensor_mag
-        print 'T_tensor_SPANi',T_tensor_SPANi
-        
-        
-        Tperp1[i] = T_tensor_mag.getEntry(0,0)
-        Tperp2[i] = T_tensor_mag.getEntry(1,0)
-        Tpara[i]  = T_tensor_mag.getEntry(2,0)
-        
+        mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
     except:
-        Tperp1[i] = -1E38
-        Tperp2[i] = -1E38
-        Tpara[i]  = -1E38
+        mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
+    
+    t_tensor = getDataSet(SPANi_file+'?T_TENSOR',tr)
+    
 
-T_mag = bundle(Tperp1,Tperp2,Tpara)
-T_mag.putProperty(QDataSet.DEPEND_0,time)
-T_spani = bundle(Txx,Txz,Tzz)
-T_spani.putProperty(QDataSet.DEPEND_0,time)
-
-#setLayoutOverplot(4)
-#plot(0,T_spani)
-#plot(0,Txx)
-#plot(1,Txz,color='orange')
-#plot(2,Tzz,color='dark green')
-#plot(3,T_mag)
-
-T_mag_para = T_mag[:,2]
-T_mag_perp = (T_mag[:,0] + T_mag[:,1])/2.
-T_mag_perp_uncertainty = abs(T_mag[:,0]-T_mag[:,1])/2.
-
-#anisotropy_mcmannis = T_mag[:,0]/T_mag[:,2]
-anisotropy_mcmannis = T_mag_perp/T_mag_para
-anisotropy_mcmannis.putProperty(QDataSet.VALID_MIN,1E-10)
-anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_mag_perp_uncertainty/T_mag_para)
-anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_mag_perp_uncertainty/T_mag_para)
-
-goodData = where(lt(anisotropy_mcmannis.property(QDataSet.DELTA_PLUS)/anisotropy_mcmannis,uncertainty_threshold))
-anisotropy_mcmannis = anisotropy_mcmannis[goodData]
-T_mag_para = T_mag_para[goodData]
-T_mag_perp = T_mag_perp[goodData]
-T_mag_perp_uncertainty = T_mag_perp_uncertainty[goodData]
-
-plot(6,anisotropy_mcmannis,color='dark green')
-anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_mag_perp_uncertainty/T_mag_para)
-anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_mag_perp_uncertainty/T_mag_para)
-#setLayoutOverplot(4)
-plot(5,anisotropy_mcmannis,color='green')
-#plot(3,T_mag_perp_uncertainty/T_mag_para)
-#plot(6,putProperty(T_mag[:,0]/T_mag[:,2],QDataSet.VALID_MIN,1E-10))
-stop
-if writeStuff == True:
-    outputDirectory = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/McMannis_Method/'
-    days = generateTimeRanges('$Y-$m-$d',tr)
-    for day in days:
-        formatDataSet(trim(anisotropy_mcmannis,day),outputDirectory+'SPANi_Anisotropy_L1_%s_v1.0.0.txt'%day)
-
-spc_anisotropy_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.4.cdf'
-
-spc_anisotropy = getDataSet(spc_anisotropy_file+'?Anisotropy',tr)
-spc_anisotropy_deltaPlus = getDataSet(spc_anisotropy_file+'?anisotropy_deltaPlus',tr)
-spc_anisotropy_deltaMinus = getDataSet(spc_anisotropy_file+'?anisotropy_deltaMinus',tr)
-
-goodData = where(lt(spc_anisotropy_deltaPlus/spc_anisotropy,uncertainty_threshold))
-spc_anisotropy = spc_anisotropy[goodData]
-spc_anisotropy_deltaPlus = spc_anisotropy_deltaPlus[goodData]
-spc_anisotropy_deltaMinus = spc_anisotropy_deltaMinus[goodData]
-
-plot(1,spc_anisotropy,color='black')
-spc_anisotropy.putProperty(QDataSet.DELTA_PLUS,spc_anisotropy_deltaPlus)
-spc_anisotropy.putProperty(QDataSet.DELTA_MINUS,spc_anisotropy_deltaMinus)
-
-plot(0,spc_anisotropy,color='light grey',ylog=True)
+    if onlyPlotGoodSPAN == True:
+        peakObservationFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt'
+        peakObservationFlags = getDataSet(peakObservationFile+'?depend0=Epoch&column=VDF_Peak_Obs',tr)
+        
+        r = where(eq(peakObservationFlags,0))
+        t_tensor = t_tensor[r,:]
 
 
+    # Define variables
+    t_tensor = trim(t_tensor,tr)
+    mag_sc = synchronize(t_tensor,mag_sc)
+    time = mag_sc.property(QDataSet.DEPEND_0)
+    
+    Txx = t_tensor[:,0]
+    Txz = t_tensor[:,4] # NO IDEA IF THIS IS THE CORRECT ELEMENT (NO LABELS IN CDF)
+    Tzz = t_tensor[:,2]
+    
+    Tperp1 = dblarr(len(time))
+    Tperp2 = dblarr(len(time))
+    Tpara = dblarr(len(time))
+    
+    
+    # Find field-aligned coords
+    sunDirection = bundle(ones(len(time)),zeros(len(time)),zeros(len(time)))
+    sunDirection.putProperty(QDataSet.DEPEND_0,time)
+    
+    ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( mag_sc[:,0] , mag_sc[:,1] , mag_sc[:,2] , magnitude(mag_sc) , sunDirection[:,0] , sunDirection[:,1] , sunDirection[:,2] , trend_seconds )
+    
+    N_hat_sc = putProperty(bundle(Nx,Ny,Nz),QDataSet.DEPEND_0,time)
+    P_hat_sc = putProperty(bundle(Px,Py,Pz),QDataSet.DEPEND_0,time)
+    Q_hat_sc = putProperty(bundle(Qx,Qy,Qz),QDataSet.DEPEND_0,time)
+    N_hat_spani = rotateSCToSPANi(N_hat_sc)
+    P_hat_spani = rotateSCToSPANi(P_hat_sc)
+    Q_hat_spani = rotateSCToSPANi(Q_hat_sc)
+    
+    # So, we now can take the bfield vectors written in SPANi coordinates to rotate SPANi into mag-coords
+    #     This should be matrix R as written in Michael McManus' document 
+    #     ie, for 
+    #                | a  b  c |
+    #            R = | d  e  f |      where     R T R^-1 = T'
+    #                | g  h  i |
+    #
+    #     we would write
+    #
+    #                | Nx_spani  Ny_spani  Nz_spani |
+    #            R = | Px_spani  Py_spani  Pz_spani |   
+    #                | Qx_spani  Qy_spani  Qz_spani |
+    #
+    #      (but for our rotation we only have   R T = T'  , this doesn't seem right)
+    #            
+    #
+    #     We will invert
+    #
+    #                | aa  dd  gg |   | Nx_spani*Nx_spani  Px_spani*Px_spani  Qx_spani*Qx_spani |
+    #            R = | ac  df  gi | = | Nx_spani*Nz_spani  Px_spani*Pz_spani  Qx_spani*Qz_spani |   
+    #                | cc  ff  ii |   | Nz_spani*Nz_spani  Pz_spani*Pz_spani  Qz_spani*Qz_spani |
+    #
+    #
+    #     to solve
+    #            | aa  dd  gg |  | T_perp1 |     | T_xx |
+    #            | ac  df  gi |  | T_perp2 |  =  | T_xz |   
+    #            | cc  ff  ii |  | T_para  |     | T_zz |
+    #            
+    #     for T_perp1, T_perp2, T_para
+    #
+    #
+    #
+    
+    
+    realMatrix = RealMatrix
+    #print realMatrix
+    #stop
+    rotate_SPANiT_to_magT = Array2DRowRealMatrix(3,3)
+    T_tensor_SPANi = Array2DRowRealMatrix(3,1)
+    #print rotate_SPANiT_to_magT
+    #stop
+    #rotate_SPANiT_to_magT = realMatrix.createMatrix(3,3)
+    #stop
+    #T_tensor_SPANi = RealVector.createVector(3)
+    
+    #if True:
+    #    rotate_SPANiT_to_magT.setEntry(0,0,N_hat_spani[:,0].value()*N_hat_spani[:,0].value())
+    #    rotate_SPANiT_to_magT.setEntry(0,1,P_hat_spani[:,0].value()*P_hat_spani[:,0].value())
+    #    rotate_SPANiT_to_magT.setEntry(0,2,Q_hat_spani[:,0].value()*Q_hat_spani[:,0].value())
+    #    rotate_SPANiT_to_magT.setEntry(1,0,N_hat_spani[:,0].value()*N_hat_spani[:,2].value())
+    #    rotate_SPANiT_to_magT.setEntry(1,1,P_hat_spani[:,0].value()*P_hat_spani[:,2].value())
+    #    rotate_SPANiT_to_magT.setEntry(1,2,Q_hat_spani[:,0].value()*Q_hat_spani[:,2].value())
+    #    rotate_SPANiT_to_magT.setEntry(2,0,N_hat_spani[:,2].value()*N_hat_spani[:,2].value())
+    #    rotate_SPANiT_to_magT.setEntry(2,1,P_hat_spani[:,2].value()*P_hat_spani[:,2].value())
+    #    rotate_SPANiT_to_magT.setEntry(2,2,Q_hat_spani[:,2].value()*Q_hat_spani[:,2].value())
+    #
+    #
+    #    T_tensor_SPANi.setEntry(0,0,Txx[:].value())
+    #    T_tensor_SPANi.setEntry(0,0,Txz[:].value())
+    #    T_tensor_SPANi.setEntry(0,0,Tzz[:].value())
+    #
+    #
+    #    solver = LUDecompositionImpl(rotate_SPANiT_to_magT).getSolver()
+    #    rotate_SPANiT_to_magT_inverse = solver.getInverse()
+    #
+    #    T_tensor_mag = rotate_SPANiT_to_magT_inverse.multiply(T_tensor_SPANi)
+    #
+    #    print 'T_tensor_mag',T_tensor_mag
+    #    print 'T_tensor_SPANi',T_tensor_SPANi
+    #    stop
+    for i in xrange(len(time)):
+        rotate_SPANiT_to_magT.setEntry(0,0,N_hat_spani[i,0].value()*N_hat_spani[i,0].value())
+        rotate_SPANiT_to_magT.setEntry(0,1,P_hat_spani[i,0].value()*P_hat_spani[i,0].value())
+        rotate_SPANiT_to_magT.setEntry(0,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,0].value())
+        rotate_SPANiT_to_magT.setEntry(1,0,N_hat_spani[i,0].value()*N_hat_spani[i,2].value())
+        rotate_SPANiT_to_magT.setEntry(1,1,P_hat_spani[i,0].value()*P_hat_spani[i,2].value())
+        rotate_SPANiT_to_magT.setEntry(1,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,2].value())
+        rotate_SPANiT_to_magT.setEntry(2,0,N_hat_spani[i,2].value()*N_hat_spani[i,2].value())
+        rotate_SPANiT_to_magT.setEntry(2,1,P_hat_spani[i,2].value()*P_hat_spani[i,2].value())
+        rotate_SPANiT_to_magT.setEntry(2,2,Q_hat_spani[i,2].value()*Q_hat_spani[i,2].value())
+        
+        
+        T_tensor_SPANi.setEntry(0,0,Txx[i].value())
+        T_tensor_SPANi.setEntry(1,0,Txz[i].value())
+        T_tensor_SPANi.setEntry(2,0,Tzz[i].value())
+        
+        try:
+            solver = LUDecompositionImpl(rotate_SPANiT_to_magT).getSolver()
+            rotate_SPANiT_to_magT_inverse = solver.getInverse()
+            
+            T_tensor_mag = rotate_SPANiT_to_magT_inverse.multiply(T_tensor_SPANi)
+            
+            print 'T_tensor_mag',T_tensor_mag
+            print 'T_tensor_SPANi',T_tensor_SPANi
+            
+            
+            Tperp1[i] = T_tensor_mag.getEntry(0,0)
+            Tperp2[i] = T_tensor_mag.getEntry(1,0)
+            Tpara[i]  = T_tensor_mag.getEntry(2,0)
+            
+        except:
+            Tperp1[i] = -1E38
+            Tperp2[i] = -1E38
+            Tpara[i]  = -1E38
+    
+    T_mag = bundle(Tperp1,Tperp2,Tpara)
+    T_mag.putProperty(QDataSet.DEPEND_0,time)
+    T_spani = bundle(Txx,Txz,Tzz)
+    T_spani.putProperty(QDataSet.DEPEND_0,time)
+    
+    #setLayoutOverplot(4)
+    #plot(0,T_spani)
+    #plot(0,Txx)
+    #plot(1,Txz,color='orange')
+    #plot(2,Tzz,color='dark green')
+    #plot(3,T_mag)
+    
+    T_mag_para = T_mag[:,2]
+    T_mag_perp = (T_mag[:,0] + T_mag[:,1])/2.
+    T_mag_perp_uncertainty = abs(T_mag[:,0]-T_mag[:,1])/2.
+    
+    #anisotropy_mcmannis = T_mag[:,0]/T_mag[:,2]
+    anisotropy_mcmannis = T_mag_perp/T_mag_para
+    anisotropy_mcmannis.putProperty(QDataSet.VALID_MIN,1E-10)
+    anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_mag_perp_uncertainty/T_mag_para)
+    anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_mag_perp_uncertainty/T_mag_para)
+    
+    goodData = where(lt(anisotropy_mcmannis.property(QDataSet.DELTA_PLUS)/anisotropy_mcmannis,uncertainty_threshold))
+    anisotropy_mcmannis = anisotropy_mcmannis[goodData]
+    T_mag_para = T_mag_para[goodData]
+    T_mag_perp = T_mag_perp[goodData]
+    T_mag_perp_uncertainty = T_mag_perp_uncertainty[goodData]
+    T_anisotropy_uncertainty = T_mag_perp_uncertainty/T_mag_para
+    
+    if plotStuff == True:
+        plot(6,anisotropy_mcmannis,color='dark green')
+        anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_anisotropy_uncertainty)
+        anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_anisotropy_uncertainty)
+        #setLayoutOverplot(4)
+        plot(5,anisotropy_mcmannis,color='green')
+        #plot(3,T_mag_perp_uncertainty/T_mag_para)
+        #plot(6,putProperty(T_mag[:,0]/T_mag[:,2],QDataSet.VALID_MIN,1E-10))
+        stop
+        
+        spc_anisotropy_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.4.cdf'
+        spc_anisotropy = getDataSet(spc_anisotropy_file+'?Anisotropy',tr)
+        spc_anisotropy_deltaPlus = getDataSet(spc_anisotropy_file+'?anisotropy_deltaPlus',tr)
+        spc_anisotropy_deltaMinus = getDataSet(spc_anisotropy_file+'?anisotropy_deltaMinus',tr)
+        
+        goodData = where(lt(spc_anisotropy_deltaPlus/spc_anisotropy,uncertainty_threshold))
+        spc_anisotropy = spc_anisotropy[goodData]
+        spc_anisotropy_deltaPlus = spc_anisotropy_deltaPlus[goodData]
+        spc_anisotropy_deltaMinus = spc_anisotropy_deltaMinus[goodData]
+        
+        plot(1,spc_anisotropy,color='black')
+        spc_anisotropy.putProperty(QDataSet.DELTA_PLUS,spc_anisotropy_deltaPlus)
+        spc_anisotropy.putProperty(QDataSet.DELTA_MINUS,spc_anisotropy_deltaMinus)
+        
+        plot(0,spc_anisotropy,color='light grey',ylog=True)
+
+    if writeStuff == True:
+        
+        anisotropy_mcmannis.putProperty(QDataSet.NAME,'anisotropy')
+        anisotropy_mcmannis.putProperty(QDataSet.LABEL,'SPANi Anisotropy')
+        anisotropy_mcmannis.putProperty(QDataSet.TITLE,'Temperature Anisotropy derived using partial vdf pbserved by SPANi using McMannis method')
+        
+        T_anisotropy_uncertainty.putProperty(QDataSet.NAME,'anisotropy_uncertainty')
+        T_anisotropy_uncertainty.putProperty(QDataSet.LABEL,'SPANi Anisotropy Uncertainty')
+        T_anisotropy_uncertainty.putProperty(QDataSet.TITLE,'Uncertainty of temperature Anisotropy derived using partial vdf pbserved by SPANi using McMannis method')
+        
+        anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_anisotropy_uncertainty)
+        anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_anisotropy_uncertainty)
+        bindle = bundle(anisotropy_mcmannis,T_anisotropy_uncertainty)
+        bindle.putProperty(QDataSet.DEPEND_0,time)
+        
+        formatDataSet(bindle,outputDirectory+'SPANi_Anisotropy_L1_%s_v1.0.0.cdf?bundle=T'%tr)
+    
+    
 
 
 

@@ -71,7 +71,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             if mod(ind,modFits) == 0:
                 plot(3, event , renderType='eventsBar')
             
-            v_z_dd = trim(v_z_in,tr_dds)
+            v_z_dd = -trim(v_z_in,tr_dds)
             vz_tanPhi_dd = trim(vz_tanPhi_in,tr_dds)
             vz_tanTheta_dd = trim(vz_tanTheta_in,tr_dds)
             
@@ -317,8 +317,11 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
     epsilon_chi = - chiline / ( (chiline*(1 - temp_Nz**2)) + temp_Nz ) # By including the Nx and Ny factors in the linear fitting above, these variables become independent of perp mag field
     epsilon_psi = - psiline / ( (psiline*(1 - temp_Nz**2)) + temp_Nz )
 
-    anisotropy_chi = sqrt(epsilon_chi+1)
+    anisotropy_chi = sqrt(epsilon_chi+1) # These give the anisotropy of the thermal speed
     anisotropy_psi = sqrt(epsilon_psi+1)
+    
+    anisotropy_chi = anisotropy_chi**2 # I know it is dumb to take sqrt()**2, but I want to keep these calculations separate
+    anisotropy_psi = anisotropy_psi**2 # This is the anisotropy of the temperature (where T~w**2)
     
     anisotropy_chi_deltaPlus  = dblarr(len(epsilonEpoch))
     anisotropy_chi_deltaMinus = dblarr(len(epsilonEpoch))

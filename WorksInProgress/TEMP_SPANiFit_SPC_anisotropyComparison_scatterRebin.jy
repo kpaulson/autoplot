@@ -1,0 +1,81 @@
+tr = '2020-01-27 to 2020-01-30'
+#tr = '2018-10-28 through 2018-11-04'
+#tr = '2020-02-03'
+
+onlyPlotEdges = True
+onlyPlotNoSPAN = False
+
+spani_p1_anisotropy = getDataSet('vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1?depend0=TIME&column=field3')
+spani_time = spani_p1_anisotropy.property(QDataSet.DEPEND_0)
+spani_time.putProperty(QDataSet.UNITS,Units.t1970)
+spani_p1_anisotropy = trim(spani_p1_anisotropy,tr)
+
+peakObservation = getDataSet('/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt',tr)
+peakObservation = trim(peakObservation,tr)
+peakObservationEdges = abs(diff(peakObservation))
+
+L0_version = '0.4.5'
+L1_version = '1.1.5'
+ss_L0File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(L0_version,L0_version)
+ss_L1File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(L1_version,L1_version)
+spc_ss_anisotropy = getDataSet(ss_L1File+'?Anisotropy',tr)**2
+#spc_ss_anisotropy = getDataSet(ss_L0File+'?Anisotropy_psi',tr)
+spc_ss_anisotropy_deltaPlus = getDataSet(ss_L1File+'?anisotropy_deltaPlus',tr)
+spc_ss_anisotropy_deltaMinus = getDataSet(ss_L1File+'?anisotropy_deltaMinus',tr)
+
+uncertaintyRatioLimit = 0#.2
+if gt(uncertaintyRatioLimit,0):
+    lowUncertainty = where(lt(spc_ss_anisotropy_deltaPlus/spc_ss_anisotropy,uncertaintyRatioLimit).and(lt(spc_ss_anisotropy_deltaMinus/spc_ss_anisotropy,uncertaintyRatioLimit)))
+    spc_ss_anisotropy = spc_ss_anisotropy[lowUncertainty]
+
+spc_jia_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter4_anisotropy_Jia.cdf?anisotropy core')
+#spc_jia_anisotropy = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter1_anisotropy_Jia.cdf?anisotropy core')
+
+import java
+try:
+    spani_p1_anisotropy_ssSampled = synchronize(spc_ss_anisotropy,spani_p1_anisotropy)
+    peakObservationEdges_ssSampled = ceil(synchronize(spc_ss_anisotropy,peakObservationEdges))
+    peakObservation_ssSampled = ceil(synchronize(spc_ss_anisotropy,peakObservation))
+    spani_p1_anisotropy_jiaSampled = synchronize(spc_jia_anisotropy,spani_p1_anisotropy)
+    peakObservationEdges_jiaSampled = ceil(synchronize(spc_jia_anisotropy,peakObservationEdges))
+    peakObservation_jiaSampled = ceil(synchronize(spc_jia_anisotropy,peakObservation))
+except(java.lang.IllegalArgumentException):
+    print 'excepting'
+    spani_p1_anisotropy_ssSampled = ones(len(spc_ss_anisotropy))
+    spani_p1_anisotropy_jiaSampled = ones(len(spc_jia_anisotropy))
+    
+ss_anisotropy_jiaSampled = synchronize(spc_jia_anisotropy,spc_ss_anisotropy)
+
+if onlyPlotEdges == True:
+    edgesSS = where(gt(peakObservationEdges_ssSampled,0))
+    edgesJia = where(gt(peakObservationEdges_jiaSampled,0))
+    spani_p1_anisotropy_ssSampled = spani_p1_anisotropy_ssSampled[edgesSS]
+    spc_ss_anisotropy = spc_ss_anisotropy[edgesSS]
+    spani_p1_anisotropy_jiaSampled = spani_p1_anisotropy_jiaSampled[edgesJia]
+    spc_jia_anisotropy = spc_jia_anisotropy[edgesJia]
+    ss_anisotropy_jiaSampled = ss_anisotropy_jiaSampled[edgesJia]
+    
+if onlyPlotNoSPAN == True:
+    noSPAN_SS = where(eq(peakObservation_ssSampled,0))
+    noSPAN_SS = where(eq(peakObservation_ssSampled,0))
+
+plot(0,(spani_p1_anisotropy_ssSampled),spc_ss_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
+plot(1,spani_p1_anisotropy_jiaSampled,spc_jia_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1])
+
+xx = logspace(1E-1,1E1,50)
+yy = logspace(1E-1,1E1,50)
+
+spani_ss_rebin = rebin( link((spani_p1_anisotropy_ssSampled),spc_ss_anisotropy,ones(len(spc_ss_anisotropy))), xx, yy )
+spani_ss = spani_ss_rebin.property(QDataSet.WEIGHTS)
+spani_jia_rebin = rebin( link(spani_p1_anisotropy_jiaSampled,spc_jia_anisotropy,ones(len(spc_jia_anisotropy))), xx, yy )
+spani_jia = spani_jia_rebin.property(QDataSet.WEIGHTS)
+jia_ss_rebin = rebin( link((spc_jia_anisotropy),ss_anisotropy_jiaSampled,ones(len(ss_anisotropy_jiaSampled))), xx, yy )
+jia_ss = jia_ss_rebin.property(QDataSet.WEIGHTS)
+
+plot(0,spani_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
+plot(1,spani_jia,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='Jia')
+plot(2,jia_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='Jia',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
+
+plot(3,xx,yy,renderType='series',color='red',symbolSize=0,lineWidth=3)
+plot(4,xx,yy,renderType='series',color='red',symbolSize=0,lineWidth=3)
+plot(5,xx,yy,renderType='series',color='red',symbolSize=0,lineWidth=3)

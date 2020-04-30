@@ -570,6 +570,7 @@ for tr in trs:
         
         #if 'alreadyPlottedOnce' not in globals():
             #setLayoutOverplot(4) 
+        refresh()
         load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
         
         #plot(0,totalFlux)

@@ -6,36 +6,12 @@
 
 
 timerange = getParam('timerange','2018-11-01 06:00 to 06:15','Iteration Timerange')
-#timerange = getParam('timerange','2019-08-26','Iteration Timerange')
-#timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
-#timerange = getParam('timerange','2019-04-04 01:22 to 01:23','Iteration Timerange') #Why no Chi?
-#timerange = getParam('timerange','2018-11-04 5:00 to 5:10','Iteration Timerange')
-#version = getParam('version','0.4.4','Version number to be appended to filenames')
 
-separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
 writeStuff                     = True  #Write out L0 anisotropy file
 writeBundle                    = False  #Write cdf as a bundle instead of appending individual variables
-useVDFFluxForWeights           = True  #Weight linear fits by normalized flux around peak (points at peak take precendence)
-conflateAndDownsampleSpectra   = True  #Downsample the spectra for individual pads (smoothSeconds parameter)
-analyzingTimeWidthComparisons  = False #Run Routine for various timewidths to compare end results (TESTING ONLY)
-usePreviouslyDownsampledData   = False #Run Routine for various timewidths to compare end results (TESTING ONLY)
 
-
-
-m_p                  = 1.6726231E-24
-q                    = 1.6022E-12
-#trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
-#trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over which to average magField to determine background field direction' )
-#minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
-#minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
-#fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
-#fitSeconds           = getParam('fit_window' , 10 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
-#modFits              = getParam('mod_number' , 500 , 'Number of fits performed before updating plot/time reporting')
 smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of spectra to average together before defining flow directions')
-#smoothSeconds = fitSeconds
-
-#angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
-#anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
+numberOfChannels     = getParam('nChannels', 32, 'Number of energy channels to keep (from 0) after downsample')
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
@@ -58,8 +34,8 @@ try:
     get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
 
-    smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
-    execfile( smoothSPCByVoltage.toString() )
+#    smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+#    execfile( smoothSPCByVoltage.toString() )
 
     smoothAndDownsampleSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
     execfile( smoothAndDownsampleSPCByVoltage.toString() )
@@ -70,8 +46,8 @@ except:
     get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
 
-    smoothSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
-    execfile( smoothSPCByVoltage.toString() )
+#    smoothSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+#    execfile( smoothSPCByVoltage.toString() )
 
     smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
     execfile( smoothAndDownsampleSPCByVoltage.toString() )
@@ -171,24 +147,25 @@ for tr in trs:
         mv_hi = mv_hi_downsampled
         time = spc_a_smooth_downsampled_mean.property(QDataSet.DEPEND_0)
         
-        mv_lo = mv_lo[:,0:32]
-        mv_hi = mv_hi[:,0:32]   
+        # Trims datasets to lowest numberOfChannels energy channels (width of peakTracking mode)
+        mv_lo = mv_lo[:,0:numberOfChannels]
+        mv_hi = mv_hi[:,0:numberOfChannels]   
         
-        spc_a_smooth_downsampled_mean   = spc_a_smooth_downsampled_mean[:,0:32]
-        spc_a_smooth_downsampled_median = spc_a_smooth_downsampled_median[:,0:32]
-        spc_a_smooth_downsampled_mode   = spc_a_smooth_downsampled_mode[:,0:32]
+        spc_a_smooth_downsampled_mean   = spc_a_smooth_downsampled_mean[:,0:numberOfChannels]
+        spc_a_smooth_downsampled_median = spc_a_smooth_downsampled_median[:,0:numberOfChannels]
+        spc_a_smooth_downsampled_mode   = spc_a_smooth_downsampled_mode[:,0:numberOfChannels]
         
-        spc_b_smooth_downsampled_mean   = spc_b_smooth_downsampled_mean[:,0:32]
-        spc_b_smooth_downsampled_median = spc_b_smooth_downsampled_median[:,0:32]
-        spc_b_smooth_downsampled_mode   = spc_b_smooth_downsampled_mode[:,0:32]
+        spc_b_smooth_downsampled_mean   = spc_b_smooth_downsampled_mean[:,0:numberOfChannels]
+        spc_b_smooth_downsampled_median = spc_b_smooth_downsampled_median[:,0:numberOfChannels]
+        spc_b_smooth_downsampled_mode   = spc_b_smooth_downsampled_mode[:,0:numberOfChannels]
         
-        spc_c_smooth_downsampled_mean   = spc_c_smooth_downsampled_mean[:,0:32]
-        spc_c_smooth_downsampled_median = spc_c_smooth_downsampled_median[:,0:32]
-        spc_c_smooth_downsampled_mode   = spc_c_smooth_downsampled_mode[:,0:32]
+        spc_c_smooth_downsampled_mean   = spc_c_smooth_downsampled_mean[:,0:numberOfChannels]
+        spc_c_smooth_downsampled_median = spc_c_smooth_downsampled_median[:,0:numberOfChannels]
+        spc_c_smooth_downsampled_mode   = spc_c_smooth_downsampled_mode[:,0:numberOfChannels]
         
-        spc_d_smooth_downsampled_mean   = spc_d_smooth_downsampled_mean[:,0:32]
-        spc_d_smooth_downsampled_median = spc_d_smooth_downsampled_median[:,0:32]
-        spc_d_smooth_downsampled_mode   = spc_d_smooth_downsampled_mode[:,0:32]
+        spc_d_smooth_downsampled_mean   = spc_d_smooth_downsampled_mean[:,0:numberOfChannels]
+        spc_d_smooth_downsampled_median = spc_d_smooth_downsampled_median[:,0:numberOfChannels]
+        spc_d_smooth_downsampled_mode   = spc_d_smooth_downsampled_mode[:,0:numberOfChannels]
         
         
         ###

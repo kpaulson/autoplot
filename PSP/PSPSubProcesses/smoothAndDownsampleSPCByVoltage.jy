@@ -14,8 +14,9 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
         spc_ds_smooth_downsampled  = rank2 dataset - smoothed and downsampled to smoothSeconds cadence
         
     TODO: Add sliding window functionality (is it as simple as decimating the downsampling?)
-    TODO: Interpolating mv_lo will cause trouble with where() calls, look into discrete integration
-              using only values from uniq_mv_lo
+    TODO: Nested iteration is extremely slow, find way to implement boxcar function across energy channels
+    TODO: Interpolating mv_lo will cause trouble with where() calls and is obvisouly wrong, 
+              look into discrete integration using only values from uniq_mv_lo
     '''
     
     import java
@@ -26,6 +27,7 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
     
     trs_downsampler= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%smoothSeconds,str(datumRange('%s to %s'%(str(temp_time[0]),str(temp_time[-1])))) )
     
+    # Generate fill arrays to be populated in iteration
     spc_ds_smooth_downsampled_mean = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
     spc_ds_smooth_downsampled_median = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
     spc_ds_smooth_downsampled_mode = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
@@ -38,6 +40,7 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
         try:
             tr_downsampler_timerange = datumRange( '%s to %s'%(tr_downsampler,datum(tr_downsampler)+datum('%ssec'%smoothSeconds)) )
             
+            # isolate spc dataset over timerange window
             spc_ds_temp = trim(spc_ds,tr_downsampler_timerange)
             mv_lo_temp = trim(mv_lo,tr_downsampler_timerange)
             mv_hi_temp = trim(mv_hi,tr_downsampler_timerange)
@@ -47,6 +50,7 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
             min_mv_lo = mv_lo_range[0]
             max_mv_lo = mv_lo_range[1]
             
+            # Identify minimum and maximum nonfill mv_lo values
             valid_mv_lo = where(valid(mv_lo_temp))
             min_mv_lo_sliceIndex = where(eq(mv_lo_temp,min_mv_lo))
             min_mv_lo_sliceIndex = min_mv_lo_sliceIndex[imin(min_mv_lo_sliceIndex[:,1]),0]
@@ -57,7 +61,8 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
             
             s = sort(TEMP_mv_lo)
             uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
-                
+            
+            # Identify mean, median, and mode values across each identified uniq mv_lo channel           
             mv_index = 0
             for mv in uniq_mv_lo:
                 r = where(eq(mv_lo_temp,mv))
@@ -75,6 +80,7 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
             continue
         tr_downsampler_index += 1
     
+    #This trims the original arrays to places where the time variable is nonzero and not the original -1 (necessary for lower-cadence data as in cruise)
     goodValues = where(gt(putProperty(copy(time_downsampled),QDataSet.UNITS,None),0))
     
     spc_ds_smooth_downsampled_mean   = spc_ds_smooth_downsampled_mean[goodValues,:]

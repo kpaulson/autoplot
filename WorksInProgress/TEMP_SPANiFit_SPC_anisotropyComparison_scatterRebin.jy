@@ -3,7 +3,7 @@ tr = '2020-01-22 to 2020-02-04'
 #tr = '2019-03-20 through 2019-04-10'
 #tr = '2018 through 2020'
 
-onlyPlotEdges = True
+onlyPlotEdges = False
 onlyPlotNoSPAN = False
 
 
@@ -74,8 +74,8 @@ if onlyPlotNoSPAN == True:
 plot(0,(spani_p1_anisotropy_ssSampled),spc_ss_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
 plot(1,spani_p1_anisotropy_jiaSampled,spc_jia_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1])
 
-xx = logspace(1E-1,1E1,50)
-yy = logspace(1E-1,1E1,50)
+xx = logspace(9E-2,1E1,50)
+yy = logspace(9E-2,1E1,50)
 
 spani_ss_rebin = rebin( link((spani_p1_anisotropy_ssSampled),spc_ss_anisotropy,ones(len(spc_ss_anisotropy))), xx, yy )
 spani_ss = spani_ss_rebin.property(QDataSet.WEIGHTS)
@@ -85,8 +85,8 @@ jia_ss_rebin = rebin( link((spc_jia_anisotropy),ss_anisotropy_jiaSampled,ones(le
 jia_ss = jia_ss_rebin.property(QDataSet.WEIGHTS)
 
 plot(0,spani_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',title=tr)
-plot(1,spani_jia,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='Jia')
-plot(2,jia_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='Jia',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
+plot(1,spani_jia,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='B-rotation')
+plot(2,jia_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='B-rotation',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
 
 plot(3,xx,yy,renderType='series',color='red',symbolSize=0,lineWidth=3)
 plot(4,xx,yy,renderType='series',color='red',symbolSize=0,lineWidth=3)

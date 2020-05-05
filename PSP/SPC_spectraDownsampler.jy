@@ -15,7 +15,7 @@ numberOfChannels     = getParam('nChannels', 32, 'Number of energy channels to k
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
-useLocalSubprocesses = True
+useLocalSubprocesses = False
 
 
 

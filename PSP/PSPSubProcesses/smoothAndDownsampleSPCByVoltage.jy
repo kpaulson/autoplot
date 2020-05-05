@@ -28,12 +28,12 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
     trs_downsampler= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%smoothSeconds,str(datumRange('%s to %s'%(str(temp_time[0]),str(temp_time[-1])))) )
     
     # Generate fill arrays to be populated in iteration
-    spc_ds_smooth_downsampled_mean = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    spc_ds_smooth_downsampled_mean   = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
     spc_ds_smooth_downsampled_median = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
-    spc_ds_smooth_downsampled_mode = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
-    mv_lo_downsampled = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
-    mv_hi_downsampled = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
-    time_downsampled = -1*ones(len(trs_downsampler))
+    spc_ds_smooth_downsampled_mode   = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    mv_lo_downsampled                = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    mv_hi_downsampled                = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    time_downsampled                 = -1*ones(len(trs_downsampler))
     
     tr_downsampler_index = 0
     for tr_downsampler in trs_downsampler:
@@ -42,9 +42,9 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
             
             # isolate spc dataset over timerange window
             spc_ds_temp = trim(spc_ds,tr_downsampler_timerange)
-            mv_lo_temp = trim(mv_lo,tr_downsampler_timerange)
-            mv_hi_temp = trim(mv_hi,tr_downsampler_timerange)
-            timestamp = mean(spc_ds_temp.property(QDataSet.DEPEND_0))
+            mv_lo_temp  = trim(mv_lo, tr_downsampler_timerange)
+            mv_hi_temp  = trim(mv_hi, tr_downsampler_timerange)
+            timestamp   = mean(spc_ds_temp.property(QDataSet.DEPEND_0))
             
             mv_lo_range = extent(mv_lo_temp)
             min_mv_lo = mv_lo_range[0]

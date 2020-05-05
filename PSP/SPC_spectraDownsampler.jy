@@ -7,15 +7,15 @@
 
 timerange = getParam('timerange','2018-11-01 06:00 to 06:15','Iteration Timerange')
 
-writeStuff                     = True  #Write out L0 anisotropy file
-writeBundle                    = False  #Write cdf as a bundle instead of appending individual variables
+writeStuff           = True   #Write out downsampled SPC file
+writeBundle          = False  #Write cdf as a bundle instead of appending individual variables
+useLocalSubprocesses = False  #Find local process files instead of going to github
 
 smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of spectra to average together before defining flow directions')
 numberOfChannels     = getParam('nChannels', 32, 'Number of energy channels to keep (from 0) after downsample')
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
-useLocalSubprocesses = False
 
 
 
@@ -235,37 +235,38 @@ for tr in trs:
         mv_lo.putProperty(  QDataSet.TITLE,'minimum voltage of each bin downsampled over %s seconds'%smoothSeconds)
         mv_hi.putProperty(  QDataSet.TITLE,'maximum voltage of each bin downsampled over %s seconds'%smoothSeconds)
         
-        if writeBundle == True:
-            bindle = bundle(mv_lo, mv_hi)
-            bindle = bundle(bindle, spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median)
-            bindle = bundle(bindle, spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median)
-            bindle = bundle(bindle, spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median)
-            bindle = bundle(bindle, spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median)
-            
-            bindle.putProperty(QDataSet.DEPEND_0, time)
-            
-            formatDataSet(bindle,localDownsampledDataFile+'?bundle=T')
-            
-        else:
-            formatDataSet(time,localDownsampledDataFile)
-            formatDataSet(mv_lo,localDownsampledDataFile+'?append=T')
-            formatDataSet(mv_hi,localDownsampledDataFile+'?append=T')
-            
-            formatDataSet(spc_a_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-            formatDataSet(spc_a_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-            #formatDataSet(spc_a_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+        if writeStuff == True:
+            if writeBundle == True:
+                bindle = bundle(mv_lo, mv_hi)
+                bindle = bundle(bindle, spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median)
+                bindle = bundle(bindle, spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median)
+                bindle = bundle(bindle, spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median)
+                bindle = bundle(bindle, spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median)
+                
+                bindle.putProperty(QDataSet.DEPEND_0, time)
+                
+                formatDataSet(bindle,localDownsampledDataFile+'?bundle=T')
+                
+            else:
+                formatDataSet(time,localDownsampledDataFile)
+                formatDataSet(mv_lo,localDownsampledDataFile+'?append=T')
+                formatDataSet(mv_hi,localDownsampledDataFile+'?append=T')
+                
+                formatDataSet(spc_a_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                formatDataSet(spc_a_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                #formatDataSet(spc_a_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                                        
+                formatDataSet(spc_b_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                formatDataSet(spc_b_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                #formatDataSet(spc_b_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
                                                                                     
-            formatDataSet(spc_b_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-            formatDataSet(spc_b_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-            #formatDataSet(spc_b_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
-                                                                                
-            formatDataSet(spc_c_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-            formatDataSet(spc_c_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-            #formatDataSet(spc_c_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
-                                                                               
-            formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-            formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-            #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                formatDataSet(spc_c_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                formatDataSet(spc_c_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                #formatDataSet(spc_c_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                                   
+                formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
         
     #except:
     #    continue

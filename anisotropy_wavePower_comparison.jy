@@ -2,12 +2,12 @@
 
 tr = '2018-10-28 to 2018-11-20'  # Encounter 1
 #tr = '2019-03-25 to 2019-04-20'  # Encounter 2
-tr = '2018-10-15 to 2019-04-20'  # Encounter 2
+tr = '2018-10-15 to 2020-04-20'  # Encounter 2
 #tr = '2018-11-02'
 minWavePower = 2E-2
 percentUncertainty = 40
 
-version_L1 = '1.1.1'
+version_L1 = '1.1.5'
 
 
 
@@ -15,7 +15,7 @@ anisotropyFile = 'file:/home/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotrop
 
 anisotropyFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1,version_L1)
 
-anisotropy = getDataSet(anisotropyFile+'?Anisotropy',tr)
+anisotropy = getDataSet(anisotropyFile+'?anisotropy',tr)#**(1./2.)
 betaParallel = getDataSet(anisotropyFile+'?Beta_parallel',tr)
 betaPerp = getDataSet(anisotropyFile+'?Beta_perp',tr)
 anisotropy_deltaPlus = getDataSet(anisotropyFile+'?anisotropy_deltaPlus',tr)
@@ -25,7 +25,7 @@ anisotropy_deltaMinus = getDataSet(anisotropyFile+'?anisotropy_deltaMinus',tr)
 
 goodValues = where( lt(anisotropy_deltaPlus/anisotropy , (percentUncertainty/100.) ) )
 
-polarizationFile = 'file:/home/kpaulson/Research/PSP/Wave_Polarization/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
+#polarizationFile = 'file:/home/kpaulson/Research/PSP/Wave_Polarization/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
 polarizationFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/PSP_Polarization/Polarization_Files/PSP_Polarization_$Y-$m-$d_$(H,span=6)$M.cdf'
 
 #wavePower_LH = getDataSet(polarizationFile+'?wavePower_LH',tr)

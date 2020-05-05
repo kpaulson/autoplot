@@ -7,8 +7,8 @@
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')#
 #timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
-timerange = getParam('timerange','2020-01-27 6:00 to 8:00','Iteration Timerange')
-version = getParam('version','0.4.5','Version number to be appended to filenames')
+timerange = getParam('timerange','2020-01-27 6:00 to 6:20','Iteration Timerange')
+version = getParam('version','0.5.5','Version number to be appended to filenames')
 
 #separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
 #writeStuff                     = True  #Write out L0 anisotropy file
@@ -18,7 +18,7 @@ version = getParam('version','0.4.5','Version number to be appended to filenames
 #usePreviouslyDownsampledData   = True  #Use Downsampled data file created previously
 #useLocalSubprocesses           = True  #Use local script call files instead of pulling from github
 
-separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
+separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','T','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
 useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
 usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
 writeStuff                     = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
@@ -274,16 +274,42 @@ for tr in trs:
         tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
         tp_end = TimeParser.create('-$H$M')
         timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
+    
+    # Create list of VDF poulations over which to perform analysis
+    vdfList = list() 
+    if separatePeaksWithL3Values == True:
+        vdfList.append('vdf_p1')
+        vdfList.append('vdf_3')
+        vdfList.append('vdf_a')
+    else:
+        vdfList.append('vdf_full')
 
+    # Look for previous instances of the file and skip rather than overwrite
     try:
-        output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
-        TEMP_epoch = getDataSet(output_file+'?Epoch')
-        if ne( long(mode(copy(TEMP_epoch))), 0):
-            print 'File already exists for %s'%(timeTitle)
+        if separatePeaksWithL3Values == False:
+            output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+            TEMP_epoch = getDataSet(output_file+'?Epoch')
+            if ne( long(mode(copy(TEMP_epoch))), 0):
+                print 'File already exists for %s on %s'%(vdf,timeTitle)
+                vdfList.remove(vdf)
+                
+        elif separatePeaksWithL3Values == True:
+            for vdf in vdfList:
+                if vdf == 'vdf_full':
+                    output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+                else:
+                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+                    print output_file
+                TEMP_epoch = getDataSet(output_file+'?Epoch')
+                if ne( long(mode(copy(TEMP_epoch))), 0):
+                    print 'File already exists for %s on %s'%(vdf,timeTitle)
+                    vdfList.remove(vdf)
+        if len(vdfList) == 0:
             fileAlreadyExists = True
     except:
         fileAlreadyExists = False
         
+    # Run the big routine    
     try:
         if fileAlreadyExists == True:
             raise fileAlreadyExistsException
@@ -296,7 +322,6 @@ for tr in trs:
             localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
             localDownsampledDataFile = localDownsampledDataDirectory+'SPC_DownsampledSpectra_$Y-$m-$d_%ssec.cdf'%(smoothSeconds)
             try:
-                print localDownsampledDataFile+'?spc_a_mean'
                 spc_a = getDataSet(localDownsampledDataFile+'?spc_a_mean',tr)
                 spc_b = getDataSet(localDownsampledDataFile+'?spc_b_mean',tr)
                 spc_c = getDataSet(localDownsampledDataFile+'?spc_c_mean',tr)
@@ -426,12 +451,11 @@ for tr in trs:
         
         
         monitor.setLabel('Defining VDF')
-        vdfList = list() 
         v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         vdf_full = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
         vdf_full.putProperty(QDataSet.DEPEND_1,v_z)
-        vdfList.append('vdf_full')
+        #vdfList.append('vdf_full')
         del(windowWidths,mv_hi)
         
         
@@ -545,10 +569,10 @@ for tr in trs:
             #plot(0,vdf_p1)
             #plot(1,vdf_3)
             #plot(2,vdf_a)
-            
-            vdfList.append('vdf_p1')
-            vdfList.append('vdf_3')
-            vdfList.append('vdf_a')
+#
+#            vdfList.append('vdf_p1')
+#            vdfList.append('vdf_3')
+#            vdfList.append('vdf_a')
             #stop
             
             print 'Building Peaks took:',TimeUtil.now()-time_last
@@ -668,6 +692,9 @@ for tr in trs:
                     anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1) = findVDFAnisotropy(v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
                                                  Nx_temp, Ny_temp, Nz_temp)
+                plot(4,epsilonEpoch_p1,bundle(anisotropy_chi_p1,anisotropy_psi_p1), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+                plot(5,epsilonEpoch_p1,bundle(slopeError_chi_p1,slopeError_psi_p1), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+                
             elif vdf == 'vdf_3':
                 vdf_in = vdf_3
                 v3_fit_SC = synchronize(vdf_3,v3_fit_SC)
@@ -686,6 +713,9 @@ for tr in trs:
                     anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3) = findVDFAnisotropy(v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
                                                  Nx_temp, Ny_temp, Nz_temp)
+                plot(4,epsilonEpoch_3,bundle(anisotropy_chi_3,anisotropy_psi_3), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+                plot(5,epsilonEpoch_3,bundle(slopeError_chi_3,slopeError_psi_3), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+                
             elif vdf == 'vdf_a':
                 vdf_in = vdf_a
                 va_fit_SC = synchronize(vdf_a,va_fit_SC)
@@ -704,23 +734,25 @@ for tr in trs:
                     anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a) = findVDFAnisotropy(v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
                                                  Nx_temp, Ny_temp, Nz_temp)
-              
-                plot(6,bundle(anisotropy_chi_a,anisotropy_psi_a),ylog=True)
+                plot(4,epsilonEpoch_a,bundle(anisotropy_chi_a,anisotropy_psi_a), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+                plot(5,epsilonEpoch_a,bundle(slopeError_chi_a,slopeError_psi_a), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+                #plot(6,bundle(anisotropy_chi_a,anisotropy_psi_a),ylog=True)
         
         
-        Btotal = synchronize(chiline,Btotal)
-        
-        
-        
-        # ###
-        # ### WRITE STUFF
-        # ###
-        
+            #Btotal_in = synchronize(chiline,Btotal)
+            
+            
+            
+            # ###
+            # ### WRITE STUFF
+            # ###
+            
         if writeStuff == True:
             if analyzingTimeWidthComparisons == True:
                 output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec_%ssec.cdf'%(timeTitle,version,str(smoothSeconds),str(fitSeconds))
             elif analyzingTimeWidthComparisons == False:
                 output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+                #output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
             
             
             for vdf in vdfList:
@@ -730,7 +762,8 @@ for tr in trs:
                     tempB = synchronize(chiline,[Nx,Ny,Nz])
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psiline, 
+                    Btotal_in = synchronize(Bunit,Btotal)
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline, psiline, 
                          chiSquaredReduced_chi, chiSquaredReduced_psi,
                          rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
                          epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
@@ -744,8 +777,9 @@ for tr in trs:
                     tempB = synchronize(chiline_p1,[Nx,Ny,Nz])
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_p1)
-                    output_file = output_folder+'SPC_Anisotropy_p1_%s_v%s.cdf'%(timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline_p1, psiline_p1, 
+                    Btotal_in = synchronize(Bunit,Btotal)
+                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_p1, psiline_p1, 
                         chiSquaredReduced_chi_p1, chiSquaredReduced_psi_p1,
                         rSquared_chi_p1, rSquared_psi_p1, slopeError_chi_p1, slopeError_psi_p1,
                         epsilon_chi_p1, epsilon_psi_p1, anisotropy_chi_p1, anisotropy_psi_p1, 
@@ -756,8 +790,9 @@ for tr in trs:
                     tempB = synchronize(chiline_3,[Nx,Ny,Nz])
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_3)
-                    output_file = output_folder+'SPC_Anisotropy_3_%s_v%s.cdf'%(timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline_3, psiline_3, 
+                    Btotal_in = synchronize(Bunit,Btotal)
+                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_3, psiline_3, 
                         chiSquaredReduced_chi_3, chiSquaredReduced_psi_3,
                         rSquared_chi_3, rSquared_psi_3, slopeError_chi_3, slopeError_psi_3,
                         epsilon_chi_3, epsilon_psi_3, anisotropy_chi_3, anisotropy_psi_3, 
@@ -768,8 +803,9 @@ for tr in trs:
                     tempB = synchronize(chiline_a,[Nx,Ny,Nz])
                     Bunit = bundle(tempB[0],tempB[1],tempB[2])
                     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_a)
-                    output_file = output_folder+'SPC_Anisotropy_a_%s_v%s.cdf'%(timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline_a, psiline_a, 
+                    Btotal_in = synchronize(Bunit,Btotal)
+                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_a, psiline_a, 
                         chiSquaredReduced_chi_a, chiSquaredReduced_psi_a,
                         rSquared_chi_a, rSquared_psi_a, slopeError_chi_a, slopeError_psi_a,
                         epsilon_chi_a, epsilon_psi_a, anisotropy_chi_a, anisotropy_psi_a, 

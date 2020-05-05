@@ -1,19 +1,21 @@
 
 
 tr = '2018-10-01 to 2019-11-15'
+tr = '2018-10-01 to 2018-11-15'
 minPeakDifference = 30
 
-w3sweap_spc_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+w3sweap_spc_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 
 
 
 vp_fit_SCz = getDataSet(w3sweap_spc_file+'?vp_fit_SC&slice1=2',tr)
 wp_fit = getDataSet(w3sweap_spc_file+'?wp_fit',tr)
 vp1_fit_SCz = getDataSet(w3sweap_spc_file+'?vp1_fit_SC&slice1=2',tr)
+v3_fit_SCz = getDataSet(w3sweap_spc_file+'?v3_fit_SC&slice1=2',tr)
 
 minPeakDifference = wp_fit
 
-differentiatedPeaks = where(gt(abs(vp_fit_SCz - vp1_fit_SCz),minPeakDifference))
+differentiatedPeaks = where(gt(abs(vp_fit_SCz - v3_fit_SCz),minPeakDifference))
 
 
 setLayoutOverplot(2)
@@ -25,8 +27,8 @@ plot(1,vp1_fit_SCz[differentiatedPeaks],color='red')
 vp_fit_SCz = vp_fit_SCz[differentiatedPeaks]
 vp1_fit_SCz = vp1_fit_SCz[differentiatedPeaks]
 
-spc_anisotropyL1_file = 'file:/C:/Users/kpaulson/Google Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v$(v,sep).cdf'
-anisotropy = getDataSet(spc_anisotropyL1_file+'?Anisotropy',tr)
+spc_anisotropyL1_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v$(v,sep).cdf'
+anisotropy = getDataSet(spc_anisotropyL1_file+'?anisotropy',tr)
 betaParallel = getDataSet(spc_anisotropyL1_file+'?Beta_parallel',tr)
 
 

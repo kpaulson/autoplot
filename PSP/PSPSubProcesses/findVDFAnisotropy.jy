@@ -71,7 +71,10 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             if mod(ind,modFits) == 0:
                 plot(3, event , renderType='eventsBar')
             
-            v_z_dd = -trim(v_z_in,tr_dds)
+            v_z_dd = -trim(v_z_in,tr_dds) # this is made negative to rotate SPC coords into MAG coordinates
+            if eq(len(v_z_dd),0):
+                raise noDataInFitSecondIntervalException
+                
             vz_tanPhi_dd = trim(vz_tanPhi_in,tr_dds)
             vz_tanTheta_dd = trim(vz_tanTheta_in,tr_dds)
             

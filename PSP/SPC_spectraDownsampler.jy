@@ -11,7 +11,7 @@ writeStuff           = True   #Write out downsampled SPC file
 writeBundle          = False  #Write cdf as a bundle instead of appending individual variables
 useLocalSubprocesses = False  #Find local process files instead of going to github
 
-smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of spectra to average together before defining flow directions')
+smoothSeconds        = getParam('smoothSeconds' , 60 , 'Number of spectra to average together before defining flow directions')
 numberOfChannels     = getParam('nChannels', 32, 'Number of energy channels to keep (from 0) after downsample')
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'

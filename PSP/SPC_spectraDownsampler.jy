@@ -8,7 +8,7 @@
 timerange = getParam('timerange','2018-11-01 06:00 to 06:15','Iteration Timerange')
 
 writeStuff           = True   #Write out downsampled SPC file
-writeBundle          = False  #Write cdf as a bundle instead of appending individual variables
+writeBundle          = True  #Write cdf as a bundle instead of appending individual variables
 useLocalSubprocesses = False  #Find local process files instead of going to github
 
 smoothSeconds        = getParam('smoothSeconds' , 60 , 'Number of spectra to average together before defining flow directions')

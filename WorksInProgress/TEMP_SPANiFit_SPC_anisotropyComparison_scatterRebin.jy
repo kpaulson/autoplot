@@ -22,6 +22,8 @@ L1_version_p1 = '1.2.5'
 ss_L0File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(L0_version,L0_version)
 ss_L1File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(L1_version,L1_version)
 ss_L1P1File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_p1_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
+ss_L13File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_3_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
+ss_L1aFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_a_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
 
 spc_ss_anisotropy = getDataSet(ss_L1File+'?anisotropy',tr)
 #spc_ss_anisotropy = getDataSet(ss_L0File+'?Anisotropy_psi',tr)
@@ -30,8 +32,10 @@ spc_ss_anisotropy_deltaMinus = getDataSet(ss_L1File+'?anisotropy_deltaMinus',tr)
 time_ss = spc_ss_anisotropy.property(QDataSet.DEPEND_0)
 
 spc_ss_p1_anisotropy = getDataSet(ss_L1P1File+'?anisotropy',tr)
+spc_ss_3_anisotropy = getDataSet(ss_L13File+'?anisotropy',tr)
+spc_ss_a_anisotropy = getDataSet(ss_L1aFile+'?anisotropy',tr)
 
-spc_ss_anisotropy = getDataSet(ss_L1P1File+'?anisotropy',tr)
+#spc_ss_anisotropy = spc_ss_p1_anisotropy
 
 uncertaintyRatioLimit = 0#.5
 if gt(uncertaintyRatioLimit,0):

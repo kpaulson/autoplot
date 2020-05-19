@@ -8,7 +8,7 @@
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')#
 #timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
 timerange = getParam('timerange','2020-01-27 6:00 to 6:20','Iteration Timerange')
-version = getParam('version','0.5.5','Version number to be appended to filenames')
+version = getParam('version','0.4.6','Version number to be appended to filenames')
 
 #separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
 #writeStuff                     = True  #Write out L0 anisotropy file
@@ -18,13 +18,14 @@ version = getParam('version','0.5.5','Version number to be appended to filenames
 #usePreviouslyDownsampledData   = True  #Use Downsampled data file created previously
 #useLocalSubprocesses           = True  #Use local script call files instead of pulling from github
 
-separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','T','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
+separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
 useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
 usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
 writeStuff                     = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
 useVDFFluxForWeights           = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
 conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
 analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
+skipPreviousFiles              = getParam('skipPreviousFiles','F','Look for previously generated files and skip analysis if found',['T','F'])
 
 
 m_p                  = 1.6726231E-24
@@ -84,6 +85,16 @@ if separatePeaksWithL3Values == 'T':
     separatePeaksWithL3Values = True
 elif separatePeaksWithL3Values == 'F':
     separatePeaksWithL3Values = False
+    
+if plotFitsAndPauseALot_yn == 'T':
+    plotFitsAndPauseALot = True
+elif plotFitsAndPauseALot_yn == 'F':
+    plotFitsAndPauseALot = False
+    
+if skipPreviousFiles == 'T':
+    skipPreviousFiles = True
+elif skipPreviousFiles == 'F':
+    skipPreviousFiles = False
     
     
 ############################################################################
@@ -203,17 +214,11 @@ class LinFit(ParametricRealFunction):
 ############################################################################
 ############################################################################
     
-    
 if analyzingTimeWidthComparisons == True:
     output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version)
     #output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 elif analyzingTimeWidthComparisons == False:
     output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-    
-if plotFitsAndPauseALot_yn == 'T':
-    plotFitsAndPauseALot = True
-elif plotFitsAndPauseALot_yn == 'F':
-    plotFitsAndPauseALot = False
     
     
 def fittingUncertainties(fitResult,tempVDF,tempvz,tempvq,tempBq):
@@ -285,29 +290,30 @@ for tr in trs:
         vdfList.append('vdf_full')
 
     # Look for previous instances of the file and skip rather than overwrite
-    try:
-        if separatePeaksWithL3Values == False:
-            output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
-            TEMP_epoch = getDataSet(output_file+'?Epoch')
-            if ne( long(mode(copy(TEMP_epoch))), 0):
-                print 'File already exists for %s on %s'%(vdf,timeTitle)
-                vdfList.remove(vdf)
-                
-        elif separatePeaksWithL3Values == True:
-            for vdf in vdfList:
-                if vdf == 'vdf_full':
-                    output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
-                else:
-                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
-                    print output_file
+    if skipPreviousFiles == True:
+        try:
+            if separatePeaksWithL3Values == False:
+                output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
                 TEMP_epoch = getDataSet(output_file+'?Epoch')
                 if ne( long(mode(copy(TEMP_epoch))), 0):
                     print 'File already exists for %s on %s'%(vdf,timeTitle)
                     vdfList.remove(vdf)
-        if len(vdfList) == 0:
-            fileAlreadyExists = True
-    except:
-        fileAlreadyExists = False
+                    
+            elif separatePeaksWithL3Values == True:
+                for vdf in vdfList:
+                    if vdf == 'vdf_full':
+                        output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+                    else:
+                        output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+                        print output_file
+                    TEMP_epoch = getDataSet(output_file+'?Epoch')
+                    if ne( long(mode(copy(TEMP_epoch))), 0):
+                        print 'File already exists for %s on %s'%(vdf,timeTitle)
+                        vdfList.remove(vdf)
+            if len(vdfList) == 0:
+                fileAlreadyExists = True
+        except:
+            fileAlreadyExists = False
         
     # Run the big routine    
     try:
@@ -469,8 +475,9 @@ for tr in trs:
         #peaks = reduceMax(totalFlux,1)
         #r = where(eq(totalFlux,peaks))
         peaks = reduceMax(vdf_full,1)
-        peaks = synchronize( vdf_full, medianFilter(peaks[where(valid(peaks))],5) )
+        peaks_smooth = synchronize( vdf_full, medianFilter(peaks[where(valid(peaks))],5) )
         r = where(eq(vdf_full,peaks))
+        r_smooth = where(eq(vdf_full,peaks_smooth))
         
         
         print 'Defining VDF took:',TimeUtil.now()-time_last
@@ -585,9 +592,9 @@ for tr in trs:
         #stop
         
         # Define background flow to avoid weird slope values?
-        #u_x = vz_tanTheta[r]
-        #u_y = vz_tanPhi[r]
-        #u_z = v_z[r]
+        u_x = vz_tanTheta[r]
+        u_y = vz_tanPhi[r]
+        u_z = v_z[r]
         u_x = 0*vz_tanTheta[r]
         u_y = 0*vz_tanPhi[r]
         u_z = 0*v_z[r]
@@ -599,7 +606,7 @@ for tr in trs:
         
         #plot(0,totalFlux)
         plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True,title='%s-sec downsample,  %s-sec fit'%(smoothSeconds,fitSeconds))
-        plot(1,v_z[r])
+        plot(1,v_z[r_smooth])
         #alreadyPlottedOnce = True
         #stop
         #plot(0,vz_tanTheta-synchronize(vz_tanTheta,u_x))

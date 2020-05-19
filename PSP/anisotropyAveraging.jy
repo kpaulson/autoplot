@@ -42,16 +42,23 @@ def getTrimDataSet(ds_string,ds_timerange):
 import sys
 
 tr = getParam('timerange','2020-01-28','Timerange over which to generate combined anisotropy measurement')
-version_L0 = '0.5.5'
-version_L1 = '1.2.5'
+version_L0 = getParam('L0Version','0.4.5','Version number of input L0 file')
+version_L1 = getParam('L1Version','1.1.5','Version number of output L1 file')
 
+checkForPreviousFiles = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
 writeStuff = getParam('writeFiles','T','Write out the L1 files with this version of the code?',['T','F'])
+
+if checkForPreviousFiles == 'T':
+    checkForPreviousFiles = True
+elif checkForPreviousFiles == 'F':
+    checkForPreviousFiles = False
+    
 if writeStuff == 'T':
     writeStuff = True
 elif writeStuff == 'F':
     writeStuff = False
     
-separatePeaksWithL3Values = getParam('separatePeaksWithL3Values','T','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
+separatePeaksWithL3Values = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
     
 angleBinWdith = getParam('angleBinWidth',4,'width of bins of incident magnetic field angle in uncertainty maps')
 anisotropyBinNumber = getParam('anisotropyBins',40,'Number of bins in anisotropy axis')
@@ -111,31 +118,32 @@ else:
     
 #This segment should throw an error if the L1 file exists already and is not full of garbage (not the best implementation)
 fileAlreadyExists = False
-try:
-    if separatePeaksWithL3Values == False:
-        if analyzingTimeWidthComparisons == True:
-            output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L1/v%s/'%version_L1
-            output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s_%ssec.cdf'%(tr,version_L1,fitSeconds)
-        else:
-            output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-            output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
-        
-        TEMP_epoch = getDataSet(output_anitostropyL1_directory+output_anitostropyL1_file+'?Epoch')
-        if ne( long(mode(copy(TEMP_epoch))), 0):
-            print 'File already exists for %s'%(tr)
-            vdfList.remove('vdf_full')
-    elif separatePeaksWithL3Values == True:
-        for vdf in vdfList:
-            output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
-            output_anitostropyL1_file = 'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],tr,version_L1)
+if checkForPreviousFiles == True:
+    try:
+        if separatePeaksWithL3Values == False:
+            if analyzingTimeWidthComparisons == True:
+                output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L1/v%s/'%version_L1
+                output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s_%ssec.cdf'%(tr,version_L1,fitSeconds)
+            else:
+                output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+                output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_v%s.cdf'%(tr,version_L1)
             
-        TEMP_epoch = getDataSet(output_anitostropyL1_directory+output_anitostropyL1_file+'?Epoch')
-        if ne( long(mode(copy(TEMP_epoch))), 0):
-            print 'File already exists for %s on %s'%(vdf,tr)
-            vdfList.remove(vdf)
-            
-except:
-    pass
+            TEMP_epoch = getDataSet(output_anitostropyL1_directory+output_anitostropyL1_file+'?Epoch')
+            if ne( long(mode(copy(TEMP_epoch))), 0):
+                print 'File already exists for %s'%(tr)
+                vdfList.remove('vdf_full')
+        elif separatePeaksWithL3Values == True:
+            for vdf in vdfList:
+                output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
+                output_anitostropyL1_file = 'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],tr,version_L1)
+                
+            TEMP_epoch = getDataSet(output_anitostropyL1_directory+output_anitostropyL1_file+'?Epoch')
+            if ne( long(mode(copy(TEMP_epoch))), 0):
+                print 'File already exists for %s on %s'%(vdf,tr)
+                vdfList.remove(vdf)
+                
+    except:
+        pass
     #fileAlreadyExists = False
     
 #if fileAlreadyExists == True:
@@ -493,6 +501,33 @@ for vdf in vdfList:
 
     ## NRL Formulary.. same as SI
     #beta_NRL = (4.03E-11)*(np)*(Tp*8.6174E-5)*((Bmag*1E-5)**-2)
+    
+    dqf = getDataSet(sweap_directory+sweap_file+'?DQF',tr)
+    dqfEpoch = dqf.property(QDataSet.DEPEND_0)
+    
+    s = sort(dqfEpoch)
+    dqf = dqf[s,:]
+    dqfEpoch = dqfEpoch[s]
+    
+    peakOffScaleHigh = dqf[:,11]
+    peakOffScaleLow = dqf[:,12]
+    
+    peakOffScale = ones(len(dqf))
+    r = where(eq(peakOffScaleHigh,0).and(eq(peakOffScaleLow,0)))
+    peakOffScale[r] = 0.
+    peakOffScale.putProperty(QDataSet.DEPEND_0,dqfEpoch)
+
+    try:
+        peakOffScale_L1Cadence = synchronize(average_anisotropy,peakOffScale)
+    except:
+        dqf_to_anisotropy_ratio = findex(dqfEpoch,epsilonEpoch)
+        peakOffScale_L1Cadence = interpolate(peakOffScale_L1Cadence,dqf_to_anisotropy_ratio)
+    peakOffScale_L1Cadence = round(peakOffScale_L1Cadence,0)
+    
+    peakOffScale_L1Cadence.putProperty(QDataSet.NAME,'WindSpeedOffScale_flag')
+    peakOffScale_L1Cadence.putProperty(QDataSet.LABEL,'Wind Speed Off Scale')
+    peakOffScale_L1Cadence.putProperty(QDataSet.TITLE,'Flag indicating SPC bulk wind speed is below or above detectable range (0=good, 1=bad))')
+
 
     #average_anisotropy.putProperty(QDataSet.DELTA_PLUS,None)
     #average_anisotropy.putProperty(QDataSet.DELTA_MINUS,None)
@@ -554,6 +589,7 @@ for vdf in vdfList:
             bindle = bundle(Nx, Ny, Nz, Bmag)
             bindle = bundle(bindle, average_anisotropy, average_anisotropy_uncertainty_deltaPlus, average_anisotropy_uncertainty_deltaMinus)
             bindle = bundle(bindle, beta_SI, beta_parallel_SI, beta_perp_SI)
+            bindle = bundle(bindle, peakOffScale_L1Cadence)
             bindle.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
             
             formatDataSet(bindle, output_anitostropyL1_directory + output_anitostropyL1_file + '?bundle=T')

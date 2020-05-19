@@ -1,0 +1,26 @@
+
+def fittingUncertainties(fitResult,tempVDF,tempvz,tempvq,tempBq):
+    '''
+    Subprocess to anisotropyFromMath.jy that calculates uncertainties from fitting portion of routine
+    '''
+    r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
+    r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
+    VDF_fitValues = where(gt(tempVDF[r],0))
+    temp_fitValues = (fitResult[0]*(tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) + fitResult[1])
+    temp_residualVariance = ( tempvq[r][VDF_fitValues] - temp_fitValues )**2
+    
+    try:
+        temp_chiSquared = total( abs( temp_residualVariance / temp_fitValues ) )
+        temp_chiSquaredReduced = temp_chiSquared / (len(tempvz[r][VDF_fitValues]) - 2)
+    except:
+        temp_chiSquaredReduced = -1E38
+    try:
+        temp_totalVariance = (tempvq[r][VDF_fitValues] - mean(tempvq[r][VDF_fitValues]))**2
+        temp_rSquared = 1 - ( total(temp_residualVariance) / total(temp_totalVariance) )
+        temp_abscissaVariance = ( (tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) - mean((tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues])) )**2
+        temp_slopeError = sqrt( total(temp_residualVariance) / total(temp_abscissaVariance) ) / (len(tempvz[r][VDF_fitValues]) - 2)
+    except:
+        temp_rSquared = -1E38
+        temp_slopeError = -1E38
+    
+    return(temp_chiSquaredReduced,temp_rSquared,temp_slopeError)

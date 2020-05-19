@@ -105,24 +105,29 @@ elif skipPreviousFiles == 'F':
 
 import sys
 ### IMPORT SUBPROCESSES
+localGithubDirectory = 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/'
+remoteGithubDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 try:
     if useLocalSubprocesses == True:
-        findVDFAnisotropy = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+        findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
         execfile( findVDFAnisotropy.toString() )
         
-        writeAnisotropyL0 = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+        writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
         execfile( writeAnisotropyL0.toString() )
         
-        field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+        fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+        execfile( fittingUncertainties.toString() )
+        
+        field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
         execfile( field_aligner.toString() )
 
-        get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+        get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
         execfile( get_OS_version.toString() )
 
-        getSPCAnisotropyUncertaintyMaps = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+        getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
         execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 
-        smoothSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+        smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
         execfile( smoothSPCByVoltage.toString() )
 
         smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
@@ -130,50 +135,56 @@ try:
        
     else:
     
-        findVDFAnisotropy = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+        findVDFAnisotropy = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
         execfile( findVDFAnisotropy.toString() )
         
-        writeAnisotropyL0 = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+        writeAnisotropyL0 = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
         execfile( writeAnisotropyL0.toString() )
         
-        field_aligner = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+        fittingUncertainties = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+        execfile( fittingUncertainties.toString() )
+        
+        field_aligner = getFile( remoteGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
         execfile( field_aligner.toString() )
 
-        get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+        get_OS_version = getFile( remoteGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
         execfile( get_OS_version.toString() )
 
-        getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+        getSPCAnisotropyUncertaintyMaps = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
         execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 
-        smoothSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+        smoothSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
         execfile( smoothSPCByVoltage.toString() )
 
-        smoothAndDownsampleSPCByVoltage = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+        smoothAndDownsampleSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
         execfile( smoothAndDownsampleSPCByVoltage.toString() )
     
 except:
 
     print 'Unable to grab subprocess from github'
     
-    findVDFAnisotropy = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+    findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
     execfile( findVDFAnisotropy.toString() )
     
-    writeAnisotropyL0 = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+    writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
     execfile( writeAnisotropyL0.toString() )
+        
+    fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+    execfile( fittingUncertainties.toString() )
     
-    field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
 
-    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
 
-    getSPCAnisotropyUncertaintyMaps = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
     execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 
-    smoothSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+    smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
     execfile( smoothSPCByVoltage.toString() )
 
-    smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    smoothAndDownsampleSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
     execfile( smoothAndDownsampleSPCByVoltage.toString() )
        
 from org.apache.commons.math.optimization.fitting import CurveFitter
@@ -221,28 +232,28 @@ elif analyzingTimeWidthComparisons == False:
     output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
     
     
-def fittingUncertainties(fitResult,tempVDF,tempvz,tempvq,tempBq):
-    r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
-    r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
-    VDF_fitValues = where(gt(tempVDF[r],0))
-    temp_fitValues = (fitResult[0]*(tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) + fitResult[1])
-    temp_residualVariance = ( tempvq[r][VDF_fitValues] - temp_fitValues )**2
+# def fittingUncertainties(fitResult,tempVDF,tempvz,tempvq,tempBq):
+    # r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
+    # r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
+    # VDF_fitValues = where(gt(tempVDF[r],0))
+    # temp_fitValues = (fitResult[0]*(tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) + fitResult[1])
+    # temp_residualVariance = ( tempvq[r][VDF_fitValues] - temp_fitValues )**2
     
-    try:
-        temp_chiSquared = total( abs( temp_residualVariance / temp_fitValues ) )
-        temp_chiSquaredReduced = temp_chiSquared / (len(tempvz[r][VDF_fitValues]) - 2)
-    except:
-        temp_chiSquaredReduced = -1E38
-    try:
-        temp_totalVariance = (tempvq[r][VDF_fitValues] - mean(tempvq[r][VDF_fitValues]))**2
-        temp_rSquared = 1 - ( total(temp_residualVariance) / total(temp_totalVariance) )
-        temp_abscissaVariance = ( (tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) - mean((tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues])) )**2
-        temp_slopeError = sqrt( total(temp_residualVariance) / total(temp_abscissaVariance) ) / (len(tempvz[r][VDF_fitValues]) - 2)
-    except:
-        temp_rSquared = -1E38
-        temp_slopeError = -1E38
+    # try:
+        # temp_chiSquared = total( abs( temp_residualVariance / temp_fitValues ) )
+        # temp_chiSquaredReduced = temp_chiSquared / (len(tempvz[r][VDF_fitValues]) - 2)
+    # except:
+        # temp_chiSquaredReduced = -1E38
+    # try:
+        # temp_totalVariance = (tempvq[r][VDF_fitValues] - mean(tempvq[r][VDF_fitValues]))**2
+        # temp_rSquared = 1 - ( total(temp_residualVariance) / total(temp_totalVariance) )
+        # temp_abscissaVariance = ( (tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) - mean((tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues])) )**2
+        # temp_slopeError = sqrt( total(temp_residualVariance) / total(temp_abscissaVariance) ) / (len(tempvz[r][VDF_fitValues]) - 2)
+    # except:
+        # temp_rSquared = -1E38
+        # temp_slopeError = -1E38
     
-    return(temp_chiSquaredReduced,temp_rSquared,temp_slopeError)
+    # return(temp_chiSquaredReduced,temp_rSquared,temp_slopeError)
                         
     
     

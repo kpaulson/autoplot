@@ -1,0 +1,25 @@
+def pearsonCorrelate(ds_x,ds_y):
+    '''
+    finds the Pearson correlation coefficient between two rank1 datasets of length n
+    
+    r_xy = SUM{(x_i-x_mean)(y_i-y_mean)} / sqrt(SUM{(x_i-x_mean)^2})*sqrt(SUM{(y_i-y_mean)^2})
+    '''
+    
+    goodData = where(valid(ds_x).and(valid(ds_y)))
+    ds_x = ds_x[goodData]
+    ds_y = ds_y[goodData]
+    
+    ds_x_mean = mean(ds_x)
+    ds_y_mean = mean(ds_y)
+    
+    ds_x_deviation = ds_x - ds_x_mean
+    ds_y_deviation = ds_y - ds_y_mean
+    
+    
+    numerator = total(ds_x_deviation * ds_y_deviation)
+    denominator_1 = sqrt(total(ds_x_deviation**2))
+    denominator_2 = sqrt(total(ds_y_deviation**2))
+    
+    r_xy = numerator / (denominator_1 * denominator_2)
+    
+    return(r_xy)    

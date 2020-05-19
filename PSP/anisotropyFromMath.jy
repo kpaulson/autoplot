@@ -18,14 +18,14 @@ version = getParam('version','0.4.6','Version number to be appended to filenames
 #usePreviouslyDownsampledData   = True  #Use Downsampled data file created previously
 #useLocalSubprocesses           = True  #Use local script call files instead of pulling from github
 
+skipPreviousFiles              = getParam('skipPreviousFiles','T','Look for previously generated files and skip analysis if found',['T','F'])
 separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
-useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
-usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
 writeStuff                     = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
 useVDFFluxForWeights           = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
+useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
 conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
+usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
 analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
-skipPreviousFiles              = getParam('skipPreviousFiles','F','Look for previously generated files and skip analysis if found',['T','F'])
 
 
 m_p                  = 1.6726231E-24
@@ -606,9 +606,9 @@ for tr in trs:
         u_x = vz_tanTheta[r]
         u_y = vz_tanPhi[r]
         u_z = v_z[r]
-        u_x = 0*vz_tanTheta[r]
-        u_y = 0*vz_tanPhi[r]
-        u_z = 0*v_z[r]
+        #u_x = 0*vz_tanTheta[r]
+        #u_y = 0*vz_tanPhi[r]
+        #u_z = 0*v_z[r]
         
         #if 'alreadyPlottedOnce' not in globals():
             #setLayoutOverplot(4) 

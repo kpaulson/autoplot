@@ -10,6 +10,7 @@ tr = '2020-01-22 to 2020-02-04'
 #tr = '2018-10-28 through 2018-11-10'
 #tr = '2019-03-20 through 2019-04-10'
 #tr = '2018 through 2020'
+tr = '2018-11-01'
 
 onlyPlotEdges = False
 onlyPlotNoSPAN = False
@@ -184,9 +185,19 @@ ss_anisotropy_jiaSampled.putProperty(QDataSet.VALID_MAX,3E1)
 spc_jia_anisotropy.putProperty(QDataSet.VALID_MIN,9E-2)
 spc_jia_anisotropy.putProperty(QDataSet.VALID_MAX,3E1)
 
-spani_ss_coeff = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[dataSubset_ss]),log(spc_ss_anisotropy[dataSubset_ss]))
-spani_jia_coeff = pearsonCorrelate(log(spani_p1_anisotropy_jiaSampled),log(spc_jia_anisotropy))
-jia_ss_coeff = pearsonCorrelate(log(spc_jia_anisotropy),log(ss_anisotropy_jiaSampled))
+try:
+    spani_ss_coeff = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[dataSubset_ss]),log(spc_ss_anisotropy[dataSubset_ss]))
+except:
+    spani_ss_coeff = 'NaN'
+try:
+    spani_jia_coeff = pearsonCorrelate(log(spani_p1_anisotropy_jiaSampled),log(spc_jia_anisotropy))
+except:
+    spani_jia_coeff = 'NaN'
+try:
+    jia_ss_coeff = pearsonCorrelate(log(spc_jia_anisotropy),log(ss_anisotropy_jiaSampled))
+except:
+    jia_ss_coeff = 'NaN'
+
 print 'spani_ss_coeff:',round(spani_ss_coeff,4)
 print 'spani_jia_coeff:',round(spani_jia_coeff,4)
 print 'jia_ss_coeff:',round(jia_ss_coeff,4)
@@ -194,6 +205,8 @@ print 'jia_ss_coeff:',round(jia_ss_coeff,4)
 #a_spani_ss= annotation(0,text='r= '+str(round(spani_ss_coeff,4)),borderType='Rounded_Rectangle')
 #a_spani_jia= annotation(1,text='r= '+str(round(spani_jia_coeff,4)),borderType='Rounded_Rectangle')
 #a_jia_ss= annotation(2,text='r= '+str(round(jia_ss_coeff,4)),borderType='Rounded_Rectangle')
+
+load('/Users/kpaulson/GoogleDrive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin.vap')
 
 dom.annotations[0].text= 'r= '+str(round(spani_ss_coeff,3))
 dom.annotations[1].text= 'r= '+str(round(spani_jia_coeff,3))

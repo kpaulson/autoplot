@@ -10,7 +10,7 @@ tr = '2020-01-22 to 2020-02-04'
 #tr = '2018-10-28 through 2018-11-10'
 #tr = '2019-03-20 through 2019-04-10'
 #tr = '2018 through 2020'
-tr = '2018-11-01'
+#tr = '2018-11-01'
 
 onlyPlotEdges = False
 onlyPlotNoSPAN = False

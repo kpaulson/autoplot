@@ -27,7 +27,10 @@ uncertaintyRatioLimit = 0.9
 ############################################################################
 ############################################################################
     
-pearsonCorrelate = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/pearsonCorrelate.jy',monitor.getSubtaskMonitor('import pearsonCorrelate()'))
+#pearsonCorrelate = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/pearsonCorrelate.jy',monitor.getSubtaskMonitor('import pearsonCorrelate()'))
+#execfile( pearsonCorrelate.toString() )
+  
+pearsonCorrelate = getFile( '/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/pearsonCorrelate.jy',monitor.getSubtaskMonitor('import pearsonCorrelate()'))
 execfile( pearsonCorrelate.toString() )
 
 

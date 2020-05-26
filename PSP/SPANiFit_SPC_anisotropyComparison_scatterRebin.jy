@@ -186,19 +186,23 @@ spc_jia_anisotropy.putProperty(QDataSet.VALID_MIN,9E-2)
 spc_jia_anisotropy.putProperty(QDataSet.VALID_MAX,3E1)
 
 try:
-    spani_ss_coeff = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[dataSubset_ss]),log(spc_ss_anisotropy[dataSubset_ss]))
+    (spani_ss_coeff,spani_ss_coeff_adjusted,spani_ss_coeff_maxPositive,spani_ss_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[dataSubset_ss]),log(spc_ss_anisotropy[dataSubset_ss]))
 except:
     spani_ss_coeff = 'NaN'
+    spani_ss_coeff_adjusted = 'NaN'
 try:
-    spani_jia_coeff = pearsonCorrelate(log(spani_p1_anisotropy_jiaSampled),log(spc_jia_anisotropy))
+    (spani_jia_coeff,spani_jia_coeff_adjusted,spani_jia_coeff_maxPositive,spani_jia_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_jiaSampled),log(spc_jia_anisotropy))
 except:
     spani_jia_coeff = 'NaN'
+    spani_jia_coeff_adjusted = 'NaN'
 try:
-    jia_ss_coeff = pearsonCorrelate(log(spc_jia_anisotropy),log(ss_anisotropy_jiaSampled))
+    (jia_ss_coeff,jia_ss_coeff_adjusted,jia_ss_coeff_maxPositive,jia_ss_coeff_maxNegative) = pearsonCorrelate(log(spc_jia_anisotropy),log(ss_anisotropy_jiaSampled))
 except:
     jia_ss_coeff = 'NaN'
+    jia_ss_coeff_adjusted = 'NaN'
 
 print 'spani_ss_coeff:',round(spani_ss_coeff,4)
+print 'spani_ss_coeff_adjusted:',round(spani_ss_coeff_adjusted,4)
 print 'spani_jia_coeff:',round(spani_jia_coeff,4)
 print 'jia_ss_coeff:',round(jia_ss_coeff,4)
 

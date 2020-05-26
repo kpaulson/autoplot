@@ -22,4 +22,34 @@ def pearsonCorrelate(ds_x,ds_y):
     
     r_xy = numerator / (denominator_1 * denominator_2)
     
-    return(r_xy)    
+    xsort = sort(ds_x)
+    ds_x_sorted = ds_x[xsort]
+    ysort = sort(ds_y)
+    ds_y_sorted = ds_y[ysort]
+    
+    ds_x_sorted_deviation = ds_x_sorted - ds_x_mean
+    ds_y_sorted_deviation = ds_y_sorted - ds_y_mean
+    
+    
+    numerator = total(ds_x_sorted_deviation * ds_y_sorted_deviation)
+    denominator_1 = sqrt(total(ds_x_sorted_deviation**2))
+    denominator_2 = sqrt(total(ds_y_sorted_deviation**2))
+    
+    r_xy_maxPositive = numerator / (denominator_1 * denominator_2)
+    
+    ds_y_negSorted = reverse(ds_y_sorted)
+    ds_y_negSorted_deviation = ds_y_negSorted - ds_y_mean
+    
+    numerator = total(ds_x_sorted_deviation * ds_y_negSorted_deviation)
+    denominator_1 = sqrt(total(ds_x_sorted_deviation**2))
+    denominator_2 = sqrt(total(ds_y_negSorted_deviation**2))
+    
+    r_xy_maxNegative = numerator / (denominator_1 * denominator_2)
+    
+    if signum(r_xy) == 1.0:
+        r_xy_adjusted = r_xy/r_xy_maxPositive
+    elif signum(r_xy) == -1.0:
+        r_xy_adjusted = r_xy/r_xy_maxNegative
+    print signum(r_xy)
+    
+    return(r_xy,r_xy_adjusted,r_xy_maxPositive,r_xy_maxNegative)    

@@ -1,36 +1,63 @@
-davinTempFile = 'vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1'
-outputFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1_2.cdf'
+davinTempFile_P1 = 'vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1'
+davinTempFile_P2 = 'vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p2'
+outputFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits.cdf'
 
 
-P1_density = getDataSet(davinTempFile+'?depend0=TIME&column=field1')
-P1_Tperp = getDataSet(davinTempFile+'?depend0=TIME&column=field2')
-P1_T_anisotropy = getDataSet(davinTempFile+'?depend0=TIME&column=field3')
+P1_density      = getDataSet(davinTempFile_P1+'?depend0=TIME&column=field1')
+P1_Tperp        = getDataSet(davinTempFile_P1+'?depend0=TIME&column=field2')
+P1_T_anisotropy = getDataSet(davinTempFile_P1+'?depend0=TIME&column=field3')
 
-P2_density = getDataSet(davinTempFile+'?depend0=TIME&column=field4')
-P2_Tperp = getDataSet(davinTempFile+'?depend0=TIME&column=field5')
-P2_T_anisotropy = getDataSet(davinTempFile+'?depend0=TIME&column=field6')
+P1_density_deltaPlusMinus      = getDataSet(davinTempFile_P1+'?depend0=TIME&column=field4')
+P1_Tperp_deltaPlusMinus        = getDataSet(davinTempFile_P1+'?depend0=TIME&column=field5')
+P1_T_anisotropy_deltaPlusMinus = getDataSet(davinTempFile_P1+'?depend0=TIME&column=field6')
+
+
+P2_density      = getDataSet(davinTempFile_P2+'?depend0=TIME&column=field1')
+P2_Tperp        = getDataSet(davinTempFile_P2+'?depend0=TIME&column=field2')
+P2_T_anisotropy = getDataSet(davinTempFile_P2+'?depend0=TIME&column=field3')
+
+P2_density_deltaPlusMinus      = getDataSet(davinTempFile_P2+'?depend0=TIME&column=field4')
+P2_Tperp_deltaPlusMinus        = getDataSet(davinTempFile_P2+'?depend0=TIME&column=field5')
+P2_T_anisotropy_deltaPlusMinus = getDataSet(davinTempFile_P2+'?depend0=TIME&column=field6')
+
+
+
 
 time = P1_density.property(QDataSet.DEPEND_0)
 time.putProperty(QDataSet.UNITS,Units.t1970)
 
-P1_density.putProperty(QDataSet.NAME,'P1_density')
-P1_Tperp.putProperty(QDataSet.NAME,'P1_T_perp')
+P1_density.putProperty(     QDataSet.NAME,'P1_density')
+P1_Tperp.putProperty(       QDataSet.NAME,'P1_T_perp')
 P1_T_anisotropy.putProperty(QDataSet.NAME,'P1_T_anisotropy')
+P1_density_deltaPlusMinus.putProperty(     QDataSet.NAME,'P1_density_deltaPlusMinus')
+P1_Tperp_deltaPlusMinus.putProperty(       QDataSet.NAME,'P1_T_perp_deltaPlusMinus')
+P1_T_anisotropy_deltaPlusMinus.putProperty(QDataSet.NAME,'P1_T_anisotropy_deltaPlusMinus')
 
-P2_density.putProperty(QDataSet.NAME,'P2_density')
-P2_Tperp.putProperty(QDataSet.NAME,'P2_T_perp')
+P2_density.putProperty(     QDataSet.NAME,'P2_density')
+P2_Tperp.putProperty(       QDataSet.NAME,'P2_T_perp')
 P2_T_anisotropy.putProperty(QDataSet.NAME,'P2_T_anisotropy')
+P2_density_deltaPlusMinus.putProperty(     QDataSet.NAME,'P2_density_deltaPlusMinus')
+P2_Tperp_deltaPlusMinus.putProperty(       QDataSet.NAME,'P2_T_perp_deltaPlusMinus')
+P2_T_anisotropy_deltaPlusMinus.putProperty(QDataSet.NAME,'P2_T_anisotropy_deltaPlusMinus')
 
-P1_density.putProperty(QDataSet.LABEL,'P1 density')
-P1_Tperp.putProperty(QDataSet.LABEL,'P1 T_perp')
+P1_density.putProperty(     QDataSet.LABEL,'P1 density')
+P1_Tperp.putProperty(       QDataSet.LABEL,'P1 T_perp')
 P1_T_anisotropy.putProperty(QDataSet.LABEL,'P1 T_anisotropy')
+P1_density_deltaPlusMinus.putProperty(     QDataSet.LABEL,'P1 density uncertainty')
+P1_Tperp_deltaPlusMinus.putProperty(       QDataSet.LABEL,'P1 T_perp uncertainty')
+P1_T_anisotropy_deltaPlusMinus.putProperty(QDataSet.LABEL,'P1 T_anisotropy uncertainty')
 
-P2_density.putProperty(QDataSet.LABEL,'P2 density')
-P2_Tperp.putProperty(QDataSet.LABEL,'P2 T_perp')
+P2_density.putProperty(     QDataSet.LABEL,'P2 density')
+P2_Tperp.putProperty(       QDataSet.LABEL,'P2 T_perp')
 P2_T_anisotropy.putProperty(QDataSet.LABEL,'P2 T_anisotropy')
+P2_density_deltaPlusMinus.putProperty(     QDataSet.LABEL,'P2 density uncertainty')
+P2_Tperp_deltaPlusMinus.putProperty(       QDataSet.LABEL,'P2 T_perp uncertainty')
+P2_T_anisotropy_deltaPlusMinus.putProperty(QDataSet.LABEL,'P2 T_anisotropy uncertainty')
 
 bindle = bundle(P1_density, P1_Tperp, P1_T_anisotropy)
+bindle = bundle(bindle, P1_density_deltaPlusMinus, P1_Tperp_deltaPlusMinus, P1_T_anisotropy_deltaPlusMinus)
 bindle = bundle(bindle, P2_density, P2_Tperp, P2_T_anisotropy)
+bindle = bundle(bindle, P2_density_deltaPlusMinus, P2_Tperp_deltaPlusMinus, P2_T_anisotropy_deltaPlusMinus)
 bindle.putProperty(QDataSet.DEPEND_0,time)
 
 formatDataSet(bindle,outputFile+'?bundle=T')

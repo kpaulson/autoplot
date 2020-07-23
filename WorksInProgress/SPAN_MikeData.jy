@@ -1,0 +1,43 @@
+
+tr = '2020-01-22 through 2020-02-05'
+
+P1_anisotropyMin = 0.8
+P1_anisotropyMax = 1.2
+P2_over_P1_maxRatio = 0.05
+
+Davin_fitFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits.cdf'
+peakObservationFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt'
+
+outputFile = '/Users/kpaulson/googleDrive/Research/PSP/SPAN/span_iosotropicP1Peak_data.txt'
+
+############
+
+p1_density    = getDataSet(Davin_fitFile+'?P1_density')
+p2_density    = getDataSet(Davin_fitFile+'?P2_density')
+p1_tperp      = getDataSet(Davin_fitFile+'?P1_T_perp')
+p2_tperp      = getDataSet(Davin_fitFile+'?P2_T_perp')
+p1_anisotropy = getDataSet(Davin_fitFile+'?P1_T_anisotropy')
+p2_anisotropy = getDataSet(Davin_fitFile+'?P2_T_anisotropy')
+
+p1_density_deltaPlusMinus    = getDataSet(Davin_fitFile+'?P1_density_deltaPlusMinus')
+p2_density_deltaPlusMinus    = getDataSet(Davin_fitFile+'?P2_density_deltaPlusMinus')
+p1_tperp_deltaPlusMinus      = getDataSet(Davin_fitFile+'?P1_T_perp_deltaPlusMinus')
+p2_tperp_deltaPlusMinus      = getDataSet(Davin_fitFile+'?P2_T_perp_deltaPlusMinus')
+p1_anisotropy_deltaPlusMinus = getDataSet(Davin_fitFile+'?P1_T_anisotropy_deltaPlusMinus')
+p2_anisotropy_deltaPlusMinus = getDataSet(Davin_fitFile+'?P2_T_anisotropy_deltaPlusMinus')
+
+spanPeak = getDataSet(peakObservationFile+'?depend0=Epoch&column=VDF_Peak_Obs',tr)
+spanPeak = synchronize(p1_density,spanPeak)
+spanPeak = round(spanPeak,0)
+
+selectedData = where(lt(p2_density/p1_density,P2_over_P1_maxRatio).and(gt(p1_anisotropy,P1_anisotropyMin)).and(lt(p1_anisotropy,P1_anisotropyMax)))
+selectedData = where(lt(p2_density/p1_density,P2_over_P1_maxRatio).and(gt(p1_anisotropy,P1_anisotropyMin)).and(lt(p1_anisotropy,P1_anisotropyMax)).and(eq(spanPeak,0)))
+
+#setLayoutOverplot(2)
+plot(0,p1_anisotropy[selectedData])
+plot(1,spanPeak,color='red')
+
+bindle = bundle(p1_density[selectedData], p1_anisotropy[selectedData])
+bindle.putProperty(QDataSet.DEPEND_0, p1_density.property(QDataSet.DEPEND_0)[selectedData] )
+
+formatDataSet(bindle,outputFile+'?header=rich')

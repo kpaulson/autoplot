@@ -7,8 +7,8 @@
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')#
 #timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
-timerange = getParam('timerange','2020-01-27 6:00 to 6:20','Iteration Timerange')
-version = getParam('version','0.4.6','Version number to be appended to filenames')
+timerange = getParam('timerange','2020-01-01','Iteration Timerange')
+version = getParam('version','0.4.5','Version number to be appended to filenames')
 
 #separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
 #writeStuff                     = True  #Write out L0 anisotropy file
@@ -304,11 +304,12 @@ for tr in trs:
     if skipPreviousFiles == True:
         try:
             if separatePeaksWithL3Values == False:
-                output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
-                TEMP_epoch = getDataSet(output_file+'?Epoch')
-                if ne( long(mode(copy(TEMP_epoch))), 0):
-                    print 'File already exists for %s on %s'%(vdf,timeTitle)
-                    vdfList.remove(vdf)
+                for vdf in vdfList:
+                    output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+                    TEMP_epoch = getDataSet(output_file+'?Epoch')
+                    if ne( long(mode(copy(TEMP_epoch))), 0):
+                        print 'File already exists for %s on %s'%(vdf,timeTitle)
+                        vdfList.remove(vdf)
                     
             elif separatePeaksWithL3Values == True:
                 for vdf in vdfList:
@@ -644,8 +645,8 @@ for tr in trs:
         
         mag_time = mag.property(QDataSet.DEPEND_0)
         
-        pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
-        pos_time = pos.property(QDataSet.DEPEND_0)
+        #pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+        #pos_time = pos.property(QDataSet.DEPEND_0)
         
         Bx = mag[:,0]
         By = mag[:,1]

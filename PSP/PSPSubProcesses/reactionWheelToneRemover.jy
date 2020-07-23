@@ -1,0 +1,135 @@
+def reactionWheelToneRemover(ds_fft, reactionWheelSpeed, wheelToneSpectralWidth=5, chi_squared_critical_min = 0.05, maxAttempts = 30):
+    '''
+    Attempts to remove the spectral signal of the reaction wheel from fft
+    Input:
+        ds_fft = rank? fft array
+        reactionWheelSpeed = rank1 array of reaction wheel speed in revolutions per second
+    Output:
+        ds_fft_clean = rank? fft array with removed signal
+    '''
+    
+
+    
+    from org.apache.commons.math.optimization.fitting import CurveFitter
+    from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+    from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+
+    
+    class GaussFitKnownCenter(ParametricRealFunction):
+        def value(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2))))
+        def gradient(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            return [1,
+                    exp(-((x - c1)**2 / (2*d1**2))),
+                    0,
+                    #(b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                    (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2)))]  
+    
+    
+    reactionWheelSpeed_fftSync = putProperty(synchronize(ds_fft,reactionWheelSpeed),QDataSet.UNITS,Units.hertz)
+    maskArray      = zeros(len(ds_fft[:,0,0]),len(ds_fft[0,:,0]))
+    frequencyArray = ones(len(ds_fft[:,0,0]),len(ds_fft[0,:,0]))
+    frequencyArray.putProperty(QDataSet.UNITS,Units.hertz)
+    frequencyArray.putProperty(QDataSet.DEPEND_0,ds_fft.property(QDataSet.DEPEND_0))
+    #print len(ds_fft[:,0,0])
+    #print frequencyArray
+    frequencyArray = transpose(transpose(frequencyArray) * ds_fft.property(QDataSet.DEPEND_1))
+    #print reactionWheelSpeed_fftSync
+    #plot( frequencyArray)
+    #print ds_fft
+    
+    wheelPoints = None
+    for TEMP_i in xrange(len(maskArray[:,0])):
+        #wheelPoint = imin(abs(ds_fft.property(QDataSet.DEPEND_1)-reactionWheelSpeed_fftSync[array_i]))
+        # Finds bin closest to the wheel spin frequency
+        wheelPoints = concatenate(wheelPoints,imin(abs(ds_fft.property(QDataSet.DEPEND_1)-reactionWheelSpeed_fftSync[TEMP_i])))
+        #maskArray[array_i,wheelPoint] = 0
+    
+    wheelPointsArray                = dblarr(len(wheelPoints),wheelToneSpectralWidth)
+    wheelToneArray                  = dblarr(len(wheelPoints),wheelToneSpectralWidth,len(ds_fft[0,0,:]))
+    TEMP_binChannelAroundTone_power = dblarr(len(wheelPoints),len(ds_fft[0,0,:]))
+    for binChannel in xrange(wheelToneSpectralWidth):
+        TEMP_binChannelAroundTone = wheelPoints + (binChannel - floor(wheelToneSpectralWidth/2.))
+        wheelPointsArray[:,binChannel] = TEMP_binChannelAroundTone
+        for real_imag in xrange(len(ds_fft[0,0,:])):
+            for TEMP_i in xrange(len(TEMP_binChannelAroundTone_power)):
+                TEMP_binChannelAroundTone_power[TEMP_i,real_imag] = ds_fft[TEMP_i,TEMP_binChannelAroundTone[TEMP_i],real_imag]
+            wheelToneArray[:,binChannel,real_imag] = TEMP_binChannelAroundTone_power[:,real_imag]
+        print 'TEMP_binChannelAroundTone_power:',TEMP_binChannelAroundTone_power
+        
+        #plot(TEMP_binChannelAroundTone_power)
+        #maskArray[:,wheelPoints + (binChannel - floor(wheelToneSpectralWidth/2.))] = ds_fft[:,wheelPoints + (binChannel - floor(wheelToneSpectralWidth/2.))]
+    
+    wheelToneArray_power = sqrt(wheelToneArray[:,:,0]**2 + wheelToneArray[:,:,1]**2)
+    # BOXCAR AVERAGE OVER WHEEL TONE TO GET EVRAGE EFFECTS, LATER USE THIS TO MEDIAN-OUT WAVE POWER JUMPS
+    wheelToneArray_power = smooth(wheelToneArray_power,200)
+    for binChannel in xrange(wheelToneSpectralWidth):
+        for TEMP_i in xrange(len(TEMP_binChannelAroundTone_power)):
+            maskArray[TEMP_i,wheelPointsArray[TEMP_i,binChannel]] = wheelToneArray_power[TEMP_i,binChannel]
+    #wheelPointsArray.putProperty(QDataSet.DEPEND_0,ds_fft.property(QDataSet.DEPEND_0))
+    maskArray.putProperty(QDataSet.DEPEND_0,ds_fft.property(QDataSet.DEPEND_0))
+    maskArray.putProperty(QDataSet.DEPEND_1,ds_fft.property(QDataSet.DEPEND_1))
+    wheelToneArray.putProperty(QDataSet.DEPEND_0,ds_fft.property(QDataSet.DEPEND_0))
+    #print wheelPointsArray
+    plot(2,maskArray,ytitle='Mask Array',zrange=[0.001,1],zlog=True)
+    #stop
+    
+    # DO GAUSSIAN FITTING
+    ftr = CurveFitter(LevenbergMarquardtOptimizer())
+    
+    #wheelFrequency = where(eq(frequencyArray,reactionWheelSpeed_fftSync))
+    #print wheelPoints
+    #maskArray[:,wheelPoints] = 0
+    #plot(1, reactionWheelSpeed_fftSync)
+    #plot(2, maskArray)
+    #plot(2, wheelPoints)
+    #stop
+    
+    ds_fft_clean = copy(ds_fft)
+    if ds_fft.rank()==2:
+        print 'rank2'
+    if ds_fft.rank()==3:
+        print 'rank3'
+        for real_imag in xrange(len(ds_fft[0,0,:])):
+            #wheelFrequency = where(eq(frequencyArray,reactionWheelSpeed_fftSync))
+            #ds_fft_clean[:,:,real_imag][:,wheelPoints] = 0
+            ds_fft_clean[:,:,real_imag] = ds_fft_clean[:,:,real_imag] - maskArray
+    
+    
+    #return(ds_fft_clean)
+    return(maskArray)
+
+# GRAB FFT ROUTINE
+Hanningfft = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+execfile( Hanningfft.toString() )
+
+#DOWNLOAD EXAMPLE DATA
+RW1 = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW1&timerange=2020-06-13')
+B_RTN_t = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/2020/06/psp_fld_l2_mag_RTN_2020061306_v00.cdf?psp_fld_l2_mag_RTN[:,1]')
+
+#TRIM DATA SO THAT WE CAN DO THIS MORE QUICKLY
+B_RTN_t = trim(B_RTN_t,'2020-06-13 07:00 to 19:20')
+
+#RUN FFT
+freq_min = 2.
+freq_max = 11.
+window = 512
+slide = 4
+Bt_fft = Hanningfft( B_RTN_t , freq_min , freq_max , window , slide )
+
+wheelToneSpectralWidth = 3
+maskArray = reactionWheelToneRemover(Bt_fft, RW1, wheelToneSpectralWidth)
+
+Bt_fft_power = sqrt(Bt_fft[:,:,0]**2 + Bt_fft[:,:,1]**2)
+Bt_fft_clean_power = Bt_fft_power - maskArray
+
+plot(0,Bt_fft_power,ytitle='Bt fft',zrange=[0.001,1],zlog=True)
+plot(1,Bt_fft_clean_power,ytitle='Bt fft subtracted',zrange=[0.001,1],zlog=True)

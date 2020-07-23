@@ -1,0 +1,29 @@
+def spearmanCorrelate(ds_x,ds_y):
+    '''
+    finds the Spearman correlation coefficient between two rank1 datasets of length n
+    
+    First we will use the basic equation for cases where all ranks are distinct values 
+    (we can assume with our data that all values will be distinct)
+    rho_xy = 1 - 6*SUM{(d_i^2)} / n*(n^2 - 1)
+    '''
+    
+    goodData = where(valid(ds_x).and(valid(ds_y)))
+    ds_x = ds_x[goodData]
+    ds_y = ds_y[goodData]
+    
+    ds_x_rank = sort(ds_x)
+    ds_y_rank = sort(ds_y)
+    
+    d_i = ds_x_rank - ds_y_rank
+    data_length = len(ds_x)
+    
+    numerator = total(d_i**2,0)
+    denominator = data_length*(data_length**2 - 1)
+    
+    rho_xy = 1 - 6*numerator/denominator
+    
+    return(rho_xy)
+    
+    
+    
+    

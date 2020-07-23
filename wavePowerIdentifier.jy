@@ -5,11 +5,13 @@
 
 #timerange = '2018-10-25'
 #timerange = '2018-11-01 to 2018-11-05'
-timerange = getParam('timerange','2018-11-04','Timerange over which to isolate and total EMIC wave power')
+timerange = getParam('timerange','2020-01-27','Timerange over which to isolate and total EMIC wave power')
+
+fileVersion = '1.1'
 
 ##############
             
-bottomTrimIndex            = 20
+bottomTrimIndex            = 0
 min_coherency              = 0.8
 max_waveNormal             = 25
 maxLefthandedness          = -0.8
@@ -20,14 +22,15 @@ frequencyAxis_smoothpoints = 20
 ##############
 
 
-outputDirectory = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/WavePower/'
+outputDirectory = '/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower/'
 outputFile = outputDirectory+'PSP_wavePower_%s.cdf'%(timerange)
 
-polarization_file = 'file:///home/kpaulson/Research/PSP/Wave_Polarization/PSP_Polarization_$Y$m$d_$(H,span=6)00.cdf'
+waveAnalysis_directory = '/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(fileVersion)
+waveAnalysis_file = waveAnalysis_directory+'PSP_WaveAnalysis_$Y-$m-$d_$(H,span=6)00_v%s.cdf'%(fileVersion)
 #polarization_file = 'C:/Users/krist/Downloads/PSP_Polarization_$Y$m$d_0000.cdf'
 
 scrollingPlots = True
-plotStuff = True
+plotStuff = False
 
 writeStuff = True
 
@@ -45,6 +48,10 @@ if scrollingPlots == True:
     monitor.setTaskSize(len(dds))
     
     for ind in xrange(len(dds)):
+        
+        #totalPowerLeft  = None
+        #totalPowerRight = None
+        #totalpower_perp = None
         monitor.setTaskProgress(ind)
         monitor.setProgressMessage('Downloading Data')
         
@@ -53,27 +60,35 @@ if scrollingPlots == True:
                 tr = dds[ind]+' to '+str( datum(dds[ind]) + dataset('6hr') )
             else:
                 tr = dds[ind]+' to '+dds[ind+1]
+    ind = 0    
+    for dd in dds:
+        
+        monitor.setTaskProgress(ind)
+        monitor.setProgressMessage('Downloading Data')
+        tr = str(datum(dd))+' to '+str(datum(dd)+datum('6 hr'))
+        
+        try:
 
-
-            power_perp   = getDataSet(polarization_file+'?Power_Perp',tr)
-            coherency    = getDataSet(polarization_file+'?Coherency',tr)
-            ellipticity  = getDataSet(polarization_file+'?Ellipticity',tr)
-            waveNormal = getDataSet(polarization_file+'?Angle_Normal',tr)
+            power_perp   = getDataSet(waveAnalysis_file+'?B_power_perp',tr)
+            coherency    = getDataSet(waveAnalysis_file+'?coherency',tr)
+            ellipticity  = getDataSet(waveAnalysis_file+'?ellipticity',tr)
+            waveNormal   = getDataSet(waveAnalysis_file+'?wave_normal',tr)
             
+            #print (waveAnalysis_file+'?B_power_perp',tr)
             
             
             power_perp  = power_perp[:,bottomTrimIndex:]
             coherency   = coherency[:,bottomTrimIndex:]
             ellipticity = ellipticity[:,bottomTrimIndex:]
-            waveNormal = waveNormal[:,bottomTrimIndex:]
+            waveNormal  = waveNormal[:,bottomTrimIndex:]
             
             
             timeAxis = power_perp.property(QDataSet.DEPEND_0)
             frequencyAxis = power_perp.property(QDataSet.DEPEND_1)
             
             
-            coherency_smoothedFrequency  = smooth2d(coherency,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
-            waveNormal_smoothedFrequency = smooth2d(waveNormal,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+            coherency_smoothedFrequency   = smooth2d(coherency,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+            waveNormal_smoothedFrequency  = smooth2d(waveNormal,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
             ellipticity_smoothedFrequency = smooth2d(ellipticity,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
             
             #plot(0,ellipticity)
@@ -113,7 +128,13 @@ if scrollingPlots == True:
             
             totalPowerLeft  = append(totalPowerLeft,PowerLeft)
             totalPowerRight = append(totalPowerRight,PowerRight)
-            totalpower_perp = append(totalpower_perp,power_perp)
+            totalpower_perp = append(totalpower_perp,Power)
+            
+            ind = ind+1
+        except:
+            print 'oops'
+            ind = ind+1
+            continue
             
 if plotStuff == True:
     setLayoutOverplot(2)
@@ -123,15 +144,21 @@ if plotStuff == True:
     plot(2,totalpower_perp,zlog=True)
 
 if writeStuff == True:
+    
+    timeAxis = totalpower_perp.property(QDataSet.DEPEND_0)
     timeAxis.putProperty(QDataSet.NAME,'epoch')
     totalPowerLeft.putProperty(QDataSet.NAME,'wavePower_LH')
-    totalPowerLeft.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity below %s (Left-handed)'%(maxLefthandedness))
+    totalPowerLeft.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity below %s (Left-handed), coherency above %s, and wave normal angle below %s degrees.'%(maxLefthandedness,min_coherency,max_waveNormal))
     totalPowerRight.putProperty(QDataSet.NAME,'wavePower_RH')
-    totalPowerRight.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity above %s (Right-handed)'%(minRighthandedness))
+    totalPowerRight.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity above %s (Right-handed), coherency above %s, and wave normal angle below %s degrees.'%(minRighthandedness,min_coherency,max_waveNormal))
     
-    formatDataSet(timeAxis,outputFile)
-    formatDataSet(totalPowerLeft,outputFile+'?append=T')
-    formatDataSet(totalPowerRight,outputFile+'?append=T')
+    bindle = bundle(totalPowerLeft,totalPowerRight)
+    bindle.putProperty(QDataSet.DEPEND_0,timeAxis)
+    
+    formatDataSet(bindle,outputFile+'?bundle=T')
+    #formatDataSet(timeAxis,outputFile)
+    #formatDataSet(totalPowerLeft,outputFile+'?append=T')
+    #formatDataSet(totalPowerRight,outputFile+'?append=T')
 
 
 

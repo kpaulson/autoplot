@@ -2,63 +2,95 @@
 
 tr = '2018-10-28 to 2018-11-20'  # Encounter 1
 #tr = '2019-03-25 to 2019-04-20'  # Encounter 2
-tr = '2018-10-15 to 2020-04-20'  # Encounter 2
-#tr = '2018-11-02'
-minWavePower = 2E-2
-percentUncertainty = 40
+tr = '2020-01-26 to 2020-02-05'  # Encounter 4
+#tr = '2019-03-25 to 2020-04-20'  # Encounter 2-4
+#tr = '2018-10-15 to 2020-04-20'  # Encounter all
+#tr = '2018-10-31'
+minWavePower = 2E-1
+minWavePower = 1E0
+percentUncertainty = 80
 
 version_L1 = '1.1.5'
 
 
 
-anisotropyFile = 'file:/home/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1,version_L1)
-
+#anisotropyFile = 'file:/home/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1,version_L1)
 anisotropyFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(version_L1,version_L1)
 
-anisotropy = getDataSet(anisotropyFile+'?anisotropy',tr)#**(1./2.)
-betaParallel = getDataSet(anisotropyFile+'?Beta_parallel',tr)
-betaPerp = getDataSet(anisotropyFile+'?Beta_perp',tr)
-anisotropy_deltaPlus = getDataSet(anisotropyFile+'?anisotropy_deltaPlus',tr)
-anisotropy_deltaMinus = getDataSet(anisotropyFile+'?anisotropy_deltaMinus',tr)
+anisotropy             = getDataSet(anisotropyFile+'?anisotropy',tr)#**(1./2.)
+betaParallel           = getDataSet(anisotropyFile+'?Beta_parallel',tr)#**2
+betaPerp               = getDataSet(anisotropyFile+'?Beta_perp',tr)
+WindSpeedOffScale_flag = getDataSet(anisotropyFile+'?WindSpeedOffScale_flag',tr)
+anisotropy_deltaPlus   = getDataSet(anisotropyFile+'?anisotropy_deltaPlus',tr)
+anisotropy_deltaMinus  = getDataSet(anisotropyFile+'?anisotropy_deltaMinus',tr)
 
-[betaParallel,betaPerp] = synchronize(anisotropy,[betaParallel,betaPerp])
+#[betaParallel,betaPerp] = synchronize(anisotropy,[betaParallel,betaPerp])
 
 goodValues = where( lt(anisotropy_deltaPlus/anisotropy , (percentUncertainty/100.) ) )
+goodValues = where( lt(anisotropy_deltaPlus/anisotropy , (percentUncertainty/100.) ).and(eq(WindSpeedOffScale_flag,0)) )
+
+positionFile = 'vap+cdaweb:ds=PSP_COHO1HR_MERGED_MAG_PLASMA'
+radialDistance = getDataSet(positionFile+'&id=radialDistance',tr)
+try:
+    radialDistance_inRsun = synchronize(anisotropy,radialDistance)[goodValues]*215.032
+except:
+    radialDistance_inRsun = -1*ones(len(goodValues))
+
+between0and20Rs = where(gt(radialDistance_inRsun,0.).and(lt(radialDistance_inRsun,20.)))
+between20and40Rs = where(gt(radialDistance_inRsun,20.).and(lt(radialDistance_inRsun,40.)))
+between40and60Rs = where(gt(radialDistance_inRsun,40.).and(lt(radialDistance_inRsun,60.)))
+between60and80Rs = where(gt(radialDistance_inRsun,60.).and(lt(radialDistance_inRsun,80.)))
+between80and100Rs = where(gt(radialDistance_inRsun,80.).and(lt(radialDistance_inRsun,100.)))
+
+radialSpan = []
 
 #polarizationFile = 'file:/home/kpaulson/Research/PSP/Wave_Polarization/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
-polarizationFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/PSP_Polarization/Polarization_Files/PSP_Polarization_$Y-$m-$d_$(H,span=6)$M.cdf'
+polarizationFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WaveAnalysis_files/v1.1/PSP_WaveAnalysis_$Y-$m-$d_$(H,span=6)$M_v1.1.cdf'
+wavePowerFile = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
 
-#wavePower_LH = getDataSet(polarizationFile+'?wavePower_LH',tr)
-#wavePower_RH = getDataSet(polarizationFile+'?wavePower_RH',tr)
+wavePower_LH = getDataSet(wavePowerFile+'?wavePower_LH',tr)
+wavePower_RH = getDataSet(wavePowerFile+'?wavePower_RH',tr)
 
 
-#(wavePower_LH,wavePower_RH) = synchronize(anisotropy[goodValues],[wavePower_LH,wavePower_RH])
+(wavePower_LH,wavePower_RH) = synchronize(anisotropy[goodValues][radialSpan],[wavePower_LH,wavePower_RH])
 
-#powerPresent_LH = where(gt(wavePower_LH,minWavePower))
-#powerPresent_RH = where(gt(wavePower_RH,minWavePower))
+powerPresent_LH = where(gt(wavePower_LH,minWavePower))
+powerPresent_RH = where(gt(wavePower_RH,minWavePower))
 
 anisotropy_bin_min    = 1E-1
 anisotropy_bin_max    = 1E1
 anisotropy_bin_number = 100
 aa = logspace(anisotropy_bin_min,anisotropy_bin_max,anisotropy_bin_number)
 
-beta_bin_min    = 1E-3
+beta_bin_min    = 1E-4
 beta_bin_max    = 12E3
-beta_bin_number = 100
+beta_bin_number = 120
 bb = logspace(beta_bin_min,beta_bin_max,beta_bin_number)
 
-anisotropy_rebin_total = rebin( link(betaParallel[goodValues],anisotropy[goodValues],ones(len(goodValues))) , bb , aa ).property(QDataSet.WEIGHTS)
-#anisotropy_rebin_LH = rebin( link(betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],ones(len(goodValues[powerPresent_LH]))) , bb , aa ).property(QDataSet.WEIGHTS)
-#anisotropy_rebin_RH = rebin( link(betaParallel[goodValues][powerPresent_RH],anisotropy[goodValues][powerPresent_RH],ones(len(goodValues[powerPresent_RH]))) , bb , aa ).property(QDataSet.WEIGHTS)
+anisotropy_rebin_total = rebin( link(betaParallel[goodValues][radialSpan],anisotropy[goodValues][radialSpan],ones(len(goodValues[radialSpan]))) , bb , aa ).property(QDataSet.WEIGHTS)
+anisotropy_rebin_LH = rebin( link(betaParallel[goodValues][radialSpan][powerPresent_LH],anisotropy[goodValues][radialSpan][powerPresent_LH],wavePower_LH[radialSpan][powerPresent_LH]) , bb , aa )
+anisotropy_rebin_RH = rebin( link(betaParallel[goodValues][radialSpan][powerPresent_RH],anisotropy[goodValues][radialSpan][powerPresent_RH],wavePower_RH[radialSpan][powerPresent_RH]) , bb , aa )
+anisotropy_rebin_LH_weights = anisotropy_rebin_LH.property(QDataSet.WEIGHTS)
+anisotropy_rebin_RH_weights = anisotropy_rebin_RH.property(QDataSet.WEIGHTS)
 
-anisotropy_rebin_total_percentage = 100*anisotropy_rebin_total/len(anisotropy)
+anisotropy_rebin_total_percentage = 100*anisotropy_rebin_total/len(anisotropy[goodValues][radialSpan])
 
-setLayoutOverplot(7)
-plot(0,betaParallel[goodValues],anisotropy[goodValues],renderType='scatter')
-#plot(1,betaParallel[goodValues][powerPresent_LH],anisotropy[goodValues][powerPresent_LH],renderType='scatter',color='orange',symbolSize=3)
-#plot(2,betaParallel[goodValues][powerPresent_RH],anisotropy[goodValues][powerPresent_RH],renderType='scatter',ylog=True,color='red',symbolSize=3)
+statisticallyInsignificant = where(lt(anisotropy_rebin_total_percentage,0.005))
+anisotropy_rebin_total[statisticallyInsignificant] = 1E38
+anisotropy_rebin_LH_weights_ratio = 100*anisotropy_rebin_LH_weights/(anisotropy_rebin_total)
+anisotropy_rebin_RH_weights_ratio = 100*anisotropy_rebin_RH_weights/(anisotropy_rebin_total)
 
-plot(0,anisotropy_rebin_total_percentage,colorTable='white_blue_black',ztitle='Percentage of Observations',zlog=True,zrange=[8.0E-4,0.7],title='Anisotropy vs &beta;!B||!N During Left-Handed ICW')
+
+#setLayoutOverplot(7)
+load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/BrazilPlot.vap')
+#plot(0,betaParallel[goodValues][radialSpan],anisotropy[goodValues][radialSpan],renderType='scatter')
+
+#plot(0,anisotropy_rebin_total_percentage,colorTable='white_blue_black',ztitle='Percentage of Observations',zlog=True,zrange=[8.0E-4,0.7],title='Anisotropy vs &beta;!B||!N!C!C%s'%tr)
+plot(0,anisotropy_rebin_LH_weights,colorTable='apl_rainbow_white0',ztitle='Number of Observations',zlog=True,zrange=[8.0E-4,0.7],title='Anisotropy vs &beta;!B||!N During LH ICW Activity!C!C%s'%tr)
+plot(0,anisotropy_rebin_LH_weights_ratio,colorTable='apl_rainbow_white0',ztitle='Normalized Wave Observations (%)',zlog=False,zrange=[0,25],title='Anisotropy vs &beta;!B||!N During LH ICW Activity!C!C%s'%tr)
+
+#plot(1,betaParallel[goodValues][radialSpan][powerPresent_LH],anisotropy[goodValues][radialSpan][powerPresent_LH],renderType='scatter',color='orange',symbolSize=3,title='Anisotropy vs &beta;!B||!N During Left-Handed ICW')
+#plot(2,betaParallel[goodValues][radialSpan][powerPresent_RH],anisotropy[goodValues][radialSpan][powerPresent_RH],renderType='scatter',ylog=True,color='red',symbolSize=3,title='Anisotropy vs &beta;!B||!N During Right-Handed ICW')
 
 
 # ###
@@ -78,5 +110,12 @@ instabilityFirehoseOblique_Hellinger.putProperty(QDataSet.VALID_MAX,100)
 
 plot(3,bb,instabilityMirror_Hellinger,color='magenta',lineThick=3)
 plot(4,bb,instabilityCyclotron_Hellinger,color='magenta',lineThick=3)
-plot(5,bb,instabilityFirehoseParallel_Hellinger,color='magenta',lineThick=3,xlog=True,xtitle='&beta;!B||!N',ytitle='T!B&perp;!N/T!B||!N',xrange=[1E-2,1E3],yrange=[1E-1,1E1],ylog=True)
-plot(6,bb,instabilityFirehoseOblique_Hellinger,color='magenta',lineThick=3,xlog=True,xtitle='&beta;!B||!N',ytitle='T!B&perp;!N/T!B||!N',xrange=[1E-2,1E3],yrange=[1E-1,1E1],ylog=True)
+plot(5,bb,instabilityFirehoseParallel_Hellinger,color='magenta',lineThick=3,xlog=True,xtitle='&beta;!B||!N',ytitle='T!B&perp;!N/T!B||!N',xrange=[1E-3,1E3],yrange=[1E-1,1E1],ylog=True)
+plot(6,bb,instabilityFirehoseOblique_Hellinger,color='magenta',lineThick=3,xlog=True,xtitle='&beta;!B||!N',ytitle='T!B&perp;!N/T!B||!N',xrange=[1E-3,1E3],yrange=[1E-1,1E1],ylog=True)
+
+
+r = where(gt(anisotropy[goodValues][radialSpan],0.7).and(lt(anisotropy[goodValues][radialSpan],1.1)).and(gt(betaParallel[goodValues][radialSpan],0.3)).and(lt(betaParallel[goodValues][radialSpan],1.)))
+
+#plot(1,betaParallel[goodValues][radialSpan][r],anisotropy[goodValues][radialSpan][r],renderType='scatter',color='orange',symbolSize=3,title='Anisotropy vs &beta;!B||!N During Left-Handed ICW')
+
+#formatDataSet(anisotropy[goodValues][radialSpan][r],'/tmp/TEMP.txt')

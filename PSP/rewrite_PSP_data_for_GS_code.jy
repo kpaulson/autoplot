@@ -7,10 +7,11 @@
 
 
 # Variable timestamp input
-timerange = getParam('timerange','2018-11-11 12:00 to 2018-11-12 12:00','Timerange of PSP Data')
+#timerange = getParam('timerange','2018-11-11 12:00 to 2018-11-12 12:00','Timerange of PSP Data')
+timerange = getParam('timerange','2020-06-12 to 2020-06-14','Timerange of PSP Data')
 dd = timerange[0:10]
 
-downsampleSeconds = getParam('downsampleSeconds',10.,'Number of seconds in new time cadnece for desired output dataset (linear interpolation)')
+downsampleSeconds = getParam('downsampleSeconds',10.,'Number of seconds in new time cadence for desired output dataset (linear interpolation)')
 #downsamplePoints = getParam('downsamplePoints',100,'Number opf points over which to smooth and downsample mag data')
 
 write_output = getParam('writeOutput','T','Do you want to write the current setup to the GS directory?',['T','F']) 
@@ -18,6 +19,7 @@ write_output = getParam('writeOutput','T','Do you want to write the current setu
 #Full cadence magnetic field:
 #B_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_rtn',timerange)
 mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
+mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
 B_input = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange) 
 
 #B_input = smooth(B_input,downsamplePoints)[::downsamplePoints,:]
@@ -166,6 +168,10 @@ temp_upsampled[r] = -9999.999
 print 'To reset fill values took:',TimeUtil.now()-last
 last = TimeUtil.now()
 
+plot(0, newTime, fgm)
+plot(1, newTime, bundle(plasma_velocity_x, plasma_velocity_y, plasma_velocity_z))
+plot(2, newTime, density_upsampled)
+plot(3, newTime, temp_upsampled)
 
 if write_output=='T':
     

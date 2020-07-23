@@ -7,7 +7,8 @@
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
 #timerange = getParam('timerange','2019-04-01 08:10 to 08:20','Timerange over which to calculate Poynting Flux')
-timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
+#timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
+timerange = getParam('timerange','2019-04-12 06:00 to 12:00','Timerange over which to calculate Poynting Flux')
 
 freq_min       = getParam('minFrequency', 0.3,  'Lower frequency bound of analysis (Hz)')
 freq_max       = getParam('maxFrequency', 9.,  'Upper frequency bound of analysis (Hz)')
@@ -19,11 +20,13 @@ wave_power_min = getParam('wavePowerMin', 1E-4, 'Minimum Wave Power value in Bfi
 
 version = '1.1'
 
-useLocalSubprocesses = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
-useLocalFiles        = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
-plotStuff            = getParam('plotStuff','T','Plot dataset',['T','F'])
-writeStuff           = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
-useRegularTimestamps = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
+useLocalSubprocesses    = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
+useLocalFiles           = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
+plotStuff               = getParam('plotStuff','T','Plot dataset',['T','F'])
+writeStuff              = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
+useRegularTimestamps    = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
+checkForPreviousFiles   = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
+removeReactionWheelTone = getParam('removeReactionWheelTone','F','Attempt to remove signal from reaction wheels',['T','F'])
 
 if useLocalSubprocesses == 'T':
     useLocalSubprocesses = True
@@ -52,6 +55,15 @@ if useRegularTimestamps == 'T':
 elif useRegularTimestamps == 'F':
     useRegularTimestamps = False
 
+if checkForPreviousFiles == 'T':
+    checkForPreviousFiles = True
+elif checkForPreviousFiles == 'F':
+    checkForPreviousFiles = False
+    
+if removeReactionWheelTone == 'T':
+    removeReactionWheelTone = True
+elif removeReactionWheelTone == 'F':
+    removeReactionWheelTone = False
 
 
 ############################################################################
@@ -84,7 +96,8 @@ try:
     
     
 except:
-    print 'Unable to grab subprocess from github'
+    if useLocalSubprocesses == False:
+        print 'Unable to grab subprocess from github'
     
     get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
@@ -124,13 +137,14 @@ if useLocalFiles == True:
     #efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
     mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
 else:
     cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     #mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     #efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
     mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
-                    
+    mag_100bpsfile  = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                
     #http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf
     
     
@@ -154,12 +168,26 @@ monitor.setTaskSize(len(trs))
 
 index = 0
 for tr in trs:
+    tr = str(tr)+' to '+str(tr+datum('6 hr'))
+    if lt(datumRange(timerange).width(), datumRange(tr).width()):
+        tr = timerange
+    outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
+            
+    fileAlreadyExists = False
+    if checkForPreviousFiles == True:
+        try:
+            TEMP_epoch = getDataSet(outputFile+'?Epoch')
+            if ne( long(mode(copy(TEMP_epoch))), 0):
+                fileAlreadyExists = True
+        except:
+            pass
+        
     monitor.setTaskProgress(index)
-    monitor.setLabel('PSP Wave Analysis - %s'%tr) 
+    monitor.setLabel('Wave Analysis - %s'%tr_titles[index]) 
     try:
-        tr = str(tr)+' to '+str(tr+datum('6 hr'))
-        if lt(datumRange(timerange).width(), datumRange(tr).width()):
-            tr = timerange
+        if fileAlreadyExists == True:
+            print 'File already exists for %s'%(tr)
+            raise fileAlreadyExistsException
             
         # ###
         # ### DOWNLOAD DATA AND INTERPOLATE
@@ -167,11 +195,20 @@ for tr in trs:
     
         #tr = timerange
         monitor.setProgressMessage('Downloading Data')
+        
         mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
-        efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
-    
         mag_data = trim(mag_data,tr)
         mag_time = mag_data.property(QDataSet.DEPEND_0)
+        
+        try:
+            efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
+        except:
+            efield_data = zeros(len(mag_data),3)
+            efield_data.putProperty(QDataSet.DEPEND_0,mag_time)
+            version = '0'+version[1:]
+            outputDirectory = 'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version)
+            waveAnalysisFiles_directory = googleDrive_path + outputDirectory
+            outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
     
         # This clause generates new timestamps from the most common cadence in the mag dataset
         #   (this is to avoid the issues with the fft when there are changes in time cadence)
@@ -185,16 +222,24 @@ for tr in trs:
             mag_time_to_new_time_ratio = findex(mag_time,new_time)
             mag_data = interpolate(mag_data,mag_time_to_new_time_ratio)
             mag_time = new_time
-            
+        
         Bx = mag_data[:,0]
         By = mag_data[:,1]
         Bz = mag_data[:,2]
         Btotal = magnitude(mag_data)
     
-    
         efield_data = synchronize(mag_data,efield_data)
         Ex = efield_data[:,0]
         Ey = efield_data[:,1]
+        
+        if removeReactionWheelTone == True:
+            reactionWheelTone_1 = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW1',tr)
+            reactionWheelTone = dblarr(len(reactionWheelTone_1),4)
+            reactionWheelTone[:,0] = reactionWheelTone_1
+            reactionWheelTone[:,1] = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW2',tr)
+            reactionWheelTone[:,2] = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW3',tr)
+            reactionWheelTone[:,3] = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW4',tr)
+    
     
         # ###
         # ### FIND THIRD EFIELD AXIS
@@ -278,8 +323,16 @@ for tr in trs:
     
     
         # ###
-        # ### CALCULATE POLARIZATION PARAMETERS
+        # ### FILTER OUT REACTION WHEEL SIGNALS
         # ###
+    
+        #if removeReactionWheelTone == True:
+        #    for i in reactionWheelTone[0,:]:
+                
+    
+        # ###
+        # ### CALCULATE POLARIZATION PARAMETERS
+        # ###]:
     
         monitor.setProgressMessage('Polarization')
         ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization, Power_compressional, Power_perp ) = Polarize( Bn_fft_pol , Bp_fft_pol , Bq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min )
@@ -318,12 +371,17 @@ for tr in trs:
         # ###
             
         if writeStuff == True:
-            outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
+            
             monitor.setProgressMessage('Writing to File')
             
-            mag_time.putProperty(QDataSet.NAME,'Bfield_time')
-            fft_time.putProperty(QDataSet.NAME,'FFT_time')
+            mag_time.putProperty(           QDataSet.NAME,'Bfield_time')
+            mag_time.putProperty(           QDataSet.UNITS,Units.us2000)
+            fft_time.putProperty(           QDataSet.NAME,'FFT_time')
             frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
+            
+            Bn_pol.putProperty(             QDataSet.DEPEND_0,mag_time)
+            Bp_pol.putProperty(             QDataSet.DEPEND_0,mag_time)
+            Bq_pol.putProperty(             QDataSet.DEPEND_0,mag_time)
             
             formatDataSet(fft_time,outputFile)
             formatDataSet(mag_time,outputFile+'?append=T')
@@ -427,7 +485,8 @@ for tr in trs:
             
         index = index+1
     except:
-        print 'Couldn\'t Run Analysis for %s'%(str(tr_titles[index])) 
+        if fileAlreadyExists == False:
+            print 'Couldn\'t Run Analysis for %s'%(str(tr_titles[index])) 
         index = index+1
         continue
         

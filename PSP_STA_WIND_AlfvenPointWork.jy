@@ -1,0 +1,167 @@
+#mikeMergedFile = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/psp_wind_sta_merged_v02.idl'
+#mikeMergedFile = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/psp_wind_sta_merged.idl'
+
+encounter3 = '2019-06-18 20:15 to 2019-11-15 15:25'
+encounter4 = '2019-11-15 15:25 to 2020-04-03 09:00'
+encounter5 = '2020-04-03 09:00 to 2020-08-02 05:03'
+
+tr = encounter3
+
+
+alfvenPointDirectory = '/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/'
+
+sta_fieldsFile    = alfvenPointDirectory+'mergedSTA_fields.txt'
+sta_positionFile  = alfvenPointDirectory+'mergedSTA_position.txt'
+sta_plasmaFile    = alfvenPointDirectory+'mergedSTA_plasma.txt'
+
+wind_fieldsFile   = alfvenPointDirectory+'mergedWIND_fields.txt'
+wind_positionFile = alfvenPointDirectory+'mergedWIND_position.txt'
+wind_plasmaFile   = alfvenPointDirectory+'mergedWIND_plasma.txt'
+
+psp_fieldsFile    = alfvenPointDirectory+'mergedPSP_fields.txt'
+psp_positionFile  = alfvenPointDirectory+'mergedPSP_position.txt'
+psp_plasmaFileSPC = alfvenPointDirectory+'mergedPSP_plasmaSPC.txt'
+psp_plasmaFileSPi = alfvenPointDirectory+'mergedPSP_plasmaSPi.txt'
+
+
+#PSP_Br = getDataSet(psp_fieldsFile+'?column=PSP_BR')
+PSP_fields = getDataSet(psp_fieldsFile+'?bundle=PSP_EPOCH-PSP_N_E')
+PSP_time = PSP_fields[:,0]
+PSP_time.putProperty(QDataSet.UNITS,Units.cdfTT2000)
+PSP_fields.putProperty(QDataSet.DEPEND_0,PSP_time)
+PSP_fields = trim(PSP_fields,tr)
+PSP_Br   = PSP_fields[:,1]
+PSP_Bt   = PSP_fields[:,2]
+PSP_Bn   = PSP_fields[:,3]
+PSP_Ne   = PSP_fields[:,4]
+
+PSP_position = getDataSet(psp_positionFile+'?bundle=PSP_EPOCH-PSP_MAGSECTOR')
+PSP_position.putProperty(QDataSet.DEPEND_0,PSP_time)
+PSP_position = trim(PSP_position,tr)
+PSP_r_AU      = PSP_position[:,1]
+PSP_lon       = PSP_position[:,2]
+PSP_X_HCI_AU  = PSP_position[:,3]
+PSP_Y_HCI_AU  = PSP_position[:,4]
+PSP_magSector = PSP_position[:,5]
+negLon = where(lt(PSP_lon,0))
+PSP_lon[negLon] = PSP_lon[negLon]+360
+
+PSP_plasmaSPC = getDataSet(psp_plasmaFileSPC+'?bundle=PSP_EPOCH-PSP_WTH')
+PSP_plasmaSPC.putProperty(QDataSet.DEPEND_0,PSP_time)
+PSP_plasmaSPC = trim(PSP_plasmaSPC,tr)
+PSP_Vr_SPC       = PSP_plasmaSPC[:,1]
+PSP_Vt_SPC       = PSP_plasmaSPC[:,2]
+PSP_Vn_SPC       = PSP_plasmaSPC[:,3]
+PSP_Density      = PSP_plasmaSPC[:,4]
+PSP_thermalSpeed = PSP_plasmaSPC[:,5]
+
+PSP_plasmaSPi = getDataSet(psp_plasmaFileSPi+'?bundle=PSP_EPOCH-PSP_TEMP_SPI_EV')
+PSP_plasmaSPi.putProperty(QDataSet.DEPEND_0,PSP_time)
+PSP_plasmaSPi = trim(PSP_plasmaSPi,tr)
+PSP_Vr_SPi       = PSP_plasmaSPi[:,1]
+PSP_Vt_SPi       = PSP_plasmaSPi[:,2]
+PSP_Vn_SPi       = PSP_plasmaSPi[:,3]
+PSP_Density_SPi  = PSP_plasmaSPi[:,4]
+PSP_temp_eV      = PSP_plasmaSPi[:,5]
+
+
+WIND_fields = getDataSet(wind_fieldsFile+'?bundle=WIND_EPOCH_TT2000-WIND_ABS_B')
+WIND_time = WIND_fields[:,0]
+WIND_time.putProperty(QDataSet.UNITS,Units.cdfTT2000)
+WIND_fields.putProperty(QDataSet.DEPEND_0,WIND_time)
+WIND_fields = trim(WIND_fields,tr)
+WIND_Br   = WIND_fields[:,1]
+WIND_Bt   = WIND_fields[:,2]
+WIND_Bn   = WIND_fields[:,3]
+WIND_Bmag = WIND_fields[:,4]
+
+WIND_position = getDataSet(wind_positionFile+'?bundle=WIND_EPOCH_TT2000-WIND_MAGSECTOR')
+WIND_position.putProperty(QDataSet.DEPEND_0,WIND_time)
+WIND_position = trim(WIND_position,tr)
+WIND_helioLat      = WIND_position[:,1]
+WIND_helioLon      = WIND_position[:,2]
+WIND_carringtonLon = WIND_position[:,3]
+WIND_magSector     = WIND_position[:,4]
+
+WIND_plasma = getDataSet(wind_plasmaFile+'?bundle=WIND_EPOCH_TT2000-WIND_T')
+WIND_plasma.putProperty(QDataSet.DEPEND_0,WIND_time)
+WIND_plasma = trim(WIND_plasma,tr)
+WIND_V                = WIND_plasma[:,1]
+WIND_V_elevationAngle = WIND_plasma[:,2]
+WIND_V_azimuthAngle   = WIND_plasma[:,3]
+WIND_density          = WIND_plasma[:,4]
+WIND_temperature      = WIND_plasma[:,5]
+
+
+STA_fields = getDataSet(sta_fieldsFile+'?bundle=STA_EPOCH_TT2000-STA_B')
+STA_time = STA_fields[:,0]
+STA_time.putProperty(QDataSet.UNITS,Units.cdfTT2000)
+STA_fields.putProperty(QDataSet.DEPEND_0,STA_time)
+STA_fields = trim(STA_fields,tr)
+STA_Br   = STA_fields[:,1]
+STA_Bt   = STA_fields[:,2]
+STA_Bn   = STA_fields[:,3]
+STA_Bmag = STA_fields[:,4]
+
+STA_position = getDataSet(sta_positionFile+'?bundle=STA_EPOCH_TT2000-STA_MAGSECTOR')
+STA_position.putProperty(QDataSet.DEPEND_0,STA_time)
+STA_position = trim(STA_position,tr)
+STA_r_AU          = STA_position[:,1]
+STA_helioLat      = STA_position[:,2]
+STA_helioLon      = STA_position[:,3]
+STA_carringtonLon = STA_position[:,4]
+STA_magSector     = STA_position[:,5]
+
+STA_plasma = getDataSet(sta_plasmaFile+'?bundle=STA_EPOCH_TT2000-STA_PLASMATEMP')
+STA_plasma.putProperty(QDataSet.DEPEND_0,STA_time)
+STA_plasma = trim(STA_plasma,tr)
+STA_V           = STA_plasma[:,1]
+STA_V_latitude  = STA_plasma[:,2]
+STA_V_longitude = STA_plasma[:,3]
+STA_density     = STA_plasma[:,4]
+STA_temperature = STA_plasma[:,5]
+
+
+#plot(0,STA_carringtonLon,STA_V)
+#plot(1,PSP_lon,PSP_Vr_SPi,color='red')
+#plot(2,WIND_carringtonLon,WIND_V,color='blue')
+#stop
+
+
+omega = 360./(24.47)
+AU_in_km = 149000000
+
+r0 = PSP_r_AU
+lon0 = PSP_lon
+v = (PSP_Vr_SPi/AU_in_km)*60*60*24 #converting km/s into AU/day
+
+tt = linspace(0,0.7,10)
+
+r = 0.7 #Limit in AU
+t0 = -r/v
+
+r = dblarr(len(tt),len(r0))
+lon = dblarr(len(tt),len(lon0))
+for t in xrange(len(tt)):
+    r[t,:] = r0 + v*(t - t0)
+    lon[t,:] = lon0 + omega*(t - t0)
+
+#setLayoutOverplot(len(tt))
+#for i in xrange(len(tt)):
+#    plot(i,r[i,:],lon[i,:],v,renderType='polar')
+reset()
+j=4000
+mod
+plot(mod(lon[:,j],360))
+plot(0,r[:,j],lon[:,j],renderType='polar')
+stop
+plot(0,r[:,j],lon[:,j],v[j]*ones(len(tt)),renderType='polar')
+stp
+
+
+setLayoutOverplot(len(r[0,:]))
+for j in xrange(len(r[0,:])):
+    plot(i,r[:,j],lon[:,j],v[j],renderType='polar')
+
+
+

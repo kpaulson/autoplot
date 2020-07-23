@@ -293,10 +293,11 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 print '----'
                 continue
         except:
-            print 'oopsy, couldn\'t fit for some reason'
-            import traceback
-            traceback.print_exc()
-            print '----'
+            # I TURNED THESE OFF SINCE IT PRINTED CONSTANTLY. UNCOMMENT IF CHECKING FOR ERRORS
+            #print 'oopsy, couldn\'t fit for some reason'
+            #import traceback
+            #traceback.print_exc()
+            #print '----'
             continue
             
     

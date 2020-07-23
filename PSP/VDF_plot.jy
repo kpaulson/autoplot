@@ -8,12 +8,21 @@ import org.das2.graph.SpectrogramRenderer
 
 timerange = getParam('timerange','2018-11-01','Iteration Timerange')
 #version = getParam('version','0.4.1','Version number to be appended to filenames')
+checkForPreviousFiles = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
+
 writeStuff = True
 manuallyRemoveFullScans = False
 
 plotFitsAndPauseALot = False
 separatePeaksWithL3Values = False
 calculateVDFUncertainty = False
+
+
+
+if checkForPreviousFiles == 'T':
+    checkForPreviousFiles = True
+elif checkForPreviousFiles == 'F':
+    checkForPreviousFiles = False
 
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 #output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
@@ -46,11 +55,26 @@ for tr in trs:
     
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
+        
+    outputFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Files/SPC_VDF_%s.cdf'%tr
     
-    if True:    
-    #try:
+    fileAlreadyExists = False
+    if checkForPreviousFiles == True:
+        try:
+            TEMP_epoch = getDataSet(outputFile+'?Epoch')
+            if ne( long(mode(copy(TEMP_epoch))), 0):
+                fileAlreadyExists = True
+        except:
+            pass
+    
+    #if True:    
+    try:
         monitor.setProgressMessage(tr)
         
+        if fileAlreadyExists == True:
+            print 'File already exists for %s'%(tr)
+            raise fileAlreadyExistsException
+            
         try:
 #            spc_a = getDataSet(cfa_sweap_file+'?a_current',tr)
 #            spc_b = getDataSet(cfa_sweap_file+'?b_current',tr)
@@ -255,6 +279,8 @@ for tr in trs:
         waitUntilIdle()
         if writeStuff == True:
             writeToPng('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Plots/SPC_VDF_%s.png'%tr)
-            formatDataSet(vdf,'/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Files/SPC_VDF_%s.cdf'%tr)
-    #except:
-    #    continue
+            formatDataSet(vdf,outputFile)
+    except:
+        if fileAlreadyExists == False:
+            print 'vdf processing failed for %s'%tr
+        continue

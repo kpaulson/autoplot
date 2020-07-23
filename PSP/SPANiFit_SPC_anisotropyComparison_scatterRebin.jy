@@ -4,22 +4,39 @@
 ############################################################################
 ############################################################################
 
-tr = '2020-01-22 to 2020-02-04'
-#tr = '2020-01-27 to 2020-01-30'
-#tr = '2020-01-27'
+tr = '2020-01-20 to 2020-02-04'
+tr = '2020-01-27'# to 2020-01-30'
+#tr = '2020-01-27 7:30 to 9:00'
 #tr = '2018-10-28 through 2018-11-10'
 #tr = '2019-03-20 through 2019-04-10'
 #tr = '2018 through 2020'
 #tr = '2018-11-01'
+tr = '2018-10-28 to 2018-11-20'  # Encounter 1
+#tr = '2019-03-25 to 2019-04-20'  # Encounter 2
+#tr = '2020-01-20 to 2020-02-05'  # Encounter 4
+#tr = '2019-03-25 to 2020-04-20'  # Encounter 2-4
+tr = '2018-10-15 to 2020-04-20'  # Encounter all
 
 onlyPlotEdges = False
 onlyPlotNoSPAN = False
+plotTemperatureComparison = False
 
 L0_version = '0.4.5'
 L1_version = '1.1.5'
 L1_version_p1 = '1.2.5'
 
 uncertaintyRatioLimit = 0.9
+#uncertaintyRatioLimit = 0.5
+#uncertaintyRatioLimit = 0.1
+
+TpRatioMin = 0.4
+TpRatioMax = 1.3
+
+
+# SI
+k    = 1.3807E-23
+mu_0 = PI*4E-7
+mp   = 1.6726E-27
 
 
 ############################################################################
@@ -33,6 +50,8 @@ uncertaintyRatioLimit = 0.9
 pearsonCorrelate = getFile( '/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/pearsonCorrelate.jy',monitor.getSubtaskMonitor('import pearsonCorrelate()'))
 execfile( pearsonCorrelate.toString() )
 
+spearmanCorrelate = getFile( '/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/spearmanCorrelate.jy',monitor.getSubtaskMonitor('import spearmanCorrelate()'))
+execfile( spearmanCorrelate.toString() )
 
 ############################################################################
 ##################            DEFINITIONS        ###########################
@@ -47,6 +66,7 @@ ss_L1P1File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Aniso
 ss_L13File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_3_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
 ss_L1aFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_a_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
 
+spc_L3File = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
     
 ############################################################################
 #################            BEGIN SCRIPT        ###########################
@@ -58,7 +78,14 @@ import java
 spani_p1_anisotropy = getDataSet('vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1?depend0=TIME&column=field3')
 spani_time = spani_p1_anisotropy.property(QDataSet.DEPEND_0)
 spani_time.putProperty(QDataSet.UNITS,Units.t1970)
+spani_p1_tperp = getDataSet('vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1?depend0=TIME&column=field2')
+spani_p1_tp_1 = spani_p1_tperp * sqrt( 1 + (1./(spani_p1_anisotropy**2)) ) * 11606
+spani_p1_tp_2 = (spani_p1_tperp/3.) * ( 2 + (1./spani_p1_anisotropy) ) * 11606
+spani_p1_tp_1.putProperty(QDataSet.DEPEND_0,spani_time)
+spani_p1_tp_2.putProperty(QDataSet.DEPEND_0,spani_time)
+
 spani_p1_anisotropy = trim(spani_p1_anisotropy,tr)
+spani_p1_Tp = trim(spani_p1_tp_2,tr)
 
 peakObservation = getDataSet('/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt',tr)
 peakObservation = trim(peakObservation,tr)
@@ -79,13 +106,30 @@ spc_ss_anisotropy_deltaMinus = getDataSet(ss_L1File+'?anisotropy_deltaMinus',tr)
 
 #spc_ss_anisotropy = spc_ss_p1_anisotropy
 
+spc_wp1_fit = getDataSet(spc_L3File+'?where=DQF[:,0].eq(0)&wp1_fit',tr)
+spc_wp_fit = getDataSet(spc_L3File+'?where=DQF[:,0].eq(0)&wp_fit',tr)
+spc_wp_moment = getDataSet(spc_L3File+'?where=DQF[:,0].eq(0)&wp_moment',tr)
+
 if gt(uncertaintyRatioLimit,0):
     lowUncertainty = where(lt(spc_ss_anisotropy_deltaPlus/spc_ss_anisotropy,uncertaintyRatioLimit).and(lt(spc_ss_anisotropy_deltaMinus/spc_ss_anisotropy,uncertaintyRatioLimit)))
     spc_ss_anisotropy = spc_ss_anisotropy[lowUncertainty]
     windSpeedOffScale_flag = windSpeedOffScale_flag[lowUncertainty]
 
 goodSPCPeaks = where(eq(windSpeedOffScale_flag,0))
-spc_ss_anisotropy = spc_ss_anisotropy[goodSPCPeaks]#**2
+spc_ss_anisotropy = spc_ss_anisotropy[goodSPCPeaks]
+
+
+spc_wp1_fit = synchronize(spc_ss_anisotropy,spc_wp1_fit)
+SPC_Tp1_fit = 0.5*((spc_wp1_fit*1E3)**2)*(mp/k)
+
+spc_wp_fit = synchronize(spc_ss_anisotropy,spc_wp_fit)
+SPC_Tp_fit = 0.5*((spc_wp_fit*1E3)**2)*(mp/k)
+
+spc_wp_moment = synchronize(spc_ss_anisotropy,spc_wp_moment)
+SPC_Tp_moment = 0.5*((spc_wp_moment*1E3)**2)*(mp/k)
+
+
+dataSubset_ss = []
         
 time_ss = spc_ss_anisotropy.property(QDataSet.DEPEND_0)
 
@@ -97,6 +141,8 @@ spc_jia_anisotropy = concatenate(spc_jia_anisotropy, spc_jia_anisotropy_E4)
 
 try:
     spani_p1_anisotropy_ssSampled = synchronize(spc_ss_anisotropy,spani_p1_anisotropy)
+    spani_p1_Tp_ssSampled = synchronize(spc_ss_anisotropy,spani_p1_Tp)
+    SPC_Tp1_fit = synchronize(spc_ss_anisotropy,SPC_Tp1_fit)
     peakObservationEdges_ssSampled = ceil(synchronize(spc_ss_anisotropy,peakObservationEdges))
     peakObservation_ssSampled = ceil(synchronize(spc_ss_anisotropy,peakObservation))
     spani_p1_anisotropy_jiaSampled = synchronize(spc_jia_anisotropy,spani_p1_anisotropy)
@@ -113,6 +159,7 @@ if onlyPlotEdges == True:
     edgesSS = where(gt(peakObservationEdges_ssSampled,0))
     edgesJia = where(gt(peakObservationEdges_jiaSampled,0))
     spani_p1_anisotropy_ssSampled = spani_p1_anisotropy_ssSampled[edgesSS]
+    spani_p1_Tp_ssSampled = spani_p1_Tp_ssSampled[edgesSS]
     spc_ss_anisotropy = spc_ss_anisotropy[edgesSS]
     spani_p1_anisotropy_jiaSampled = spani_p1_anisotropy_jiaSampled[edgesJia]
     spc_jia_anisotropy = spc_jia_anisotropy[edgesJia]
@@ -122,56 +169,12 @@ if onlyPlotNoSPAN == True:
     noSPAN_SS = where(eq(peakObservation_ssSampled,0))
     noSPAN_jia = where(eq(peakObservation_jiaSampled,0))
     spani_p1_anisotropy_ssSampled = spani_p1_anisotropy_ssSampled[noSPAN_SS]
+    spani_p1_Tp_ssSampled = spani_p1_Tp_ssSampled[noSPAN_SS]
     spc_ss_anisotropy = spc_ss_anisotropy[noSPAN_SS]
     spani_p1_anisotropy_jiaSampled = spani_p1_anisotropy_jiaSampled[noSPAN_jia]
     spc_jia_anisotropy = spc_jia_anisotropy[noSPAN_jia]
     ss_anisotropy_jiaSampled = ss_anisotropy_jiaSampled[noSPAN_jia]
 
-#plot(0,(spani_p1_anisotropy_ssSampled),spc_ss_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
-#plot(1,spani_p1_anisotropy_jiaSampled,spc_jia_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1])
-
-xx = logspace(9E-2,3E1,50)
-yy = logspace(9E-2,3E1,50)
-
-dataSubset_ss = []
-#dataSubset_ss = where(lt(spani_p1_anisotropy_ssSampled,4.31).and(gt(spani_p1_anisotropy_ssSampled,1.66)).and(gt(spc_ss_anisotropy,0.99)).and(lt(spc_ss_anisotropy,2.2)))
-
-spani_ss_rebin = rebin( link((spani_p1_anisotropy_ssSampled[dataSubset_ss]),spc_ss_anisotropy[dataSubset_ss],ones(len(spc_ss_anisotropy))[dataSubset_ss]), xx, yy )
-spani_ss = spani_ss_rebin.property(QDataSet.WEIGHTS)
-spani_jia_rebin = rebin( link(spani_p1_anisotropy_jiaSampled,spc_jia_anisotropy,ones(len(spc_jia_anisotropy))), xx, yy )
-spani_jia = spani_jia_rebin.property(QDataSet.WEIGHTS)
-jia_ss_rebin = rebin( link((spc_jia_anisotropy),ss_anisotropy_jiaSampled,ones(len(ss_anisotropy_jiaSampled))), xx, yy )
-jia_ss = jia_ss_rebin.property(QDataSet.WEIGHTS)
-
-
-# def pearsonCorrelate(ds_x,ds_y):
-    # '''
-    # finds the Pearson correlation coefficient between two rank1 datasets of length n
-    
-    # r_xy = SUM{(x_i-x_mean)(y_i-y_mean)} / sqrt(SUM{(x_i-x_mean)^2})*sqrt(SUM{(y_i-y_mean)^2})
-    # '''
-    
-    # goodData = where(valid(ds_x).and(valid(ds_y)))
-    # ds_x = ds_x[goodData]
-    # ds_y = ds_y[goodData]
-    
-    # ds_x_mean = mean(ds_x)
-    # ds_y_mean = mean(ds_y)
-    
-    # ds_x_deviation = ds_x - ds_x_mean
-    # ds_y_deviation = ds_y - ds_y_mean
-    
-    
-    # numerator = total(ds_x_deviation * ds_y_deviation)
-    # denominator_1 = sqrt(total(ds_x_deviation**2))
-    # denominator_2 = sqrt(total(ds_y_deviation**2))
-    
-    # try:
-        # r_xy = numerator / (denominator_1 * denominator_2)
-    # except:
-        # r_xy = 'NaN'
-    
-    # return(r_xy) 
 
 spani_p1_anisotropy_ssSampled.putProperty(QDataSet.VALID_MIN,9E-2)
 spani_p1_anisotropy_ssSampled.putProperty(QDataSet.VALID_MAX,3E1)
@@ -187,42 +190,129 @@ ss_anisotropy_jiaSampled.putProperty(QDataSet.VALID_MAX,3E1)
 
 spc_jia_anisotropy.putProperty(QDataSet.VALID_MIN,9E-2)
 spc_jia_anisotropy.putProperty(QDataSet.VALID_MAX,3E1)
+#plot(0,(spani_p1_anisotropy_ssSampled),spc_ss_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
+#plot(1,spani_p1_anisotropy_jiaSampled,spc_jia_anisotropy,renderType='scatter',xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1])
 
-try:
-    (spani_ss_coeff,spani_ss_coeff_adjusted,spani_ss_coeff_maxPositive,spani_ss_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[dataSubset_ss]),log(spc_ss_anisotropy[dataSubset_ss]))
-except:
-    spani_ss_coeff = 'NaN'
-    spani_ss_coeff_adjusted = 'NaN'
-try:
-    (spani_jia_coeff,spani_jia_coeff_adjusted,spani_jia_coeff_maxPositive,spani_jia_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_jiaSampled),log(spc_jia_anisotropy))
-except:
-    spani_jia_coeff = 'NaN'
-    spani_jia_coeff_adjusted = 'NaN'
-try:
-    (jia_ss_coeff,jia_ss_coeff_adjusted,jia_ss_coeff_maxPositive,jia_ss_coeff_maxNegative) = pearsonCorrelate(log(spc_jia_anisotropy),log(ss_anisotropy_jiaSampled))
-except:
-    jia_ss_coeff = 'NaN'
-    jia_ss_coeff_adjusted = 'NaN'
 
-print 'spani_ss_coeff:',round(spani_ss_coeff,4)
-print 'spani_ss_coeff_adjusted:',round(spani_ss_coeff_adjusted,4)
-print 'spani_jia_coeff:',round(spani_jia_coeff,4)
-print 'jia_ss_coeff:',round(jia_ss_coeff,4)
+xx = logspace(9E-2,3E1,50)
+yy = logspace(9E-2,3E1,50)
 
-#a_spani_ss= annotation(0,text='r= '+str(round(spani_ss_coeff,4)),borderType='Rounded_Rectangle')
-#a_spani_jia= annotation(1,text='r= '+str(round(spani_jia_coeff,4)),borderType='Rounded_Rectangle')
-#a_jia_ss= annotation(2,text='r= '+str(round(jia_ss_coeff,4)),borderType='Rounded_Rectangle')
+if plotTemperatureComparison == False:
+    dataSubset_ss = []
+    #dataSubset_ss = where( gt(temperatureRatio,0.4).and(lt(temperatureRatio,1.3)) )
+    #dataSubset_ss = where(lt(spani_p1_anisotropy_ssSampled,4.31).and(gt(spani_p1_anisotropy_ssSampled,1.66)).and(gt(spc_ss_anisotropy,0.99)).and(lt(spc_ss_anisotropy,2.2)))
+    
+    spani_ss_rebin = rebin( link((spani_p1_anisotropy_ssSampled[dataSubset_ss]),spc_ss_anisotropy[dataSubset_ss],ones(len(spc_ss_anisotropy))[dataSubset_ss]), xx, yy )
+    #spani_ss_rebin = rebin( link((spani_p1_anisotropy_ssSampled[dataSubset_ss]),spc_ss_anisotropy[dataSubset_ss],temperatureRatio[dataSubset_ss]), xx, yy )
+    spani_ss = spani_ss_rebin.property(QDataSet.WEIGHTS)
+    spani_jia_rebin = rebin( link(spani_p1_anisotropy_jiaSampled,spc_jia_anisotropy,ones(len(spc_jia_anisotropy))), xx, yy )
+    spani_jia = spani_jia_rebin.property(QDataSet.WEIGHTS)
+    jia_ss_rebin = rebin( link((spc_jia_anisotropy),ss_anisotropy_jiaSampled,ones(len(ss_anisotropy_jiaSampled))), xx, yy )
+    jia_ss = jia_ss_rebin.property(QDataSet.WEIGHTS)
+    
+    
+    
+#    spani_p1_anisotropy_ssSampled.putProperty(QDataSet.VALID_MIN,9E-2)
+#    spani_p1_anisotropy_ssSampled.putProperty(QDataSet.VALID_MAX,3E1)
+#
+#    spani_p1_anisotropy_jiaSampled.putProperty(QDataSet.VALID_MIN,9E-2)
+#    spani_p1_anisotropy_jiaSampled.putProperty(QDataSet.VALID_MAX,3E1)
+#
+#    spc_ss_anisotropy.putProperty(QDataSet.VALID_MIN,9E-2)
+#    spc_ss_anisotropy.putProperty(QDataSet.VALID_MAX,3E1)
+#
+#    ss_anisotropy_jiaSampled.putProperty(QDataSet.VALID_MIN,9E-2)
+#    ss_anisotropy_jiaSampled.putProperty(QDataSet.VALID_MAX,3E1)
+#
+#    spc_jia_anisotropy.putProperty(QDataSet.VALID_MIN,9E-2)
+#    spc_jia_anisotropy.putProperty(QDataSet.VALID_MAX,3E1)
+    
+    try:
+        (spani_ss_coeff,spani_ss_coeff_adjusted,spani_ss_coeff_maxPositive,spani_ss_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[dataSubset_ss]),log(spc_ss_anisotropy[dataSubset_ss]))
+        spani_ss_spearmanCoeff = spearmanCorrelate(spani_p1_anisotropy_ssSampled[dataSubset_ss],spc_ss_anisotropy[dataSubset_ss])
+    except:
+        spani_ss_coeff = 'NaN'
+        spani_ss_coeff_adjusted = 'NaN'
+        spani_ss_spearmanCoeff = 'NaN'
+    try:
+        (spani_jia_coeff,spani_jia_coeff_adjusted,spani_jia_coeff_maxPositive,spani_jia_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_jiaSampled),log(spc_jia_anisotropy))
+    except:
+        spani_jia_coeff = 'NaN'
+        spani_jia_coeff_adjusted = 'NaN'
+    try:
+        (jia_ss_coeff,jia_ss_coeff_adjusted,jia_ss_coeff_maxPositive,jia_ss_coeff_maxNegative) = pearsonCorrelate(log(spc_jia_anisotropy),log(ss_anisotropy_jiaSampled))
+    except:
+        jia_ss_coeff = 'NaN'
+        jia_ss_coeff_adjusted = 'NaN'
+    
+    print 'spani_ss_coeff:',round(spani_ss_coeff,4)
+    print 'spani_ss_coeff_adjusted:',round(spani_ss_coeff_adjusted,4)
+    print 'spani_jia_coeff:',round(spani_jia_coeff,4)
+    print 'jia_ss_coeff:',round(jia_ss_coeff,4)
+    
+    #a_spani_ss= annotation(0,text='r= '+str(round(spani_ss_coeff,4)),borderType='Rounded_Rectangle')
+    #a_spani_jia= annotation(1,text='r= '+str(round(spani_jia_coeff,4)),borderType='Rounded_Rectangle')
+    #a_jia_ss= annotation(2,text='r= '+str(round(jia_ss_coeff,4)),borderType='Rounded_Rectangle')
+    
+    load('/Users/kpaulson/GoogleDrive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin.vap')
+    
+    dom.annotations[0].text= 'r= '+str(round(spani_ss_coeff,3))
+    dom.annotations[1].text= 'r= '+str(round(spani_jia_coeff,3))
+    dom.annotations[2].text= 'r= '+str(round(jia_ss_coeff,3))
+    #stop
+    
+    plot(0,spani_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',title=tr)
+    #plot(0,spani_ss_rebin,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',title=tr)
+    plot(1,spani_jia,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='B-rotation')
+    plot(2,jia_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='B-rotation',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
 
-load('/Users/kpaulson/GoogleDrive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin.vap')
+elif plotTemperatureComparison == True:
+    temperatureRatio = SPC_Tp_fit/spani_p1_Tp_ssSampled
+    
+    dataSubset_ss = []
+    #dataSubset_ss = where(lt(spani_p1_anisotropy_ssSampled,4.31).and(gt(spani_p1_anisotropy_ssSampled,1.66)).and(gt(spc_ss_anisotropy,0.99)).and(lt(spc_ss_anisotropy,2.2)))
+    
+    (spani_ss_coeff,spani_ss_coeff_adjusted,spani_ss_coeff_maxPositive,spani_ss_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[:]),log(spc_ss_anisotropy[:]))
+        
+    #spani_ss_rebin = rebin( link((spani_p1_anisotropy_ssSampled[dataSubset_ss]),spc_ss_anisotropy[dataSubset_ss],ones(len(spc_ss_anisotropy))[dataSubset_ss]), xx, yy )
+    spani_ss_rebin = rebin( link((spani_p1_anisotropy_ssSampled[dataSubset_ss]),spc_ss_anisotropy[dataSubset_ss],temperatureRatio[dataSubset_ss]), xx, yy )
+    spani_ss = spani_ss_rebin.property(QDataSet.WEIGHTS)
+    
+    dataSubset_ss = where( gt(temperatureRatio,TpRatioMin).and(lt(temperatureRatio,TpRatioMax)) )
+    spani_ss_filtered_rebin = rebin( link((spani_p1_anisotropy_ssSampled[dataSubset_ss]),spc_ss_anisotropy[dataSubset_ss],temperatureRatio[dataSubset_ss]), xx, yy )
+    spani_ss_filtered = spani_ss_filtered_rebin.property(QDataSet.WEIGHTS)
+    
+    
+    
+    try:
+        (spani_ss_filtered_coeff,spani_ss_filtered_coeff_adjusted,spani_ss_filtered_coeff_maxPositive,spani_ss_filtered_coeff_maxNegative) = pearsonCorrelate(log(spani_p1_anisotropy_ssSampled[dataSubset_ss]),log(spc_ss_anisotropy[dataSubset_ss]))
+        spani_ss_spearmanCoeff = spearmanCorrelate(spani_p1_anisotropy_ssSampled[dataSubset_ss],spc_ss_anisotropy[dataSubset_ss])
+    except:
+        spani_ss_coeff = 'NaN'
+        spani_ss_coeff_adjusted = 'NaN'
 
-dom.annotations[0].text= 'r= '+str(round(spani_ss_coeff,3))
-dom.annotations[1].text= 'r= '+str(round(spani_jia_coeff,3))
-dom.annotations[2].text= 'r= '+str(round(jia_ss_coeff,3))
-#stop
-
-plot(0,spani_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',title=tr)
-plot(1,spani_jia,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='B-rotation')
-plot(2,jia_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='B-rotation',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
+    
+    print 'spani_ss_coeff:',round(spani_ss_coeff,4)
+    print 'spani_ss_coeff_adjusted:',round(spani_ss_coeff_adjusted,4)
+    print 'spani_ss_filtered_coeff:',spani_ss_filtered_coeff
+    
+    #a_spani_ss= annotation(0,text='r= '+str(round(spani_ss_coeff,4)),borderType='Rounded_Rectangle')
+    #a_spani_jia= annotation(1,text='r= '+str(round(spani_jia_coeff,4)),borderType='Rounded_Rectangle')
+    #a_jia_ss= annotation(2,text='r= '+str(round(jia_ss_coeff,4)),borderType='Rounded_Rectangle')
+    
+    load('/Users/kpaulson/GoogleDrive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin_TpFilter.vap')
+    
+    dom.annotations[0].text= 'r= '+str(round(spani_ss_coeff,3))
+    dom.annotations[1].text= 'r= '+str(round(spani_ss_filtered_coeff,3))
+    #dom.annotations[2].text= 'r= '+str(round(jia_ss_coeff,3))
+    #stop
+    
+    plot(0,spani_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',title=tr)
+    plot(1,spani_ss_filtered,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',title='%s < Tp ratio < %s'%(TpRatioMin,TpRatioMax))
+    plot(2,spani_ss_rebin,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',ztitle='T!BSPC!N / T!BSPANi!N')
+    #plot(0,spani_ss_rebin,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum',title=tr)
+    #plot(1,spani_ss_fi,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='SPANi P1',ylog=True,yrange=[1E-1,1E1],ytitle='B-rotation')
+    #plot(2,jia_ss,zlog=True,xlog=True,xrange=[1E-1,1E1],xtitle='B-rotation',ylog=True,yrange=[1E-1,1E1],ytitle='SingleSpectrum')
 
 plot(3,xx,yy,renderType='series',color='black',symbolSize=0,lineWidth=3,lineStyle='dots')
 plot(4,xx,yy,renderType='series',color='black',symbolSize=0,lineWidth=3,lineStyle='dots')

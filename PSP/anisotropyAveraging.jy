@@ -41,7 +41,7 @@ def getTrimDataSet(ds_string,ds_timerange):
 
 import sys
 
-tr = getParam('timerange','2020-01-28','Timerange over which to generate combined anisotropy measurement')
+tr = getParam('timerange','2020-02-10','Timerange over which to generate combined anisotropy measurement')
 version_L0 = getParam('L0Version','0.4.5','Version number of input L0 file')
 version_L1 = getParam('L1Version','1.1.5','Version number of output L1 file')
 
@@ -379,14 +379,18 @@ for vdf in vdfList:
 
 
     r = where(valid(average_anisotropy))
-
-    average_anisotropy_filtered = medianFilter(average_anisotropy[r],10)
-
-    average_anisotropy_filtered.putProperty(QDataSet.DEPEND_0,epoch[r])
-    average_anisotropy_filtered.putProperty(QDataSet.DELTA_PLUS,average_anisotropy_uncertainty[r])
-    average_anisotropy_filtered.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_uncertainty[r])
-    average_anisotropy_filtered.putProperty(QDataSet.VALID_MIN,0)
-    average_anisotropy_filtered.putProperty(QDataSet.VALID_MAX,1E10)
+    
+    try:
+        average_anisotropy_filtered = medianFilter(average_anisotropy[r],10)
+    
+        average_anisotropy_filtered.putProperty(QDataSet.DEPEND_0,epoch[r])
+        average_anisotropy_filtered.putProperty(QDataSet.DELTA_PLUS,average_anisotropy_uncertainty[r])
+        average_anisotropy_filtered.putProperty(QDataSet.DELTA_MINUS,average_anisotropy_uncertainty[r])
+        average_anisotropy_filtered.putProperty(QDataSet.VALID_MIN,0)
+        average_anisotropy_filtered.putProperty(QDataSet.VALID_MAX,1E10)
+        #plot(3,average_anisotropy_filtered,ylog=True,yrange=[1E-1,1E1])
+    except:
+        continue
 
     load(googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/L1_anisotropyAveragingPlotter.vap')
     #setLayoutOverplot(2)
@@ -399,8 +403,15 @@ for vdf in vdfList:
 
     #STOP
 
-    #N_xyz = getDataSet(filename+'?B_hat',tr)
-    Bmag = getDataSet(filename+'?B_total',tr)
+    
+    try:
+        B_sc_1minFile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+        B_sc = getDataSet(B_sc_1minFile+'?psp_fld_l2_mag_SC_1min',tr)
+        Bmag = magnitude(B_sc)
+        Bmag = synchronize(average_anisotropy,Bmag)
+    except:
+        #N_xyz = getDataSet(filename+'?B_hat',tr)
+        Bmag = getDataSet(filename+'?B_total',tr)
 
     sweap_directory = 'http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/'
     sweap_file = 'spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
@@ -432,12 +443,11 @@ for vdf in vdfList:
     #Bmag = synchronize(average_anisotropy,Bmag)
 
     try:
-        (np,Tp) = synchronize(average_anisotropy,[np,Tp])
-    except:
         downsample_ratio = findex(spc_L3_time,average_anisotropy.property(QDataSet.DEPEND_0))
         np = interpolate(np,downsample_ratio)
         Tp = interpolate(Tp,downsample_ratio)
-
+    except:
+        (np,Tp) = synchronize(average_anisotropy,[np,Tp])
 
     # ###
     # ### DEFINE T_PARALLEL/T_PERP

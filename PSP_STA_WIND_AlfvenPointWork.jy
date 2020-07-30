@@ -4,8 +4,51 @@
 encounter3 = '2019-06-18 20:15 to 2019-11-15 15:25'
 encounter4 = '2019-11-15 15:25 to 2020-04-03 09:00'
 encounter5 = '2020-04-03 09:00 to 2020-08-02 05:03'
+encounter3_inbound = '2019-08-20 to 2019-09-01'
+encounter3_outbound = '2019-09-01 to 2019-09-21'
 
-tr = encounter3
+perihelion3 = '2019-08-31 12:00 to 2019-09-03 00:00'
+frs3_inwards = '2019-08-29 to 2019-08-31'
+frs3_outwards = '2019-09-03 22:00 to 2019-09-05 05:00'
+#frs3_outwards = '2019-09-02 22:00 to 2019-09-06 05:00'
+
+
+carringtonRotation_2219 = '2019-06-29 to 2019-07-27'
+carringtonRotation_2220 = '2019-07-27 to 2019-08-23'
+carringtonRotation_2221 = '2019-08-23 to 2019-09-19'
+carringtonRotation_2222 = '2019-09-19 to 2019-10-16'
+carringtonRotation_2223 = '2019-10-16 to 2019-11-13'
+carringtonRotation_2224 = '2019-11-13 to 2019-12-10'
+
+carringtonRotation_2221_and_2222 = '2019-08-23 to 2019-10-16'
+
+tr = frs3_inwards
+#tr = perihelion3
+#tr = frs3_outwards  # doesn't seem to work well
+tr = '2019-08-07 14:00 to 2019-08-09 19:00' # Orbit 3 inbound fast stream matches sides
+#tr = '2019-08-21 to 2019-08-26' # Orbit 3 inbound messy streams
+#tr = '2019-09-20 12:00 to 2019-09-24 00:00' # Orbit 3 same fast stream
+#tr = '2019-09-14 to 2019-09-19' # Orbit 3 both fast and slow
+#tr = '2019-09-17 09:00 to 2019-09-18 6:00' # Orbit 3 both fast and slow
+#tr = encounter3 
+#tr = encounter3_inbound
+tr_WIND = carringtonRotation_2220
+tr_STA = tr_WIND
+
+plotType = 'longitudeStack'  #'longitudeStack', 'dialPlot'
+longitudeProjectionRadius = 0.5
+
+downsampleFactor = 1
+
+
+if plotType == 'dialPlot':
+    tt = linspace(0.15,0.65,400)
+    tt_WIND = linspace(0.8,1.,200)
+    tt_STA = linspace(0.65,0.8,200)
+elif plotType == 'longitudeStack':
+    tt = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
+    tt_WIND = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
+    tt_STA = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
 
 
 alfvenPointDirectory = '/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/'
@@ -69,7 +112,7 @@ WIND_fields = getDataSet(wind_fieldsFile+'?bundle=WIND_EPOCH_TT2000-WIND_ABS_B')
 WIND_time = WIND_fields[:,0]
 WIND_time.putProperty(QDataSet.UNITS,Units.cdfTT2000)
 WIND_fields.putProperty(QDataSet.DEPEND_0,WIND_time)
-WIND_fields = trim(WIND_fields,tr)
+WIND_fields = trim(WIND_fields,tr_WIND)
 WIND_Br   = WIND_fields[:,1]
 WIND_Bt   = WIND_fields[:,2]
 WIND_Bn   = WIND_fields[:,3]
@@ -77,7 +120,7 @@ WIND_Bmag = WIND_fields[:,4]
 
 WIND_position = getDataSet(wind_positionFile+'?bundle=WIND_EPOCH_TT2000-WIND_MAGSECTOR')
 WIND_position.putProperty(QDataSet.DEPEND_0,WIND_time)
-WIND_position = trim(WIND_position,tr)
+WIND_position = trim(WIND_position,tr_WIND)
 WIND_helioLat      = WIND_position[:,1]
 WIND_helioLon      = WIND_position[:,2]
 WIND_carringtonLon = WIND_position[:,3]
@@ -85,7 +128,7 @@ WIND_magSector     = WIND_position[:,4]
 
 WIND_plasma = getDataSet(wind_plasmaFile+'?bundle=WIND_EPOCH_TT2000-WIND_T')
 WIND_plasma.putProperty(QDataSet.DEPEND_0,WIND_time)
-WIND_plasma = trim(WIND_plasma,tr)
+WIND_plasma = trim(WIND_plasma,tr_WIND)
 WIND_V                = WIND_plasma[:,1]
 WIND_V_elevationAngle = WIND_plasma[:,2]
 WIND_V_azimuthAngle   = WIND_plasma[:,3]
@@ -97,7 +140,7 @@ STA_fields = getDataSet(sta_fieldsFile+'?bundle=STA_EPOCH_TT2000-STA_B')
 STA_time = STA_fields[:,0]
 STA_time.putProperty(QDataSet.UNITS,Units.cdfTT2000)
 STA_fields.putProperty(QDataSet.DEPEND_0,STA_time)
-STA_fields = trim(STA_fields,tr)
+STA_fields = trim(STA_fields,tr_STA)
 STA_Br   = STA_fields[:,1]
 STA_Bt   = STA_fields[:,2]
 STA_Bn   = STA_fields[:,3]
@@ -105,7 +148,7 @@ STA_Bmag = STA_fields[:,4]
 
 STA_position = getDataSet(sta_positionFile+'?bundle=STA_EPOCH_TT2000-STA_MAGSECTOR')
 STA_position.putProperty(QDataSet.DEPEND_0,STA_time)
-STA_position = trim(STA_position,tr)
+STA_position = trim(STA_position,tr_STA)
 STA_r_AU          = STA_position[:,1]
 STA_helioLat      = STA_position[:,2]
 STA_helioLon      = STA_position[:,3]
@@ -114,7 +157,7 @@ STA_magSector     = STA_position[:,5]
 
 STA_plasma = getDataSet(sta_plasmaFile+'?bundle=STA_EPOCH_TT2000-STA_PLASMATEMP')
 STA_plasma.putProperty(QDataSet.DEPEND_0,STA_time)
-STA_plasma = trim(STA_plasma,tr)
+STA_plasma = trim(STA_plasma,tr_STA)
 STA_V           = STA_plasma[:,1]
 STA_V_latitude  = STA_plasma[:,2]
 STA_V_longitude = STA_plasma[:,3]
@@ -130,38 +173,241 @@ STA_temperature = STA_plasma[:,5]
 
 omega = 360./(24.47)
 AU_in_km = 149000000
+min_PSP_range = 0.
+max_PSP_range = 1.
 
-r0 = PSP_r_AU
+r0   = PSP_r_AU
 lon0 = PSP_lon
-v = (PSP_Vr_SPi/AU_in_km)*60*60*24 #converting km/s into AU/day
+#v    = (PSP_Vr_SPi/AU_in_km)*60*60*24 #converting km/s into AU/day
+PSP_Vr_SPC = PSP_Vr_SPC[where(valid(PSP_Vr_SPC))]
+if len(PSP_Vr_SPC) == 0:
+    v    = (PSP_Vr_SPi/AU_in_km)*60*60*24 #converting km/s into AU/day
+else:
+    v    = (merge(PSP_Vr_SPC[where(valid(PSP_Vr_SPC))],PSP_Vr_SPi)/AU_in_km)*60*60*24 #converting km/s into AU/day
 
-tt = linspace(0,0.7,10)
 
-r = 0.7 #Limit in AU
-t0 = -r/v
+r0   = r0[::downsampleFactor]
+lon0 = lon0[::downsampleFactor]
+v    = v[::downsampleFactor]
 
-r = dblarr(len(tt),len(r0))
-lon = dblarr(len(tt),len(lon0))
+
+rmax = 0.7 #Limit in AU
+t0 = r0/v
+
+testIndex = 2
+
+r       = dblarr(len(tt),len(r0))
+lon     = dblarr(len(tt),len(lon0))
+v_array = dblarr(len(tt),len(lon0))
+magSector_array = dblarr(len(tt),len(lon0))
 for t in xrange(len(tt)):
-    r[t,:] = r0 + v*(t - t0)
-    lon[t,:] = lon0 + omega*(t - t0)
+    #r[t,:] = r0 + v[t]*(tt[t]*(0.75/v[t]) - t0[t])
+    r[t,:] = r0 + v*(tt[t]*(1./v) - t0)
+    #r[t,:] = v[t]*(tt[t])
+    #lon[t,:] = lon0 - omega*(tt[t]*(0.75/v) - t0[t])
+    lon[t,:] = lon0 - omega*(tt[t]*(1./v) - t0)
+    v_array[t,:] = v
+    magSector_array[t,:] = PSP_magSector
+
+#outOfRange = where(lt(r,min_PSP_range).or(gt(r,max_PSP_range)))
+#v_array[outOfRange] = -1E38
+#v_array.putProperty(QDataSet.VALID_MIN,0)
+
+            
+#plot(1,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v)
+#plot(0,r[:,testIndex]*cos(toRadians(lon[:,testIndex])),r[:,testIndex]*sin(toRadians(lon[:,testIndex])),v_array[:,testIndex])
+#stop
 
 #setLayoutOverplot(len(tt))
 #for i in xrange(len(tt)):
 #    plot(i,r[i,:],lon[i,:],v,renderType='polar')
-reset()
-j=4000
-mod
-plot(mod(lon[:,j],360))
-plot(0,r[:,j],lon[:,j],renderType='polar')
-stop
-plot(0,r[:,j],lon[:,j],v[j]*ones(len(tt)),renderType='polar')
-stp
 
+#plot(mod(lon[:,j],360))
+#plot(0,r[:,j],lon[:,j],renderType='polar')
+#stop
+#plot(0,r[:,j],lon[:,j],v[j]*ones(len(tt)),renderType='polar')
+#plot(0,r[:,j]*cos(toRadians(lon[:,j])),r[:,j]*sin(toRadians(lon[:,j])),v[j]*ones(len(tt)),renderType='series')
+#stp
 
-setLayoutOverplot(len(r[0,:]))
+#plot(0,r,lon)
+#plot(1,reform(r,1))
+
+#setLayoutOverplot(len(r[0,:]))
+#setLayoutOverplot(len(r[0,:]))
+#for j in xrange(len(r[0,:])):
+
+rTot   = None
+lonTot = None
+vTot   = None
+magSectorTot = None
+#for j in range(100,210):
 for j in xrange(len(r[0,:])):
-    plot(i,r[:,j],lon[:,j],v[j],renderType='polar')
+    #print j
+    rTot = concatenate(rTot,r[:,j])
+    lonTot = concatenate(lonTot,lon[:,j])
+    #vTot = concatenate(vTot,v[j]*ones(len(tt)))
+    vTot = concatenate(vTot,v_array[:,j])
+    magSectorTot = concatenate(magSectorTot,magSector_array[:,j])
+    #plot(i,r[:,j],lon[:,j],v[j],renderType='polar')
+    #plot(j,r[:,j]*cos(toRadians(lon[:,j])),r[:,j]*sin(toRadians(lon[:,j])),v[j]*ones(len(tt)),renderType='series')
+
+inRange_PSP = where(eq(lt(rTot,min_PSP_range).or(gt(rTot,max_PSP_range)),0))
+rTot_PSP   = rTot[inRange_PSP]
+lonTot_PSP = lonTot[inRange_PSP]
+vTot_PSP   = vTot[inRange_PSP]
+magSectorTot_PSP = magSectorTot[inRange_PSP]
+
+negSector_PSP = where(lt(magSectorTot_PSP,0))
+posSector_PSP = where(gt(magSectorTot_PSP,0))
+
+#############  WIND  #################
+
+r0_WIND   = 0.99*ones(len(WIND_carringtonLon))
+lon0_WIND = WIND_carringtonLon
+v_WIND    = (WIND_V/AU_in_km)*60*60*24 #converting km/s into AU/day
 
 
+rmax_WIND = 1. #Limit in AU
+t0_WIND = r0_WIND/v_WIND
+
+testIndex = 2
+
+r_WIND       = dblarr(len(tt_WIND),len(r0_WIND))
+lon_WIND     = dblarr(len(tt_WIND),len(lon0_WIND))
+v_array_WIND = dblarr(len(tt_WIND),len(lon0_WIND))
+magSector_array_WIND = dblarr(len(tt_WIND),len(lon0_WIND))
+for t in xrange(len(tt_WIND)):
+    #r[t,:] = r0 + v[t]*(tt[t]*(0.75/v[t]) - t0[t])
+    r_WIND[t,:] = r0_WIND + v_WIND*(tt_WIND[t]*(1./v_WIND) - t0_WIND)
+    #r[t,:] = v[t]*(tt[t])
+    #lon[t,:] = lon0 - omega*(tt[t]*(0.75/v) - t0[t])
+    lon_WIND[t,:] = lon0_WIND - omega*(tt_WIND[t]*(1./v_WIND) - t0_WIND)
+    v_array_WIND[t,:] = v_WIND
+    magSector_array_WIND[t,:] = WIND_magSector
+
+min_WIND_range = 0.
+max_WIND_range = 2.
+
+#outOfRange_WIND = where(lt(r_WIND,min_WIND_range).or(gt(r_WIND,max_WIND_range)))
+#v_array_WIND[outOfRange_WIND] = -1E38
+#v_array_WIND.putProperty(QDataSet.VALID_MIN,0)
+
+rTot_WIND   = None
+lonTot_WIND = None
+vTot_WIND   = None
+magSectorTot_WIND = None
+#for j in range(100,210):
+for j in xrange(len(r_WIND[0,:])):
+    #print j
+    rTot_WIND = concatenate(rTot_WIND,r_WIND[:,j])
+    lonTot_WIND = concatenate(lonTot_WIND,lon_WIND[:,j])
+    #vTot = concatenate(vTot,v[j]*ones(len(tt)))
+    vTot_WIND = concatenate(vTot_WIND,v_array_WIND[:,j])
+    magSectorTot_WIND = concatenate(magSectorTot_WIND,magSector_array_WIND[:,j])
+    #plot(i,r[:,j],lon[:,j],v[j],renderType='polar')
+    #plot(j,r[:,j]*cos(toRadians(lon[:,j])),r[:,j]*sin(toRadians(lon[:,j])),v[j]*ones(len(tt)),renderType='series')
+
+
+inRange_WIND = where(eq(lt(rTot_WIND,min_WIND_range).or(gt(rTot_WIND,max_WIND_range)),0))
+rTot_WIND   = rTot_WIND[inRange_WIND]
+lonTot_WIND = lonTot_WIND[inRange_WIND]
+vTot_WIND   = vTot_WIND[inRange_WIND]
+magSectorTot_WIND   = magSectorTot_WIND[inRange_WIND]
+
+negSector_WIND = where(lt(magSectorTot_WIND,0))
+posSector_WIND = where(gt(magSectorTot_WIND,0))
+
+
+
+#############  STA  #################
+
+r0_STA   = STA_r_AU
+lon0_STA = STA_carringtonLon
+v_STA    = (STA_V/AU_in_km)*60*60*24 #converting km/s into AU/day
+
+
+rmax_STA = 1. #Limit in AU
+t0_STA = r0_STA/v_STA
+
+testIndex = 2
+
+r_STA       = dblarr(len(tt_STA),len(r0_STA))
+lon_STA     = dblarr(len(tt_STA),len(lon0_STA))
+v_array_STA = dblarr(len(tt_STA),len(lon0_STA))
+magSector_array_STA = dblarr(len(tt_STA),len(lon0_STA))
+for t in xrange(len(tt_STA)):
+    #r[t,:] = r0 + v[t]*(tt[t]*(0.75/v[t]) - t0[t])
+    r_STA[t,:] = r0_STA + v_STA*(tt_STA[t]*(1./v_STA) - t0_STA)
+    #r[t,:] = v[t]*(tt[t])
+    #lon[t,:] = lon0 - omega*(tt[t]*(0.75/v) - t0[t])
+    lon_STA[t,:] = lon0_STA - omega*(tt_STA[t]*(1./v_STA) - t0_STA)
+    v_array_STA[t,:] = v_STA
+    magSector_array_STA[t,:] = STA_magSector
+
+min_STA_range = -1.
+max_STA_range = 2.
+
+#outOfRange_STA = where(lt(r_STA,min_STA_range).or(gt(r_STA,max_STA_range)))
+#v_array_STA[outOfRange_STA] = -1E38
+#v_array_STA.putProperty(QDataSet.VALID_MIN,0)
+
+rTot_STA   = None
+lonTot_STA = None
+vTot_STA   = None
+magSectorTot_STA = None
+#for j in range(100,210):
+for j in xrange(len(r_STA[0,:])):
+    #print j
+    rTot_STA = concatenate(rTot_STA,r_STA[:,j])
+    lonTot_STA = concatenate(lonTot_STA,lon_STA[:,j])
+    #vTot = concatenate(vTot,v[j]*ones(len(tt)))
+    vTot_STA = concatenate(vTot_STA,v_array_STA[:,j])
+    magSectorTot_STA = concatenate(magSectorTot_STA,magSector_array_STA[:,j])
+    #plot(i,r[:,j],lon[:,j],v[j],renderType='polar')
+    #plot(j,r[:,j]*cos(toRadians(lon[:,j])),r[:,j]*sin(toRadians(lon[:,j])),v[j]*ones(len(tt)),renderType='series')
+
+
+inRange_STA = where(eq(lt(rTot_STA,min_STA_range).or(gt(rTot_STA,max_STA_range)),0))
+rTot_STA   = rTot_STA[inRange_STA]
+lonTot_STA = lonTot_STA[inRange_STA]
+vTot_STA   = vTot_STA[inRange_STA]
+magSectorTot_STA   = magSectorTot_STA[inRange_STA]
+
+negSector_STA = where(lt(magSectorTot_STA,0))
+posSector_STA = where(gt(magSectorTot_STA,0))
+
+
+
+lonTot_PSP = mod(lonTot_PSP+360,360)
+lonTot_WIND = mod(lonTot_WIND+360,360)
+lonTot_STA = mod(lonTot_STA+360,360)
+
+
+#vTot_PSP = vTot_PSP*AU_in_km/(*60*60*24)
+
+if plotType == 'dialPlot':
+   
+    #setLayoutOverplot(6)
+    load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots.vap')
+    plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2)
+    plot(1,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
+    plot(2,(rTot_WIND*cos(toRadians(lonTot_WIND)))[posSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[posSector_WIND],(vTot_WIND)[posSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
+    plot(3,(rTot_STA*cos(toRadians(lonTot_STA)))[posSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[posSector_STA],(vTot_STA)[posSector_STA],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
+    
+    plot(6,(rTot_PSP*cos(toRadians(lonTot_PSP)))[negSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[negSector_PSP],vTot_PSP[negSector_PSP],symbolSize=2)
+    plot(7,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
+    plot(8,(rTot_WIND*cos(toRadians(lonTot_WIND)))[negSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[negSector_WIND],(vTot_WIND)[negSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
+    plot(9,(rTot_STA*cos(toRadians(lonTot_STA)))[negSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[negSector_STA],(vTot_STA)[negSector_STA],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
+
+
+elif plotType == 'longitudeStack':
+    load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
+    plot(0,lonTot_PSP[posSector_PSP],vTot_PSP[posSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP')
+    plot(1,lonTot_WIND[posSector_WIND],vTot_WIND[posSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (AU/day)',symbolSize=5,legendLabel='WIND')
+    plot(2,lonTot_STA[posSector_STA],vTot_STA[posSector_STA],color='black',renderType='scatter',xlog=False,ytitle='positive magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')
+    
+    
+    plot(3,lonTot_PSP[negSector_PSP],vTot_PSP[negSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP')
+    plot(4,lonTot_WIND[negSector_WIND],vTot_WIND[negSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (AU/day)',symbolSize=5,legendLabel='WIND')
+    plot(5,lonTot_STA[negSector_STA],vTot_STA[negSector_STA],color='black',renderType='scatter',xlog=False,ytitle='negative magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')
 

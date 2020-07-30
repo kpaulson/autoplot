@@ -13,10 +13,16 @@ useLocalSubprocesses = False  #Find local process files instead of going to gith
 
 smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of spectra to average together before defining flow directions',[1,2,4,5,10,60,3600])
 numberOfChannels     = getParam('nChannels', 32, 'Number of energy channels to keep (from 0) after downsample')
+skipPreviousFiles    = getParam('skipPreviousFiles','T','Look for previously generated files and skip analysis if found',['T','F'])
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
 
+    
+if skipPreviousFiles == 'T':
+    skipPreviousFiles = True
+elif skipPreviousFiles == 'F':
+    skipPreviousFiles = False
 
 
 ############################################################################
@@ -87,13 +93,14 @@ for tr in trs:
         tp_end = TimeParser.create('-$H$M')
         timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
     
-    try:
-        TEMP_epoch = getDataSet(localDownsampledDataFile+'?epoch')
-        if ne( long(mode(copy(TEMP_epoch))) ,0):
-            print 'File already exists for %s'%(tr)
-            fileAlreadyExists = True
-    except:
-        fileAlreadyExists = False
+    if skipPreviousFiles == True:
+        try:
+            TEMP_epoch = getDataSet(localDownsampledDataFile+'?epoch')
+            if ne( long(mode(copy(TEMP_epoch))) ,0):
+                print 'File already exists for %s'%(tr)
+                fileAlreadyExists = True
+        except:
+            fileAlreadyExists = False
     
     #try:
     #if True:

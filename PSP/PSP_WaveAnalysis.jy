@@ -20,13 +20,16 @@ wave_power_min = getParam('wavePowerMin', 1E-4, 'Minimum Wave Power value in Bfi
 
 version = '1.1'
 
-useLocalSubprocesses    = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
-useLocalFiles           = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
-plotStuff               = getParam('plotStuff','T','Plot dataset',['T','F'])
-writeStuff              = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
-useRegularTimestamps    = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
-checkForPreviousFiles   = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
-removeReactionWheelTone = getParam('removeReactionWheelTone','F','Attempt to remove signal from reaction wheels',['T','F'])
+useLocalSubprocesses      = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
+useLocalFiles             = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
+plotStuff                 = getParam('plotStuff','T','Plot dataset',['T','F'])
+writeStuff                = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
+useRegularTimestamps      = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
+checkForPreviousFiles     = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
+removeReactionWheelTone   = getParam('removeReactionWheelTone','F','Attempt to remove signal from reaction wheels',['T','F'])
+writeAttempts             = getParam('writeAttempts',  1, 'How many times try to write file before moving on (set to 0 to turn this off)')
+generateEfieldFreeVersion = getParam('generateEfieldFreeVersion','F','If no Efield data available, drop to v0 and generate Bfield analysis file',['T','F'])
+
 
 if useLocalSubprocesses == 'T':
     useLocalSubprocesses = True
@@ -64,6 +67,11 @@ if removeReactionWheelTone == 'T':
     removeReactionWheelTone = True
 elif removeReactionWheelTone == 'F':
     removeReactionWheelTone = False
+    
+if generateEfieldFreeVersion == 'T':
+    generateEfieldFreeVersion = True
+elif generateEfieldFreeVersion == 'F':
+    generateEfieldFreeVersion = False
 
 
 ############################################################################
@@ -203,12 +211,15 @@ for tr in trs:
         try:
             efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
         except:
-            efield_data = zeros(len(mag_data),3)
-            efield_data.putProperty(QDataSet.DEPEND_0,mag_time)
-            version = '0'+version[1:]
-            outputDirectory = 'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version)
-            waveAnalysisFiles_directory = googleDrive_path + outputDirectory
-            outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
+            if generateEfieldFreeVersion == True:
+                efield_data = zeros(len(mag_data),3)
+                efield_data.putProperty(QDataSet.DEPEND_0,mag_time)
+                version = '0'+version[1:]
+                outputDirectory = 'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version)
+                waveAnalysisFiles_directory = googleDrive_path + outputDirectory
+                outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
+            else:
+                efield_data = None
     
         # This clause generates new timestamps from the most common cadence in the mag dataset
         #   (this is to avoid the issues with the fft when there are changes in time cadence)
@@ -383,9 +394,6 @@ for tr in trs:
             Bp_pol.putProperty(             QDataSet.DEPEND_0,mag_time)
             Bq_pol.putProperty(             QDataSet.DEPEND_0,mag_time)
             
-            formatDataSet(fft_time,outputFile)
-            formatDataSet(mag_time,outputFile+'?append=T')
-            
             Ellipticity.putProperty(        QDataSet.NAME,'ellipticity')
             Angle_Normal.putProperty(       QDataSet.NAME,'wave_normal')
             Coherency.putProperty(          QDataSet.NAME,'coherency')
@@ -431,20 +439,58 @@ for tr in trs:
             Bp_pol.putProperty(             QDataSet.TITLE,'Transverse magnetic field in RTN_T direction')
             Bq_pol.putProperty(             QDataSet.TITLE,'Transverse magnetic field in RTN_N direction')
             
-            formatDataSet(Ellipticity        ,outputFile+'?append=T')
-            formatDataSet(Angle_Normal       ,outputFile+'?append=T')
-            formatDataSet(Coherency          ,outputFile+'?append=T')
-            formatDataSet(Power_compressional,outputFile+'?append=T')
-            formatDataSet(Power_perp         ,outputFile+'?append=T')
-            formatDataSet(Smag               ,outputFile+'?append=T')
-            formatDataSet(Poynting_theta     ,outputFile+'?append=T')
-            formatDataSet(Poynting_phi       ,outputFile+'?append=T')
-            formatDataSet(Sn                 ,outputFile+'?append=T')
-            formatDataSet(Sp                 ,outputFile+'?append=T')
-            formatDataSet(Sq                 ,outputFile+'?append=T')
-            formatDataSet(Bn_pol             ,outputFile+'?append=T')
-            formatDataSet(Bp_pol             ,outputFile+'?append=T')
-            formatDataSet(Bq_pol             ,outputFile+'?append=T')
+            
+            if writeAttempts > 0:
+                try:
+                    for i in xrange(writeAttempts):
+                        formatDataSet(fft_time           ,outputFile)
+                        formatDataSet(mag_time           ,outputFile+'?append=T')
+                        formatDataSet(Ellipticity        ,outputFile+'?append=T')
+                        formatDataSet(Angle_Normal       ,outputFile+'?append=T')
+                        formatDataSet(Coherency          ,outputFile+'?append=T')
+                        formatDataSet(Power_compressional,outputFile+'?append=T')
+                        formatDataSet(Power_perp         ,outputFile+'?append=T')
+                        formatDataSet(Smag               ,outputFile+'?append=T')
+                        formatDataSet(Poynting_theta     ,outputFile+'?append=T')
+                        formatDataSet(Poynting_phi       ,outputFile+'?append=T')
+                        formatDataSet(Sn                 ,outputFile+'?append=T')
+                        formatDataSet(Sp                 ,outputFile+'?append=T')
+                        formatDataSet(Sq                 ,outputFile+'?append=T')
+                        formatDataSet(Bn_pol             ,outputFile+'?append=T')
+                        formatDataSet(Bp_pol             ,outputFile+'?append=T')
+                        formatDataSet(Bq_pol             ,outputFile+'?append=T')
+                        
+                        print 'writeAttempt:',i+1
+                        fileAlreadyExists = False
+                        try:
+                            TEMP_epoch = getDataSet(outputFile+'?Epoch')
+                            if ne( long(mode(copy(TEMP_epoch))), 0):
+                                #print 'File already exists for %s'%(timerange)
+                                fileAlreadyExists = True
+                        except:
+                            fileAlreadyExists = False
+                        if fileAlreadyExists == True:
+                            raise fileAlreadyExistsException
+                except:
+                    pass
+                
+            else:
+                formatDataSet(fft_time           ,outputFile)
+                formatDataSet(mag_time           ,outputFile+'?append=T')
+                formatDataSet(Ellipticity        ,outputFile+'?append=T')
+                formatDataSet(Angle_Normal       ,outputFile+'?append=T')
+                formatDataSet(Coherency          ,outputFile+'?append=T')
+                formatDataSet(Power_compressional,outputFile+'?append=T')
+                formatDataSet(Power_perp         ,outputFile+'?append=T')
+                formatDataSet(Smag               ,outputFile+'?append=T')
+                formatDataSet(Poynting_theta     ,outputFile+'?append=T')
+                formatDataSet(Poynting_phi       ,outputFile+'?append=T')
+                formatDataSet(Sn                 ,outputFile+'?append=T')
+                formatDataSet(Sp                 ,outputFile+'?append=T')
+                formatDataSet(Sq                 ,outputFile+'?append=T')
+                formatDataSet(Bn_pol             ,outputFile+'?append=T')
+                formatDataSet(Bp_pol             ,outputFile+'?append=T')
+                formatDataSet(Bq_pol             ,outputFile+'?append=T')
             
         
         # ###

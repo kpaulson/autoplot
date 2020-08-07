@@ -1,0 +1,56 @@
+tr = '2019-03 to 2019-06'
+tr = '2018 through 2019'
+#tr = '2019-04'
+
+xbins = 60
+ybins = 30
+
+#wavePowerFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower_Copy/PSP_wavePower_$Y-$m-$d.cdf'
+wavePowerFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
+ephemFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+
+
+wavePower_LH = getDataSet(wavePowerFile+'?wavePower_LH',tr)
+wavePower_RH = getDataSet(wavePowerFile+'?wavePower_RH',tr)
+
+r_au = getDataSet(ephemFile+'?SC_R_AU',tr)
+r_au = synchronize(wavePower_LH,r_au)
+
+plot(0,log(r_au),log(wavePower_LH))
+
+wavePower_LH_log = log(wavePower_LH)
+wavePower_RH_log = log(wavePower_RH)
+r_au_log = log(r_au)
+
+rr = linspace(-2.0,0,xbins)
+pp = linspace(-12,5,ybins)
+
+
+zz_top = rebin(link(r_au_log,wavePower_LH_log,ones(len(wavePower_LH))), rr, pp)
+zz_top_weights = zz_top.property(QDataSet.WEIGHTS)
+
+plot(1,zz_top_weights,zlog=True)
+
+
+
+
+x_prime = linspace(0,1,100)
+x_prime_linear = linspace(0,1,100)
+b = -6
+m = -4
+y_prime = exp(b)*(x_prime**m)
+x_prime_linear = linspace(-2,0,100)
+y_prime_linear = b+(x_prime_linear*m)
+
+plot(2,x_prime_linear,y_prime_linear,color='red')
+
+#plot(2,r_AU_LH,wavePower_LH)
+plot(4,x_prime,y_prime,color='red')
+#plot(3,x_prime,(exp(b)*(x_prime**m))-500,color='red')
+
+
+
+
+
+plot(3,(r_au),(wavePower_LH))
+

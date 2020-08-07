@@ -7,7 +7,7 @@ def putProps( dss, name='DEPEND_0', value=None ):
 #############################################################################################  
         
 def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
-    """Polarization analysis performed on spectral components based on [Means 1972].
+    '''Polarization analysis performed on spectral components based on [Means 1972].
     
     Parameters:
         Bn_fft = rank3 fft of field-aligned magnetic component.
@@ -19,7 +19,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
         wave_power_min = minimum value of wave power at which to keep returned components (all lower values discarded).
     
     Returns:
-	    Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization"""
+	    Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization'''
          
     ###
     ### RUN POLARIZATION ANALYSIS
@@ -169,11 +169,11 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Sz = (kx * Ry) - (ky * Rx)
 #    monitor.setTaskProgress(71)
 
-    Jxx = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Jyy = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Jzz = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    Jxx      = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    Jyy      = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
+    Jzz      = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
     Jxy_real = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
-    Jxy_img = dblarr( len( kx[:,1] ) , len( kx[1,:] ) ) 
+    Jxy_img  = dblarr( len( kx[:,1] ) , len( kx[1,:] ) ) 
 
 #    monitor.setTaskProgress(54)
     monitor.setProgressMessage('Rotating J-Prime into Wave-Normal')
@@ -253,7 +253,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     #monitor.setProgressMessage('Defining Wave Intensity')
 
     Power_compressional = Jzz_prime
-    Power_perp = sqrt(Jxx**2 + Jyy**2) 
+    Power_perp = sqrt(Jxx_prime**2 + Jyy_prime**2) 
     #Power_transverse = Jxx_prime + Jyy_prime # upon recommendation from Chuck, this is the wave intensity rather than magnitude of diagonal elements
                 
 
@@ -309,7 +309,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### SPIT OUT RESULTS
     ###
     
-    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp ) 
+    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp, Wave_Power ) 
 
 
 # ############################################################################################

@@ -1,11 +1,13 @@
 #mikeMergedFile = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/psp_wind_sta_merged_v02.idl'
 #mikeMergedFile = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/psp_wind_sta_merged.idl'
 
-encounter3 = '2019-06-18 20:15 to 2019-11-15 15:25'
-encounter4 = '2019-11-15 15:25 to 2020-04-03 09:00'
-encounter5 = '2020-04-03 09:00 to 2020-08-02 05:03'
-encounter3_inbound = '2019-08-20 to 2019-09-01'
-encounter3_outbound = '2019-09-01 to 2019-09-21'
+orbit1 = '2018-08-12 08:15 to 2019-01-20 01:04'
+orbit2 = '2019-01-20 01:04 to 2019-06-18 20:15'
+orbit3 = '2019-06-18 20:15 to 2019-11-15 15:25'
+orbit4 = '2019-11-15 15:25 to 2020-04-03 09:00'
+orbit5 = '2020-04-03 09:00 to 2020-08-02 05:03'
+orbit3_inbound = '2019-08-20 to 2019-09-01'
+orbit3_outbound = '2019-09-01 to 2019-09-21'
 
 perihelion3 = '2019-08-31 12:00 to 2019-09-03 00:00'
 frs3_inwards = '2019-08-29 to 2019-08-31'
@@ -30,13 +32,16 @@ tr = '2019-08-07 14:00 to 2019-08-09 19:00' # Orbit 3 inbound fast stream matche
 #tr = '2019-09-20 12:00 to 2019-09-24 00:00' # Orbit 3 same fast stream
 #tr = '2019-09-14 to 2019-09-19' # Orbit 3 both fast and slow
 #tr = '2019-09-17 09:00 to 2019-09-18 6:00' # Orbit 3 both fast and slow
-#tr = encounter3 
-#tr = encounter3_inbound
+tr = orbit3 
+tr = orbit3_inbound
 tr_WIND = carringtonRotation_2220
 tr_STA = tr_WIND
 
-plotType = 'longitudeStack'  #'longitudeStack', 'dialPlot'
+plotType = 'dialPlot'  #'longitudeStack', 'dialPlot'
 longitudeProjectionRadius = 0.5
+filterLongitude = True
+minLon = 15
+maxLon = 45
 
 downsampleFactor = 1
 
@@ -189,7 +194,14 @@ else:
 r0   = r0[::downsampleFactor]
 lon0 = lon0[::downsampleFactor]
 v    = v[::downsampleFactor]
+PSP_magSector = PSP_magSector[::downsampleFactor]
 
+if filterLongitude == True:
+    lonSlice = where(ge(mod(lon0+360,360),minLon).and(le(mod(lon0+360,360),maxLon)))
+    r0   = r0[lonSlice]
+    lon0 = lon0[lonSlice]
+    v    = v[lonSlice]
+    PSP_magSector = PSP_magSector[lonSlice]
 
 rmax = 0.7 #Limit in AU
 t0 = r0/v

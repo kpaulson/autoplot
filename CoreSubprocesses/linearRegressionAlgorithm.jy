@@ -1,0 +1,44 @@
+def linearRegressionAlgorithm(x,y):
+    '''
+    Input:
+        y = rank1 original data
+        x = rank1 DEPEND_0 of y
+    Output:
+        TEMP_intercept      = rank0 value for intercept b from regression y = m*x + b
+        TEMP_slope          = rank0 value for slope m from regression y = m*x + b
+        TEMP_chiSquared     = chi^2 value indicating goodness of fit
+        TEMP_interceptError = rank0 95% uncertainty spread in intercept calculation (assuming inf points)
+        TEMP_slopeError     = rank0 95% uncertainty spread in slope calculation (assuming inf points)
+        pearson_r           = rank0 Pearson correlation coefficient r
+    '''
+    N = len(y)
+    delta_x = abs(N*total(x**2) - (total(x))**2)
+    delta_y = abs(N*total(y**2) - (total(y))**2)
+    TEMP_slope = (N*total(x*y) - total(x)*total(y)) / delta_x
+    TEMP_intercept = (total(y) - TEMP_slope*total(x)) / N
+    y_expected = TEMP_intercept + x*TEMP_slope
+    
+    # Not sure which of the following is correct, neither gives me the same value as Jeremy's
+    print stddev(y)
+    TEMP_chiSquared = total( (y - y_expected)**2 / y_expected )
+    TEMP_chiSquared = total( (y - y_expected)**2 / stddev(y)**2 )
+    
+    # These uncertainty estimates came from some lesson I have since lost
+    TEMP_slopeError = sqrt(abs( (N/(N-2))*(total(y**2) - TEMP_slope*total(x*y) - TEMP_intercept*total(y))/delta_x ))
+    TEMP_interceptError = sqrt(total(x**2)/N) * TEMP_slopeError
+    
+    # This is the uncertainty estimate from wikipedia, I don't know what their epsilon refers to.
+    TEMP_epsilonSigmaSquared = (1./(N*(N-2)))*(N*total(y**2) - total(y)**2 - (TEMP_slope**2)*(N*total(x**2) - total(x)**2))
+    #print TEMP_epsilonError # This should be 0.5762 to match Wikipedia data
+    TEMP_slopeSigmaSquared = (N*(TEMP_epsilonSigmaSquared)) / (N*total(x**2) - total(x)**2)
+    TEMP_interceptSigmaSquared = TEMP_slopeSigmaSquared * total(x**2) / N
+    print sqrt(TEMP_slopeSigmaSquared)
+    # This is the uncertainty in each measurement to the 95% confidence interval
+    # for n-1=∞, quantiles go as : 0.9:1.282,  0.95:1.645, 0.975:1.960, 0.99:2.326, 0.995:2.576, 0.999:3.090
+    TEMP_slopeError = sqrt(TEMP_slopeSigmaSquared)*1.960 # we use the n=∞ of 95% quantile here assuming we will be doing large fits
+    TEMP_interceptError = sqrt(TEMP_interceptSigmaSquared)*1.960
+    
+    pearson_r = (N*total(x*y) - total(x)*total(y)) / sqrt( delta_x*delta_y )
+    
+    return(TEMP_intercept,TEMP_slope,TEMP_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r)
+

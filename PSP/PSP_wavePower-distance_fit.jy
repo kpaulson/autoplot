@@ -1,56 +1,263 @@
+
+orbit1 = '2018-08-12 08:15 to 2019-01-20 01:04'
+orbit2 = '2019-01-20 01:04 to 2019-06-18 20:15'
+orbit3 = '2019-06-18 20:15 to 2019-11-15 15:25'
+orbit4 = '2019-11-15 15:25 to 2020-04-03 09:00'
+orbit5 = '2020-04-03 09:00 to 2020-08-02 05:03'
+orbit3_inbound = '2019-08-20 to 2019-09-01'
+orbit3_outbound = '2019-09-01 to 2019-09-21'
+
+
 tr = '2019-03 to 2019-06'
 tr = '2018 through 2019'
-#tr = '2019-04'
+tr = '2018'
+tr = '2019'
+#tr = '2019 04'
+tr = orbit4
 
-xbins = 60
+wavePowerHandedness = 'LH' # Choose from 'LH', 'RH', or 'both'
+
+vp_momentMin = 300
+vp_momentMax = 1E5
+
+xbins = 120
 ybins = 30
+xbinMin = -1
+xbinMax = 0
+ybinMin = -6
+ybinMax = 4
 
+xplotLogMin = xbinMin
+xplotLogMax = xbinMax
+yplotLogMin = ybinMin
+yplotLogMax = ybinMax
+
+useLocalSubprocesses = True
+
+
+#addToSearchPath(sys.path,googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar',monitor)
+#from org.apache.commons.math3.fitting import AbstractCurveFitter
+#from org.apache.commons.math3.fitting import SimpleCurveFitter
+#from org.apache.commons.math3.fitting.leastsquares import LevenbergMarquardtOptimizer as LMO
+#from org.apache.commons.math3.fitting.leastsquares import GaussNewtonOptimizer
+#from org.apache.commons.math3.analysis import ParametricUnivariateFunction
+
+  
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+    
+
+import sys
+### IMPORT SUBPROCESSES
+localGithubDirectory = 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/'
+remoteGithubDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
+try:
+    if useLocalSubprocesses == True:
+        get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+        execfile( get_OS_version.toString() )
+        
+        linearRegressionAlgorithm = getFile( localGithubDirectory+'CoreSubprocesses/linearRegressionAlgorithm.jy',monitor.getSubtaskMonitor('import linearRegressionAlgorithm()'))
+        execfile( linearRegressionAlgorithm.toString() )
+except:
+    pass
+
+
+
+OS = get_os_version().split()[0]
+if OS == 'mac':
+    googleDrive_path = '/Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+    googleDrive_path = '/Volumes/GoogleDrive/My Drive/'
+elif OS == 'windows':
+    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    
+    
+############################################################################
+##################            DEFINITIONS        ###########################
+############################################################################
+############################################################################
+    
 #wavePowerFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower_Copy/PSP_wavePower_$Y-$m-$d.cdf'
 wavePowerFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
-ephemFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+ephemFile     = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+spcFile       = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 
 
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+lastTime = TimeUtil.now()
 wavePower_LH = getDataSet(wavePowerFile+'?wavePower_LH',tr)
 wavePower_RH = getDataSet(wavePowerFile+'?wavePower_RH',tr)
 
+if wavePowerHandedness == 'LH':
+    wavePower = wavePower_LH
+elif wavePowerHandedness == 'RH':
+    wavePower = wavePower_RH
+elif wavePowerHandedness == 'both':
+    wavePower = merge(wavePower_LH,wavePower_RH)
+
+print 'Time taken to import data:',TimeUtil.now()-lastTime
+lastTime = TimeUtil.now()
+
 r_au = getDataSet(ephemFile+'?SC_R_AU',tr)
-r_au = synchronize(wavePower_LH,r_au)
+r_au = synchronize(wavePower,r_au)
+r_au.putProperty(QDataSet.LABEL,'SC_r')
 
-plot(0,log(r_au),log(wavePower_LH))
-
-wavePower_LH_log = log(wavePower_LH)
-wavePower_RH_log = log(wavePower_RH)
-r_au_log = log(r_au)
-
-rr = linspace(-2.0,0,xbins)
-pp = linspace(-12,5,ybins)
+vp_moment = getDataSet(spcFile+'?vp_moment_RTN',tr)
+vp_moment = synchronize(wavePower,vp_moment)
+vp_moment.putProperty(QDataSet.VALID_MIN,0)
 
 
-zz_top = rebin(link(r_au_log,wavePower_LH_log,ones(len(wavePower_LH))), rr, pp)
+wavePower_log = log10(wavePower)
+r_au_log = log10(r_au)
+
+#setLayoutOverplot(2)
+plot(0,r_au_log,wavePower_log,renderType='hugeScatter',legendLabel='all data',title=tr)
+
+
+
+#inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])] 
+inputGuessParams = [float(-2),float(-5)] 
+      
+print 'Time taken to plot data:',TimeUtil.now()-lastTime
+lastTime = TimeUtil.now()
+                        
+#r = []
+#r = where(valid(r_au_log).and(valid(wavePower_LH_log)))
+r = where(gt(r_au_log,-10).and(gt(wavePower_log,-20)))
+
+radialSort = sort(r_au_log[r])
+r_au_log = r_au_log[r][radialSort]
+#r_au_log = r_au_log[radialSort]
+wavePower_log = wavePower_log[r][radialSort]
+vp_moment = vp_moment[r][radialSort]
+r_au = r_au[r][radialSort]
+wavePower = wavePower[r][radialSort]
+r = []
+
+
+
+rr = linspace(xbinMin,xbinMax,xbins)
+pp = linspace(ybinMin,ybinMax,ybins)
+
+zz_top = rebin(link(r_au_log[r],wavePower_log[r],ones(len(wavePower_log[r]))), rr, pp)
 zz_top_weights = zz_top.property(QDataSet.WEIGHTS)
 
-plot(1,zz_top_weights,zlog=True)
 
+columnTotals = total(zz_top_weights,1)
 
+weights = zeros(len(r_au_log))
+weightsCounter = 0
+for column in xrange(len(columnTotals)):
+    #weights[weightsCounter:weightsCounter+columnTotals[column]] = len(r_au_log)/columnTotals[column]
+    weights[weightsCounter:weightsCounter+columnTotals[column]] = columnTotals[column]
+    weightsCounter = weightsCounter+columnTotals[column]
 
+weights = ones(len(r_au_log))
+r= where(gt(weights,1E-30).and(gt(wavePower_log,-7.5)).and(gt(vp_moment[:,0],vp_momentMin)).and(lt(vp_moment[:,0],vp_momentMax)))
+
+#plot(5,weights)      
+#stop
+   
+       
+###
+### APACHE FITTING SYSTEM - RIDICULOUSLY SLOW SINCE I HAVE TO ADD EACH POINT INDIVIDUALLY
+###
+
+#from org.apache.commons.math.optimization.fitting import CurveFitter
+#from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+#from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
+#from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+#from org.apache.commons.math.stat.regression      import SimpleRegression
+ 
+#class LinFit(ParametricRealFunction):
+##class LinFit(ParametricUnivariateFunction):
+#    def value(self, x, params):
+#        a = params[0]
+#        b = params[1]
+#        return (a*x + b)
+#    def gradient(self, x, params):
+#        a = params[0]
+#        b = params[1]
+#        return [x,1]
+
+#f = LinFit()             
+#ftr = CurveFitter(LevenbergMarquardtOptimizer())
+#for i in xrange(len(wavePower_LH_log[r])):
+#    point_weight = 1.
+#    fit_point = WeightedObservedPoint(point_weight, float(r_au_log[r][i]), float(wavePower_LH_log[r][i]))
+#    ftr.addObservedPoint( fit_point )
+#
+#print 'Time taken to add points to fitter:',TimeUtil.now()-lastTime
+#lastTime = TimeUtil.now()
+#
+#result = ftr.fit(f,inputGuessParams)
+#print 'Fit result:',result
+
+# JEREMY'S FITTING SYSTEM
+from org.das2.qds.util import LinFit
+lf= LinFit(r_au_log[r],wavePower_log[r],weights[r])
+
+intercept=  lf.getIntercept()
+slope=      lf.getSlope()
+chiSquare = lf.getChi2()
+sigma_x =   lf.getSiga()
+sigma_y =   lf.getSigb()
+
+# MY FITTING ALGORITHM
+(TEMP_intercept,TEMP_slope,TEMP_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r) = linearRegressionAlgorithm(r_au_log[r],wavePower_log[r])
+
+print 'slope:',slope
+print 'TEMP_slope:',TEMP_slope
+print 'intercept:',intercept
+print 'chiSquare:',chiSquare
+print 'sigma_x:',sigma_x
+print 'sigma_y:',sigma_y
+slopeError = (sigma_y/sigma_x)
+print 'slopeError:',slopeError
+print 'TEMP_slopeError:',TEMP_slopeError
+
+print 'Time taken to perform fit:',TimeUtil.now()-lastTime
+lastTime = TimeUtil.now()
 
 x_prime = linspace(0,1,100)
-x_prime_linear = linspace(0,1,100)
-b = -6
-m = -4
-y_prime = exp(b)*(x_prime**m)
-x_prime_linear = linspace(-2,0,100)
+b = intercept#-6
+m = slope#-4
+y_prime = 10**(b)*(x_prime**m)
+x_prime_linear = linspace(xbinMin,xbinMax,100)
 y_prime_linear = b+(x_prime_linear*m)
 
-plot(2,x_prime_linear,y_prime_linear,color='red')
+#sigma_x = sqrt( total( (r_au_log[r] - mean(r_au_log[r]))**2 ) )
+#sigma_y = sqrt( total( (wavePower_LH_log[r] - (r_au_log[r]*slope + intercept))**2 ) )
+#slopeError = (sigma_y/sigma_x)
+#print 'slopeError:',slopeError
+#print 'sigma_x:',sigma_x
+#print 'sigma_y:',sigma_y
+
+
+rr = linspace(xbinMin,xbinMax,xbins)
+pp = linspace(ybinMin,ybinMax,ybins)
+
+zz_top = rebin(link(r_au_log[r],wavePower_log[r],ones(len(wavePower_log[r]))), rr, pp)
+zz_top_weights = zz_top.property(QDataSet.WEIGHTS)
+
+
+plot(1,r_au_log[r],wavePower_log[r],color='red',renderType='hugeScatter',legendLabel='fit data')
+plot(2,zz_top_weights,zlog=True,yrange=[yplotLogMin,yplotLogMax])
+plot(4,(r_au[r]),(wavePower[r]),renderType='hugeScatter',yrange=[10**yplotLogMin,10**yplotLogMax])
+
+plot(3,x_prime_linear,y_prime_linear,color='red',symbolSize=0,lineWidth=2,lineStyle='dashes',legendLabel='Slope: %s &plusmn; %s'%(round(slope,2),round(slopeError,2)),xrange=[xplotLogMin,xplotLogMax],yrange=[yplotLogMin,yplotLogMax])
 
 #plot(2,r_AU_LH,wavePower_LH)
-plot(4,x_prime,y_prime,color='red')
+plot(5,x_prime,y_prime,color='red',symbolSize=0,lineWidth=2,lineStyle='dashes',xrange=[0,1.],ylog=True,yrange=[10**yplotLogMin,10**yplotLogMax],legendLabel='10!U%s!N (R/R!D0!N)!U%s &plusmn; %s'%(round(intercept,2),round(slope,2),round(slopeError,2)),title='Exponential fit to subset of wave power data')
 #plot(3,x_prime,(exp(b)*(x_prime**m))-500,color='red')
 
 
 
 
-
-plot(3,(r_au),(wavePower_LH))
 

@@ -1,0 +1,89 @@
+
+# Test Data
+xx = linspace(0,10,10)
+yy = dataset([3,4,-5,4.5,4,5,5.5,5,12,6])
+ww = dataset([1,1,10,1,1,1,1,1,10,1])
+
+# Wikipedia Data - https://en.wikipedia.org/wiki/Simple_linear_regression
+# should get: slope=61.272 +/- 3.1539, intercept=-39.062 +/- 8.63185
+xx = dataset([1.47, 1.50, 1.52, 1.55, 1.57, 1.60, 1.63, 1.65, 1.68, 1.70, 1.73, 1.75, 1.78, 1.80, 1.83])
+yy = dataset([52.21, 53.12, 54.48, 55.84, 57.20, 58.57, 59.93, 61.29, 63.11, 64.47, 66.28, 68.10, 69.92, 72.19, 74.46])
+ww = ones(len(xx))
+
+def leastAbsoluteDeviation(yy,yy_prime):
+    '''
+    yy = rank1 original data
+    yy_prime = rank1 function f(x) regression
+    '''
+    
+    return(total(abs(yy_prime - yy)) / len(yy))
+def leastSquares(yy,yy_prime):
+    '''
+    yy = rank1 original data
+    yy_prime = rank1 function f(x) regression
+    '''
+    
+    return(total(sqrt(abs(yy_prime**2 - yy**2))) / len(yy))
+    
+def linearRegressionAlgorithm(xx,yy):
+    N = len(yy)
+    delta_x = abs(N*total(xx**2) - (total(xx))**2)
+    delta_y = abs(N*total(yy**2) - (total(yy))**2)
+    TEMP_slope = (N*total(xx*yy) - total(xx)*total(yy)) / delta_x
+    TEMP_intercept = (total(yy) - TEMP_slope*total(xx)) / N
+    yy_expected = TEMP_intercept + xx*TEMP_slope
+    
+    # Not sure which of the following is correct, neither gives me the same value as Jeremy's
+    print stddev(yy)
+    TEMP_chiSquared = total( (yy - yy_expected)**2 / yy_expected )
+    TEMP_chiSquared = total( (yy - yy_expected)**2 / stddev(yy)**2 )
+    
+    # These uncertainty estimates came from some lesson I have since lost
+    TEMP_slopeError = sqrt(abs( (N/(N-2))*(total(yy**2) - TEMP_slope*total(xx*yy) - TEMP_intercept*total(yy))/delta_x ))
+    TEMP_interceptError = sqrt(total(xx**2)/N) * TEMP_slopeError
+    
+    # This is the uncertainty estimate from wikipedia, I don't know what their epsilon refers to.
+    TEMP_epsilonSigmaSquared = (1./(N*(N-2)))*(N*total(yy**2) - total(yy)**2 - (TEMP_slope**2)*(N*total(xx**2) - total(xx)**2))
+    #print TEMP_epsilonError # This should be 0.5762 to match Wikipedia data
+    TEMP_slopeSigmaSquared = (N*(TEMP_epsilonSigmaSquared)) / (N*total(xx**2) - total(xx)**2)
+    TEMP_interceptSigmaSquared = TEMP_slopeSigmaSquared * total(xx**2) / N
+    print sqrt(TEMP_slopeSigmaSquared)
+    # This is the uncertainty in each measurement to the 95% confidence interval
+    # for n-1=?, quantiles go as : 0.9:1.282,  0.95:1.645, 0.975:1.960, 0.99:2.326, 0.995:2.576, 0.999:3.090
+    TEMP_slopeError = sqrt(TEMP_slopeSigmaSquared)*1.960 # we use the n=? of 95% quantile here assuming we will be doing large fits
+    TEMP_interceptError = sqrt(TEMP_interceptSigmaSquared)*1.960
+    
+    pearson_r = (N*total(xx*yy) - total(xx)*total(yy)) / sqrt( delta_x*delta_y )
+    
+    return(TEMP_intercept,TEMP_slope,TEMP_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r)
+
+
+from org.das2.qds.util import LinFit
+
+# This is Jeremy's method that uses a similar algorithm to that in the definition above to find the slope and intercept, but also finds the chisquare value
+lf= LinFit(xx,yy)
+intercept =      lf.getIntercept()
+slope =          lf.getSlope()
+chiSquare =      lf.getChi2()
+interceptError = lf.getSiga()
+slopeError =     lf.getSigb()
+ls = leastSquares(yy, (intercept + xx*slope))
+lad = leastAbsoluteDeviation(yy, (intercept + xx*slope))
+
+
+lfw= LinFit(xx,yy,ww)
+
+interceptw=       lfw.getIntercept()
+slopew=           lfw.getSlope()
+chiSquarew =      lfw.getChi2()
+interceptErrorw = lfw.getSiga()
+slopeErrorw =     lfw.getSigb()
+lsw = leastSquares(yy, (interceptw + xx*slopew))
+ladw = leastAbsoluteDeviation(yy, (interceptw + xx*slopew))
+
+(TEMP_intercept,TEMP_slope,temp_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r) = linearRegressionAlgorithm(xx,yy)
+
+setLayoutOverplot(3)
+plot(2,xx,yy, renderType='scatter', symbolSize=10, legendLabel='data')
+plot(0,xx,(intercept+xx*slope),color='red',lineWidth=4, legendLabel='leastSquares')
+plot(1,xx,(interceptw+xx*slopew),color='blue',lineWidth=4,legendLabel='weighted',title='Jslope=%s &plusmn; %s!CJslope_weighted=%s &plusmn; %s!CKslope=%s &plusmn; %s'%(round(slope,3),round(slopeError,3),round(slopew,3),round(slopeErrorw,3),round(TEMP_slope,3),round(TEMP_slopeError,3)))

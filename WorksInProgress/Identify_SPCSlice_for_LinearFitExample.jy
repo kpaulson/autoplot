@@ -1,0 +1,31 @@
+tr = '2020-02-01 02:00 to 03:00'
+
+index = 9000
+
+spectraFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/DownsampledSpectra/1sec/SPC_DownsampledSpectra_$Y-$m-$d_1sec.cdf'
+
+spc_a = getDataSet(spectraFile+'?spc_a_mean',tr)
+spc_b = getDataSet(spectraFile+'?spc_b_mean',tr)
+spc_c = getDataSet(spectraFile+'?spc_c_mean',tr)
+spc_d = getDataSet(spectraFile+'?spc_d_mean',tr)
+
+totalFlux = (spc_a + spc_b + spc_c + spc_d)
+
+vx = ((spc_a + spc_d) - (spc_b + spc_c)) / totalFlux
+vy = ((spc_c + spc_d) - (spc_b + spc_a)) / totalFlux
+
+
+vx_trim  = vx[index,:]
+vy_trim  = vy[index,:]
+vdf_trim = totalFlux[index,:]
+
+validPoints = where(valid(vdf_trim))
+vx_trim  = vx_trim[validPoints]
+vy_trim  = vy_trim[validPoints]
+vdf_trim = vdf_trim[validPoints]
+
+r = where(lt(vdf_trim,0.5*max(vdf_trim)))
+vdf_trim[r] = -1
+#vdf_trim.putProperty(QDataSet.VALID_MIN,0)
+
+plot(0,vx_trim.property(QDataSet.DEPEND_0),vx_trim,vdf_trim,symbolSize=10,zlog=True,zrange=[10,50])

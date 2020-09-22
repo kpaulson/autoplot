@@ -6,9 +6,19 @@ ww = dataset([1,1,10,1,1,1,1,1,10,1])
 
 # Wikipedia Data - https://en.wikipedia.org/wiki/Simple_linear_regression
 # should get: slope=61.272 +/- 3.1539, intercept=-39.062 +/- 8.63185
-xx = dataset([1.47, 1.50, 1.52, 1.55, 1.57, 1.60, 1.63, 1.65, 1.68, 1.70, 1.73, 1.75, 1.78, 1.80, 1.83])
-yy = dataset([52.21, 53.12, 54.48, 55.84, 57.20, 58.57, 59.93, 61.29, 63.11, 64.47, 66.28, 68.10, 69.92, 72.19, 74.46])
-ww = ones(len(xx))
+#xx = dataset([1.47, 1.50, 1.52, 1.55, 1.57, 1.60, 1.63, 1.65, 1.68, 1.70, 1.73, 1.75, 1.78, 1.80, 1.83])
+#yy = dataset([52.21, 53.12, 54.48, 55.84, 57.20, 58.57, 59.93, 61.29, 63.11, 64.47, 66.28, 68.10, 69.92, 72.19, 74.46])
+#ww = ones(len(xx))
+
+# SPC Example Data
+spcFile = '/Users/kpaulson/Software/Autoplot/GithubScripts/Examples/testSPCData.txt'
+xx = getDataSet(spcFile+'?column=dep0')
+yy = getDataSet(spcFile+'?column=data')*10000
+ww = getDataSet(spcFile+'?column=data0')
+r = where(gt(ww,0))
+#xx = xx[r]
+#yy = yy[r]
+#ww = ww[r]
 
 def leastAbsoluteDeviation(yy,yy_prime):
     '''
@@ -61,7 +71,7 @@ def linearRegressionAlgorithm(xx,yy):
 from org.das2.qds.util import LinFit
 
 # This is Jeremy's method that uses a similar algorithm to that in the definition above to find the slope and intercept, but also finds the chisquare value
-lf= LinFit(xx,yy)
+lf= LinFit(xx[r],yy[r])
 intercept =      lf.getIntercept()
 slope =          lf.getSlope()
 chiSquare =      lf.getChi2()
@@ -71,7 +81,7 @@ ls = leastSquares(yy, (intercept + xx*slope))
 lad = leastAbsoluteDeviation(yy, (intercept + xx*slope))
 
 
-lfw= LinFit(xx,yy,ww)
+lfw= LinFit(xx[r],yy[r],1./ww[r])
 
 interceptw=       lfw.getIntercept()
 slopew=           lfw.getSlope()
@@ -81,9 +91,9 @@ slopeErrorw =     lfw.getSigb()
 lsw = leastSquares(yy, (interceptw + xx*slopew))
 ladw = leastAbsoluteDeviation(yy, (interceptw + xx*slopew))
 
-(TEMP_intercept,TEMP_slope,temp_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r) = linearRegressionAlgorithm(xx,yy)
+(TEMP_intercept,TEMP_slope,temp_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r) = linearRegressionAlgorithm(xx[r],yy[r])
 
 setLayoutOverplot(3)
-plot(2,xx,yy, renderType='scatter', symbolSize=10, legendLabel='data')
+plot(2,xx,yy,ww, renderType='colorScatter', symbolSize=10, legendLabel='data')
 plot(0,xx,(intercept+xx*slope),color='red',lineWidth=4, legendLabel='leastSquares')
 plot(1,xx,(interceptw+xx*slopew),color='blue',lineWidth=4,legendLabel='weighted',title='Jslope=%s &plusmn; %s!CJslope_weighted=%s &plusmn; %s!CKslope=%s &plusmn; %s'%(round(slope,3),round(slopeError,3),round(slopew,3),round(slopeErrorw,3),round(TEMP_slope,3),round(TEMP_slopeError,3)))

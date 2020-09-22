@@ -93,8 +93,9 @@ ephem_file_T89Q = ephem_root+'rbsp'+spacecraft+'_def_MagEphem_T89Q_$Y$m$d_v$(v,s
 ephem_file_OP77Q = ephem_root+'rbsp'+spacecraft+'_def_MagEphem_OP77Q_$Y$m$d_v$(v,sep).txt?depend0=IsoDateTime&timerange='+str(file_start)+'through'+str(file_end)
 ephem_file_backup = 'file:/D:/Research/EMIC/EMIC%20Catalog/RBSP_'+spacecraft+'_ephemeris-OLD.txt?skipLines=1&depend0=field0'
 
-spin_axis_file = 'vap+cdaweb:ds=RBSP'+SPACECRAFT+'_EFW-L2_E-HIRES-UVW&id=L_vector&filter=uvw&timerange='+str(file_start)+'through'+str(file_end)
-
+# Changed source of spin axis data since they stopped supporting that variable in early 2017 (a bit ridiculous to stop after 5 years, but whatever)
+#spin_axis_file = 'vap+cdaweb:ds=RBSP'+SPACECRAFT+'_EFW-L2_E-HIRES-UVW&id=L_vector&timerange='+str(file_start)+'through'+str(file_end)
+spin_axis_file = 'vap+cdaweb:ds=RBSP'+SPACECRAFT+'_EFW-L2_ESVY_DESPUN&id=spinaxis_gse&timerange='+str(file_start)+'through'+str(file_end)
 
 
 #############################################################################################
@@ -713,11 +714,11 @@ def MAIN():
     
     monitor.setProgressMessage('Rotating MAG data into mGSE')
     
-    Bx_mGSE = ( Bx_GSE_raw * spin_x ) + ( By_GSE_raw * spin_y ) + ( Bz_GSE_raw * spin_z )
+    Bx_mGSE = ( Bx_GSE_raw * spin_x   ) + ( By_GSE_raw * spin_y   ) + ( Bz_GSE_raw * spin_z   )
     By_mGSE = ( Bx_GSE_raw * Y_mGSE_x ) + ( By_GSE_raw * Y_mGSE_y ) + ( Bz_GSE_raw * Y_mGSE_z )
     Bz_mGSE = ( Bx_GSE_raw * Z_mGSE_x ) + ( By_GSE_raw * Z_mGSE_y ) + ( Bz_GSE_raw * Z_mGSE_z )
     
-    Bx_mGSE_detrend = ( Bx_GSE_detrend * spin_x ) + ( By_GSE_detrend * spin_y ) + ( Bz_GSE_detrend * spin_z )
+    Bx_mGSE_detrend = ( Bx_GSE_detrend * spin_x   ) + ( By_GSE_detrend * spin_y   ) + ( Bz_GSE_detrend * spin_z   )
     By_mGSE_detrend = ( Bx_GSE_detrend * Y_mGSE_x ) + ( By_GSE_detrend * Y_mGSE_y ) + ( Bz_GSE_detrend * Y_mGSE_z )
     Bz_mGSE_detrend = ( Bx_GSE_detrend * Z_mGSE_x ) + ( By_GSE_detrend * Z_mGSE_y ) + ( Bz_GSE_detrend * Z_mGSE_z )
     

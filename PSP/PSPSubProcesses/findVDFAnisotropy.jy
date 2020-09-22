@@ -327,6 +327,16 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
     anisotropy_chi = anisotropy_chi**2 # I know it is dumb to take sqrt()**2, but I want to keep these calculations separate
     anisotropy_psi = anisotropy_psi**2 # This is the anisotropy of the temperature (where T~w**2)
     
+    # Now using error propagation of slope uncertainty and measured Bfield to get the actual uncertainty in the calculation/measurement
+    partialAniChi_partialSlopeChi = -temp_Nz / (temp_Nz + chiline - temp_Nz*chiline)**2
+    partialAniChi_partialTemp_Nz = -(chiline*(chiline-1)) / (temp_Nz + chiline - temp_Nz*chiline)**2
+    temp_Nz_standardDev = 1  # THIS IS CURRENTLY 1 nT BECAUSE I HAVE NO MEASUREMENT OF ERROR IN THE FLUXGATE. LEAVE AT TO 1nT?
+    anisotropy_chi_standardDev = sqrt( (partialAniChi_partialSlopeChi*slopeError_chi)**2 + (partialAniChi_partialTemp_Nz*temp_Nz_standardDev)**2 )
+    
+    partialAniPsi_partialSlopePsi = -temp_Nz / (temp_Nz + psiline - temp_Nz*psiline)**2
+    partialAniPsi_partialTemp_Nz = -(psiline*(psiline-1)) / (temp_Nz + psiline - temp_Nz*psiline)**2
+    anisotropy_psi_standardDev = sqrt( (partialAniPsi_partialSlopePsi*slopeError_psi)**2 + (partialAniPsi_partialTemp_Nz*temp_Nz_standardDev)**2 )
+    
     anisotropy_chi_deltaPlus  = dblarr(len(epsilonEpoch))
     anisotropy_chi_deltaMinus = dblarr(len(epsilonEpoch))
     anisotropy_psi_deltaPlus  = dblarr(len(epsilonEpoch))
@@ -378,4 +388,4 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
         
        
     
-    return(chiline, psiline, chiSquaredReduced_chi, chiSquaredReduced_psi, rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi, epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, epsilonEpoch, anisotropy_chi_deltaPlus, anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus, anisotropy_psi_deltaMinus)
+    return(chiline, psiline, chiSquaredReduced_chi, chiSquaredReduced_psi, rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi, epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, epsilonEpoch, anisotropy_chi_deltaPlus, anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus, anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev)

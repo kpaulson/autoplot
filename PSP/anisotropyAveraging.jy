@@ -171,6 +171,8 @@ for vdf in vdfList:
     rSquared_psi = getDataSet(filename+'?rSquared_psi',tr)
     slopeError_chi = getDataSet(filename+'?slopeError_chi',tr)
     slopeError_psi = getDataSet(filename+'?slopeError_psi',tr)
+    standardDev_chi = getDataSet(filename+'?anisotropy_chi_standardDev',tr)
+    standardDev_psi = getDataSet(filename+'?anisotropy_psi_standardDev',tr)
 
     epoch = getDataSet(filename+'?Epoch',tr)
 
@@ -290,8 +292,8 @@ for vdf in vdfList:
     #chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2)
     #psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2)
     # Or now that I have a "slopeError", I should tack that on to the instrumental error added in quadrature (since they are independent)
-    chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2 + slopeError_chi**2)
-    psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2 + slopeError_psi**2)
+    chi_deltaMagnitude = sqrt(chi_plus**2 + chi_minus**2 + standardDev_chi**2)
+    psi_deltaMagnitude = sqrt(psi_plus**2 + psi_minus**2 + standardDev_psi**2)
 
     #plot(0,chi_plus)
     #plot(1,chi_deltaMagnitude)
@@ -323,6 +325,7 @@ for vdf in vdfList:
     average_anisotropy_uncertainty = dblarr(len(epoch))
     average_anisotropy_uncertainty_deltaPlus = dblarr(len(epoch))
     average_anisotropy_uncertainty_deltaMinus = dblarr(len(epoch))
+    average_anisotropy_fitUncertainty = dblarr(len(epoch))
 
     chiValidOnly = where(valid(chi).and(eq(valid(psi),0)))
     psiValidOnly = where(valid(psi).and(eq(valid(chi),0)))
@@ -338,22 +341,34 @@ for vdf in vdfList:
     average_anisotropy[chiValidOnly] = chi[chiValidOnly]
     average_anisotropy[psiValidOnly] = psi[psiValidOnly]
 
-    # methodUncertainty is my name for the uncertainty due to the method itself regardless of the data we have
+    # methodUncertainty is my name for the uncertainty due to the method itself regardless of the data we have (Geometric error?)
     combined_methodUncertainty = sqrt((chi_deltaMagnitude[bothValid]**2+psi_deltaMagnitude[bothValid]**2))/(2)
     combined_methodUncertainty_deltaPlus  = sqrt((chi_plus[bothValid]**2 +psi_plus[bothValid]**2))/(2)
     combined_methodUncertainty_deltaMinus = sqrt((chi_minus[bothValid]**2+psi_minus[bothValid]**2))/(2)
 
     # This takes the uncertainty due to the difference between chi and psi as a chi-squared error, I don't think this is correct
-    #average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
-    average_anisotropy_uncertainty[bothValid] = combined_methodUncertainty + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
-    average_anisotropy_uncertainty_deltaPlus[bothValid] = combined_methodUncertainty_deltaPlus + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
-    average_anisotropy_uncertainty_deltaMinus[bothValid] = combined_methodUncertainty_deltaMinus + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+#    #average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+#    average_anisotropy_uncertainty[bothValid] = combined_methodUncertainty + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+#    average_anisotropy_uncertainty_deltaPlus[bothValid] = combined_methodUncertainty_deltaPlus + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+#    average_anisotropy_uncertainty_deltaMinus[bothValid] = combined_methodUncertainty_deltaMinus + ( ((chi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) + ((psi[bothValid]-average_anisotropy[bothValid])**2/average_anisotropy[bothValid]) )/2.
+#
+#    # This takes a simpler approach of delta(x_bar) = (x_1 - x_2) /sqrt(2)   It is probably right
+#    #average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( abs(chi[bothValid]-psi[bothValid])/sqrt(2.) )
+#    average_anisotropy_uncertainty[bothValid] = combined_methodUncertainty + ( abs(chi[bothValid]-psi[bothValid])/sqrt(2.) )
+#    average_anisotropy_uncertainty_deltaPlus[bothValid]  = sqrt( combined_methodUncertainty_deltaPlus**2  + standardDev_chi[bothValid]**2 + standardDev_psi[bothValid]**2 + abs(chi[bothValid]-psi[bothValid])**2 / 2. )
+#    average_anisotropy_uncertainty_deltaMinus[bothValid] = sqrt( combined_methodUncertainty_deltaMinus**2 + standardDev_chi[bothValid]**2 + standardDev_psi[bothValid]**2 + abs(chi[bothValid]-psi[bothValid])**2 / 2. )
 
     # This takes a simpler approach of delta(x_bar) = (x_1 - x_2) /sqrt(2)   It is probably right
-    #average_anisotropy_uncertainty[bothValid] = 2*((inverse_normalized_chi_delta[bothValid]+inverse_normalized_psi_delta[bothValid])**-2) + ( abs(chi[bothValid]-psi[bothValid])/sqrt(2.) )
+    # Unlike above, this will only be the geometrical error and the uncertainty due to the difference of measurements.
+    # The fit uncertainty will only be used in cases where only the chi or psi value is valid as we lose the two-measurement verification
     average_anisotropy_uncertainty[bothValid] = combined_methodUncertainty + ( abs(chi[bothValid]-psi[bothValid])/sqrt(2.) )
-    average_anisotropy_uncertainty_deltaPlus[bothValid]  = sqrt( combined_methodUncertainty_deltaPlus**2  + slopeError_chi[bothValid]**2 + slopeError_psi[bothValid]**2 + abs(chi[bothValid]-psi[bothValid])**2 / 2. )
-    average_anisotropy_uncertainty_deltaMinus[bothValid] = sqrt( combined_methodUncertainty_deltaMinus**2 + slopeError_chi[bothValid]**2 + slopeError_psi[bothValid]**2 + abs(chi[bothValid]-psi[bothValid])**2 / 2. )
+    average_anisotropy_uncertainty_deltaPlus[bothValid]  = sqrt( combined_methodUncertainty_deltaPlus**2  + abs(chi[bothValid]-psi[bothValid])**2 / 2. )
+    average_anisotropy_uncertainty_deltaMinus[bothValid] = sqrt( combined_methodUncertainty_deltaMinus**2 + abs(chi[bothValid]-psi[bothValid])**2 / 2. )
+
+    # We have additionally added the fit error as a separate variable (partly for transparency, partly because this uncertainty appears to be overly cautious.
+    average_anisotropy_fitUncertainty[bothValid] = sqrt(standardDev_chi[bothValid]**2 + standardDev_psi[bothValid]**2)
+    average_anisotropy_fitUncertainty[chiValidOnly] = standardDev_chi[chiValidOnly]
+    average_anisotropy_fitUncertainty[psiValidOnly] = standardDev_psi[psiValidOnly]
 
     average_anisotropy_uncertainty[chiValidOnly] = chi_deltaMagnitude[chiValidOnly]
     average_anisotropy_uncertainty_deltaPlus[chiValidOnly] = chi_plus[chiValidOnly]
@@ -366,6 +381,9 @@ for vdf in vdfList:
     average_anisotropy_uncertainty_deltaPlus.putProperty(QDataSet.TITLE,'Upper range of uncertainty for combined anisotropy measurement')
     average_anisotropy_uncertainty_deltaMinus.putProperty(QDataSet.NAME,'anisotropy_deltaMinus')
     average_anisotropy_uncertainty_deltaMinus.putProperty(QDataSet.TITLE,'Lower range of uncertainty for combined anisotropy measurement')
+    
+    average_anisotropy_fitUncertainty.putProperty(QDataSet.NAME,'anisotropy_fitUncertainty')
+    average_anisotropy_fitUncertainty.putProperty(QDataSet.TITLE,'Standard deviation in the anisotropy measurement due to the fitting portion of the routine')
 
     average_anisotropy.putProperty(QDataSet.DEPEND_0,epoch)
     average_anisotropy.putProperty(QDataSet.DELTA_PLUS,average_anisotropy_uncertainty_deltaPlus)
@@ -592,12 +610,15 @@ for vdf in vdfList:
             formatDataSet(average_anisotropy,                        output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
             formatDataSet(average_anisotropy_uncertainty_deltaPlus,  output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
             formatDataSet(average_anisotropy_uncertainty_deltaMinus, output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+            formatDataSet(average_anisotropy_fitUncertainty,         output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
             formatDataSet(beta_SI,                                   output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
             formatDataSet(beta_parallel_SI,                          output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
             formatDataSet(beta_perp_SI,                              output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
+            formatDataSet(peakOffScale_L1Cadence,                    output_anitostropyL1_directory + output_anitostropyL1_file+'?append=T')
         else:
             bindle = bundle(Nx, Ny, Nz, Bmag)
             bindle = bundle(bindle, average_anisotropy, average_anisotropy_uncertainty_deltaPlus, average_anisotropy_uncertainty_deltaMinus)
+            bindle = bundle(bindle, average_anisotropy_fitUncertainty)
             bindle = bundle(bindle, beta_SI, beta_parallel_SI, beta_perp_SI)
             bindle = bundle(bindle, peakOffScale_L1Cadence)
             bindle.putProperty(QDataSet.DEPEND_0,epsilonEpoch)

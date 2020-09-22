@@ -1,0 +1,134 @@
+
+
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
+
+
+tr = '2012-10-01 through 2012-10-31'
+sc = 'a' #'a','b'
+coords = 'uvw' #'uvw','gse','gsm','sm','gei','geo'
+
+freq_min = 0.01
+freq_max = 2.
+window = 4096*16
+slide = 4
+
+writeOutHiresFiles = False
+
+tempWork = True
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
+import sys
+import java
+
+try:
+    Hanningfft = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    execfile( Hanningfft.toString() )
+    
+except:
+    print 'Unable to grab subprocess from github'
+    
+    Hanningfft = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    execfile( Hanningfft.toString() )
+
+  
+############################################################################
+#################            DEFINITIONS         ###########################
+############################################################################
+############################################################################
+
+
+if coords == 'uvw':
+    level = 'L2'
+else:
+    level='L3'
+    coords = 'hires-'+coords
+
+magFile = 'http://emfisis.physics.uiowa.edu/Flight/RBSP-%s/%s/$Y/$m/$d/rbsp-%s_magnetometer_%s_emfisis-%s_$Y$m$d_v$(v,sep).cdf'%(sc.upper(),level,sc.lower(),coords,level)
+magFile_local = '/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/emfisis.physics.uiowa.edu/Flight/RBSP-%s/%s/$Y/$m/$d/rbsp-%s_magnetometer_%s_emfisis-%s_$Y$m$d_v$(v,sep).cdf'%(sc.upper(),level,sc.lower(),coords,level)
+  
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+if tempWork == True:
+    
+    freq_min = 0.01
+    freq_max = 30.
+    window = 8192
+    slide = 2
+    
+    tempMagFile = 'C:/Users/kpaulson/GoogleDrive/Research/ChuckWork/RBSP-Mag_spinTone/rbspa-emfisis_mag-292_L2-uvw_2012-10-16_v1.1.4.1.asc'
+    B_uvw = getDataSet('vap+dat:file:/'+tempMagFile+'?time=field0&timeFormat=$Y+$j&rank2=field9-field12')
+    
+    Bmagnitude_fft = Hanningfft( B_uvw[:,3] , freq_min , freq_max , window , slide )
+    Bmagnitude_fftPower = sqrt(Bmagnitude_fft[:,:,0]**2 + Bmagnitude_fft[:,:,1]**2)
+    
+    plot(0,Bmagnitude_fftPower,ytitle='v4!CFrequency (Hz)',ylog=True,yrange=[0.02,30.],zrange=[1E-3,1E3],ztitle='PSD (nT!U2!N/Hz)',title='RBSP-A |B| v4')
+
+else:
+    if writeOutHiresFiles == True:
+        mag_trace_fftPowerTotal = None
+        trs= generateTimeRanges('$Y$m$d',tr)
+        for tr in trs:
+            #outputFile = '/Users/kpaulson/GoogleDrive/Research/ChuckWork/range_all/rbsp-%s_magnetometer_%s_emfisis-%s_%s_spinToneFFt.cdf'%(sc.lower(),coords,level,tr)
+            outputFile = '/Users/kpaulson/GoogleDrive/Research/ChuckWork/range1/rbsp-%s_magnetometer_%s_emfisis-%s_%s_spinToneFFt_range1.cdf'%(sc.lower(),coords,level,tr)
+            
+            try:
+                mag = getDataSet(magFile_local+'?Mag',tr)
+                range_flag = getDataSet(magFile_local+'?range_flag',tr)
+            except:
+                mag = getDataSet(magFile+'?Mag',tr)
+                range_flag = getDataSet(magFile+'?range_flag',tr)
+            
+            r = where(eq(range_flag,1.))
+            mag = mag[r,:]
+            
+            
+            
+            mag_trace = mag[:,0]**2 + mag[:,1]**2 + mag[:,2]**2
+            #plot(0,mag_trace)
+            
+            mag_trace_fft = Hanningfft( mag_trace , freq_min , freq_max , window , slide )
+            mag_trace_fftPower = sqrt(mag_trace_fft[:,:,0]**2 + mag_trace_fft[:,:,1]**2)
+            #plot(0,mag_trace_fftPower)
+            print mag_trace_fftPower
+            
+            #mag_trace_fftPowerTotal = concatenate(mag_trace_fftPowerTotal,mag_trace_fftPower)
+            formatDataSet(mag_trace_fftPower,outputFile)
+            #plot(0,mag_trace_fftPower)
+    
+    elif writeOutHiresFiles == False:
+        window = int(window/64.)
+        mag        = getDataSet('vap+cdaweb:ds=RBSP-A_MAGNETOMETER_1SEC-GSM_EMFISIS-L3&filter=1sec&id=Mag&timerange=Oct+2012')
+        range_flag = getDataSet('vap+cdaweb:ds=RBSP-A_MAGNETOMETER_1SEC-GSM_EMFISIS-L3&filter=1sec&id=range_flag&timerange=Oct+2012')
+        
+        r = where(eq(range_flag,1.))
+        mag = mag[r,:]
+        
+        B_GSM = getDataSet('https://www.rbsp-ect.lanl.gov/data_pub/rbspa/MagEphem/definitive/$Y/rbspa_def_MagEphem_TS04D_$Y$m$d_v$(v,sep).h5?Bsc_gsm&timerange=Oct+2012')
+        B_GSM = synchronize(mag,B_GSM)
+        
+        #mag_trace = mag[:,0]**2 + mag[:,1]**2 + mag[:,2]**2
+        #plot(1,(mag[:,0]-B_GSM[:,0]))
+        #stop
+        mag_trace = (mag[:,0]-B_GSM[:,0])**2 + (mag[:,1]-B_GSM[:,1])**2 + (mag[:,2]-B_GSM[:,2])**2
+        
+        mag_trace_fft = Hanningfft( mag_trace , freq_min , freq_max , window , slide )
+        mag_trace_fftPower = sqrt(mag_trace_fft[:,:,0]**2 + mag_trace_fft[:,:,1]**2)
+        plot(0,mag_trace_fftPower,title='RBSP-A Mag-GSE v1.3.4 Trace Spectrogram - Spin + Heater Tones',ztitle='PSD (nT!U2!N/Hz)',ytitle='Frequency (Hz)',zrange=[0.9,1E5])
+        print mag_trace_fftPower
+        
+        spinTone = where(eq(mag_trace_fftPower.property(QDataSet.DEPEND_1),0.091))
+        spinTone = imin(abs(mag_trace_fftPower.property(QDataSet.DEPEND_1) - 0.091))
+        
+        plot(1,mag_trace_fftPower[:,spinTone])
+    
+print '----------------  All Done!  -------------------'

@@ -14,46 +14,87 @@ frs3_inwards = '2019-08-29 to 2019-08-31'
 frs3_outwards = '2019-09-03 22:00 to 2019-09-05 05:00'
 #frs3_outwards = '2019-09-02 22:00 to 2019-09-06 05:00'
 
+robertEvent6 = '2019-08-22 22:00:00 to 2019-08-23 04:40:00'
+robertEvent8 = '2019-08-26 06:10:00 to 2019-08-26 09:10:00'
+robertEvent9 = ''
+robertEvent10 = '2019-09-19 12:35:00 to 2019-09-20 13:45:00'
 
+
+carringtonRotation_2210 = '2018-10-27 to 2018-11-23'
+carringtonRotation_2211 = '2018-11-23 to 2018-12-20'
+carringtonRotation_2212 = '2018-12-20 to 2019-01-17'
+carringtonRotation_2213 = '2019-01-17 to 2019-02-13'
+carringtonRotation_2214 = '2019-02-13 to 2019-03-13'
+carringtonRotation_2215 = '2019-03-13 to 2019-04-09'
+carringtonRotation_2216 = '2019-04-09 to 2019-05-06'
+carringtonRotation_2217 = '2019-05-06 to 2019-06-02'
+carringtonRotation_2218 = '2019-06-02 to 2019-06-29'
 carringtonRotation_2219 = '2019-06-29 to 2019-07-27'
 carringtonRotation_2220 = '2019-07-27 to 2019-08-23'
 carringtonRotation_2221 = '2019-08-23 to 2019-09-19'
 carringtonRotation_2222 = '2019-09-19 to 2019-10-16'
 carringtonRotation_2223 = '2019-10-16 to 2019-11-13'
 carringtonRotation_2224 = '2019-11-13 to 2019-12-10'
+carringtonRotation_2225 = '2019-12-10 to 2020-01-06'
+carringtonRotation_2226 = '2020-01-06 to 2020-02-03'
+carringtonRotation_2227 = '2020-02-03 to 2020-03-01'
+carringtonRotation_2228 = '2020-03-01 to 2020-03-28'
+carringtonRotation_2229 = '2020-03-28 to 2020-04-25'
+carringtonRotation_2230 = '2020-04-25 to 2020-05-22'
+carringtonRotation_2231 = '2020-05-22 to 2020-06-18'
+carringtonRotation_2232 = '2020-06-18 to 2020-07-15'
+carringtonRotation_2233 = '2020-07-15 to 2020-08-11'
+carringtonRotation_2234 = '2020-08-11 to 2020-09-08'
+carringtonRotation_2235 = '2020-09-08 to 2020-10-05'
+carringtonRotation_2236 = '2020-10-05 to 2020-11-01'
+carringtonRotation_2237 = '2020-11-01 to 2020-11-29'
+carringtonRotation_2238 = '2020-11-29 to 2020-12-26'
+carringtonRotation_2239 = '2020-12-26 to 2021-01-22'
 
 carringtonRotation_2221_and_2222 = '2019-08-23 to 2019-10-16'
+
+nishuTime = '2018-11-13 to 2018-11-24'
 
 tr = frs3_inwards
 #tr = perihelion3
 #tr = frs3_outwards  # doesn't seem to work well
-tr = '2019-08-07 14:00 to 2019-08-09 19:00' # Orbit 3 inbound fast stream matches sides
+#tr = '2019-08-07 14:00 to 2019-08-09 19:00' # Orbit 3 inbound fast stream matches sides
 #tr = '2019-08-21 to 2019-08-26' # Orbit 3 inbound messy streams
 #tr = '2019-09-20 12:00 to 2019-09-24 00:00' # Orbit 3 same fast stream
 #tr = '2019-09-14 to 2019-09-19' # Orbit 3 both fast and slow
 #tr = '2019-09-17 09:00 to 2019-09-18 6:00' # Orbit 3 both fast and slow
-tr = orbit3 
-tr = orbit3_inbound
-tr_WIND = carringtonRotation_2220
+tr = '2019-08-26 to 2019-09-04'
+#tr = robertEvent8
+#tr = '2019-08-20 to 2019-09-07' #Inbound with both FRS orbit3
+#tr = nishuTime
+tr_WIND = '2018-11-04 to 2018-11-07'#carringtonRotation_2220
+tr_WIND = carringtonRotation_2219
 tr_STA = tr_WIND
 
-plotType = 'dialPlot'  #'longitudeStack', 'dialPlot'
-longitudeProjectionRadius = 0.5
+plotType = 'longitudeStack'  #'longitudeStack', 'dialPlot'
+longitudeProjectionRadius_inRs = 25
+longitudeProjectionRadius = longitudeProjectionRadius_inRs/215.032
 filterLongitude = True
-minLon = 15
-maxLon = 45
+minLon = 0#43#280
+maxLon = 360#50#360
+filterRadius = True
+minRadAU = 0
+maxRadAU = 0.8
+filterVelocity = True
+minVelAU = 0.0
+maxVelAU = 1.
 
 downsampleFactor = 1
 
 
 if plotType == 'dialPlot':
-    tt = linspace(0.15,0.65,400)
+    tt      = linspace(0.15,0.65,400)
     tt_WIND = linspace(0.8,1.,200)
-    tt_STA = linspace(0.65,0.8,200)
+    tt_STA  = linspace(0.65,0.8,200)
 elif plotType == 'longitudeStack':
-    tt = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
+    tt      = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
     tt_WIND = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
-    tt_STA = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
+    tt_STA  = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
 
 
 alfvenPointDirectory = '/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/'
@@ -169,6 +210,9 @@ STA_V_longitude = STA_plasma[:,3]
 STA_density     = STA_plasma[:,4]
 STA_temperature = STA_plasma[:,5]
 
+#if tr == 'nishuTime':
+#    PSP_r_AU = getDataSet('',tr)
+
 
 #plot(0,STA_carringtonLon,STA_V)
 #plot(1,PSP_lon,PSP_Vr_SPi,color='red')
@@ -202,6 +246,20 @@ if filterLongitude == True:
     lon0 = lon0[lonSlice]
     v    = v[lonSlice]
     PSP_magSector = PSP_magSector[lonSlice]
+
+if filterRadius == True:
+    radSlice = where(ge(r0,minRadAU).and(le(r0,maxRadAU)))
+    r0   = r0[radSlice]
+    lon0 = lon0[radSlice]
+    v    = v[radSlice]
+    PSP_magSector = PSP_magSector[radSlice]
+
+if filterVelocity == True:
+    velSlice = where(ge(v,minVelAU).and(le(v,maxVelAU)))
+    r0   = r0[velSlice]
+    lon0 = lon0[velSlice]
+    v    = v[velSlice]
+    PSP_magSector = PSP_magSector[velSlice]
 
 rmax = 0.7 #Limit in AU
 t0 = r0/v
@@ -400,26 +458,31 @@ lonTot_STA = mod(lonTot_STA+360,360)
 if plotType == 'dialPlot':
    
     #setLayoutOverplot(6)
-    load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots.vap')
-    plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2)
-    plot(1,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
+    load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
+    #load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots.vap')
+    plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2,title='Positive Polarity',ztitle='v!Br!N  (AU/day)')
+    plot(4,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
     plot(2,(rTot_WIND*cos(toRadians(lonTot_WIND)))[posSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[posSector_WIND],(vTot_WIND)[posSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
     plot(3,(rTot_STA*cos(toRadians(lonTot_STA)))[posSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[posSector_STA],(vTot_STA)[posSector_STA],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
     
-    plot(6,(rTot_PSP*cos(toRadians(lonTot_PSP)))[negSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[negSector_PSP],vTot_PSP[negSector_PSP],symbolSize=2)
+    plot(1,(rTot_PSP*cos(toRadians(lonTot_PSP)))[negSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[negSector_PSP],vTot_PSP[negSector_PSP],symbolSize=2,title='Negative Polarity',ztitle='v!Br!N  (AU/day)')
     plot(7,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
     plot(8,(rTot_WIND*cos(toRadians(lonTot_WIND)))[negSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[negSector_WIND],(vTot_WIND)[negSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
     plot(9,(rTot_STA*cos(toRadians(lonTot_STA)))[negSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[negSector_STA],(vTot_STA)[negSector_STA],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
 
+    dom.plotElements[0].controller.renderer.setDataSetSizeLimit(int(1E8))
+    dom.plotElements[1].controller.renderer.setDataSetSizeLimit(int(1E8))
+    dom.plots[2].setTitle('PSP: '+tr+'!C Carr. Rot.: '+tr_WIND)
 
 elif plotType == 'longitudeStack':
     load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
-    plot(0,lonTot_PSP[posSector_PSP],vTot_PSP[posSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP')
+    plot(0,lonTot_PSP[posSector_PSP],vTot_PSP[posSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP',title='V!Br!N Projected to %s r!Bs!N'%longitudeProjectionRadius_inRs)
     plot(1,lonTot_WIND[posSector_WIND],vTot_WIND[posSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (AU/day)',symbolSize=5,legendLabel='WIND')
     plot(2,lonTot_STA[posSector_STA],vTot_STA[posSector_STA],color='black',renderType='scatter',xlog=False,ytitle='positive magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')
     
     
-    plot(3,lonTot_PSP[negSector_PSP],vTot_PSP[negSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP')
+    plot(3,lonTot_PSP[negSector_PSP],vTot_PSP[negSector_PSP],lon0.property(QDataSet.DEPEND_0)[negSector_PSP],renderType='colorScatter',symbolSize=5,legendLabel='PSP')
+    #plot(3,lonTot_PSP[negSector_PSP],vTot_PSP[negSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP')
     plot(4,lonTot_WIND[negSector_WIND],vTot_WIND[negSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (AU/day)',symbolSize=5,legendLabel='WIND')
-    plot(5,lonTot_STA[negSector_STA],vTot_STA[negSector_STA],color='black',renderType='scatter',xlog=False,ytitle='negative magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')
+    plot(5,lonTot_STA[negSector_STA],vTot_STA[negSector_STA],color='black',renderType='scatter',xlog=False,ytitle='negative magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA',xtitle='Carrington Longitude')
 

@@ -1,0 +1,34 @@
+tr = '2020-09-28 00:00 to 2020-09-30 24:00'
+
+directory = '/Users/kpaulson/GoogleDrive/Research/TatianaWork/20200926_CME/LASCO_c2_images/'
+
+ds = getDataSet(directory+'raw/$Y$m$d_$H$M_c2_1024.jpg',tr)
+
+#imageStill = ds[10,:,:,:]
+#plot(0,imageStill,renderType='image')
+
+sunCircle = circle(81)+512-8
+sunCircle_dep0 = sunCircle.property(QDataSet.DEPEND_0)
+sunCircle_dep0 = sunCircle_dep0+512
+        
+imageSubtraction_ds = copy(ds)
+for i in xrange(len(ds)):
+    if i > 0:
+        imageSubtraction_ds[i] = ds[i,:,:,:] - ds[i-1,:,:,:]
+        #plot(0,ds[i],renderType='image',yrange=[0,1024])
+        imageSubtraction = (imageSubtraction_ds[i,:,:,0]+imageSubtraction_ds[i,:,:,0]+imageSubtraction_ds[i,:,:,0])
+        smoothedImageSubtraction = smooth2d(imageSubtraction,3,3)
+        #plot(1,imageSubtraction_ds[i],renderType='image')
+        #plot(1,smoothedImageSubtraction,renderType='nnSpectrogram',colorTable='blue_white_red',zrange=[-25,25],yrange=[0,1024])
+        plot(0,smoothedImageSubtraction,renderType='nnSpectrogram',colorTable='grayscale',zrange=[-25,25],yrange=[0,1024])
+        plot(2,sunCircle_dep0,sunCircle,color='black',lineWidth=3)
+        
+        writeToPng(directory+'subtractedSmoothGrey/subtractedStackedImage_c2_1024_%s.png'%i)
+        #formatDataSet(imageSubtraction_ds[i],directory+'subtracted/subtractedImage_c2_1024_%s.png'%i)
+
+#imageSubtractionStill = imageSubtraction_ds[10,:,:,:]
+#plot(1,imageSubtractionStill,renderType='image')
+
+
+#plot(1,smooth2d(imageSubtraction_ds[204,:,:,0]+imageSubtraction_ds[204,:,:,1]+imageSubtraction_ds[204,:,:,2],3,3),renderType='nnSpectrogram',zrange=[-25,25])
+

@@ -1,0 +1,18 @@
+
+
+tr = '2020-06-13+4:00+to+8:00'
+tr = '2020-06-07+4:00+to+8:00'
+
+spc_wheel = '0'
+flds_wheel = '1'
+
+spc_hk = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/Housekeeping/APID254_combined_$Y_L2.cdf?FSW_GC_HK_HK_WHLSPD%s'%spc_wheel,tr)
+
+flds_100bps = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW%s'%flds_wheel,tr)
+
+flds_100bps = synchronize(spc_hk,flds_100bps)
+
+
+plot(0,spc_hk)
+plot(1,flds_100bps)
+plot(2,spc_hk/flds_100bps)

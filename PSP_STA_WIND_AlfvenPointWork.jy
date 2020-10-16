@@ -19,6 +19,8 @@ robertEvent8 = '2019-08-26 06:10:00 to 2019-08-26 09:10:00'
 robertEvent9 = ''
 robertEvent10 = '2019-09-19 12:35:00 to 2019-09-20 13:45:00'
 
+mikeEvent1 = '2018-11-02 00:20 to 2018-11-05 16:30'
+mikeEvent2 = '2018-11-13 10:20 to 2018-11-13 20:10'
 
 carringtonRotation_2210 = '2018-10-27 to 2018-11-23'
 carringtonRotation_2211 = '2018-11-23 to 2018-12-20'
@@ -55,20 +57,25 @@ carringtonRotation_2221_and_2222 = '2019-08-23 to 2019-10-16'
 
 nishuTime = '2018-11-13 to 2018-11-24'
 
+
 tr = frs3_inwards
 #tr = perihelion3
 #tr = frs3_outwards  # doesn't seem to work well
 #tr = '2019-08-07 14:00 to 2019-08-09 19:00' # Orbit 3 inbound fast stream matches sides
 #tr = '2019-08-21 to 2019-08-26' # Orbit 3 inbound messy streams
-#tr = '2019-09-20 12:00 to 2019-09-24 00:00' # Orbit 3 same fast stream
+tr = '2019-09-20 12:00 to 2019-09-24 00:00' # Orbit 3 same fast stream
 #tr = '2019-09-14 to 2019-09-19' # Orbit 3 both fast and slow
-#tr = '2019-09-17 09:00 to 2019-09-18 6:00' # Orbit 3 both fast and slow
-tr = '2019-08-26 to 2019-09-04'
+tr = '2019-09-17 09:00 to 2019-09-18 6:00' # Orbit 3 both fast and slow
+#tr = '2019-08-26 to 2019-09-04'
 #tr = robertEvent8
 #tr = '2019-08-20 to 2019-09-07' #Inbound with both FRS orbit3
-#tr = nishuTime
+tr = nishuTime
+#tr = mikeEvent2
+#tr = '2018-11-02 to 2018-12-16'
+#tr = orbit3
+
 tr_WIND = '2018-11-04 to 2018-11-07'#carringtonRotation_2220
-tr_WIND = carringtonRotation_2219
+tr_WIND = carringtonRotation_2213
 tr_STA = tr_WIND
 
 plotType = 'longitudeStack'  #'longitudeStack', 'dialPlot'
@@ -77,7 +84,7 @@ longitudeProjectionRadius = longitudeProjectionRadius_inRs/215.032
 filterLongitude = True
 minLon = 0#43#280
 maxLon = 360#50#360
-filterRadius = True
+filterRadius = False
 minRadAU = 0
 maxRadAU = 0.8
 filterVelocity = True
@@ -89,7 +96,7 @@ downsampleFactor = 1
 
 if plotType == 'dialPlot':
     tt      = linspace(0.15,0.65,400)
-    tt_WIND = linspace(0.8,1.,200)
+    tt_WIND = linspace(0.68,1.,200)
     tt_STA  = linspace(0.65,0.8,200)
 elif plotType == 'longitudeStack':
     tt      = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
@@ -220,7 +227,8 @@ STA_temperature = STA_plasma[:,5]
 #stop
 
 
-omega = 360./(24.47)
+#omega = 360./(24.47)
+omega = 360./(27.)
 AU_in_km = 149000000
 min_PSP_range = 0.
 max_PSP_range = 1.
@@ -452,10 +460,22 @@ lonTot_PSP = mod(lonTot_PSP+360,360)
 lonTot_WIND = mod(lonTot_WIND+360,360)
 lonTot_STA = mod(lonTot_STA+360,360)
 
-
+sunSymbol = circle(1./215.)
 #vTot_PSP = vTot_PSP*AU_in_km/(*60*60*24)
 
 if plotType == 'dialPlot':
+    if tr == nishuTime:
+        v = v*AU_in_km/(60*60*24)
+        vTot_PSP = vTot_PSP*AU_in_km/(60*60*24)
+        vTot_WIND = vTot_WIND*AU_in_km/(60*60*24)
+        load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
+        plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2,title='Positive Polarity',ztitle='v!Br!N  (AU/day)')
+        plot(4,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,renderType='scatter',xrange=[-0.1,1.],yrange=[-0.1,0.4])
+        plot(2,(rTot_WIND*cos(toRadians(lonTot_WIND)))[posSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[posSector_WIND],(vTot_WIND)[posSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1],zrange=[200,800])
+        plot(3,(rTot_STA*cos(toRadians(lonTot_STA)))[posSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[posSector_STA],(vTot_STA)[posSector_STA],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
+        plot(5,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=7,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
+        
+        plot(6,circle(1./215.))
    
     #setLayoutOverplot(6)
     load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
@@ -475,10 +495,23 @@ if plotType == 'dialPlot':
     dom.plots[2].setTitle('PSP: '+tr+'!C Carr. Rot.: '+tr_WIND)
 
 elif plotType == 'longitudeStack':
+    if tr == nishuTime:
+        vTot_PSP = vTot_PSP*AU_in_km/(60*60*24)
+        vTot_WIND = vTot_WIND*AU_in_km/(60*60*24)
+        load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
+        plot(0,lonTot_PSP[posSector_PSP],vTot_PSP[posSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP',title='V!Br!N Projected to %s r!Bs!N'%longitudeProjectionRadius_inRs)
+        plot(1,lonTot_WIND[posSector_WIND],vTot_WIND[posSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (km/s)',symbolSize=5,legendLabel='WIND',yrange=[200,800],xrange=[230,330])
+        #plot(2,lonTot_STA[posSector_STA],vTot_STA[posSector_STA],color='black',renderType='scatter',xlog=False,ytitle='positive magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')
+        
+        stop
+       
+    vTot_PSP = vTot_PSP*AU_in_km/(60*60*24)
+    vTot_WIND = vTot_WIND*AU_in_km/(60*60*24) 
     load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
     plot(0,lonTot_PSP[posSector_PSP],vTot_PSP[posSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP',title='V!Br!N Projected to %s r!Bs!N'%longitudeProjectionRadius_inRs)
     plot(1,lonTot_WIND[posSector_WIND],vTot_WIND[posSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (AU/day)',symbolSize=5,legendLabel='WIND')
     plot(2,lonTot_STA[posSector_STA],vTot_STA[posSector_STA],color='black',renderType='scatter',xlog=False,ytitle='positive magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')
+    
     
     
     plot(3,lonTot_PSP[negSector_PSP],vTot_PSP[negSector_PSP],lon0.property(QDataSet.DEPEND_0)[negSector_PSP],renderType='colorScatter',symbolSize=5,legendLabel='PSP')

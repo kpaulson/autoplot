@@ -250,6 +250,7 @@ for tr in trs:
             reactionWheelTone[:,1] = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW2',tr)
             reactionWheelTone[:,2] = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW3',tr)
             reactionWheelTone[:,3] = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW4',tr)
+            
     
     
         # ###
@@ -337,9 +338,15 @@ for tr in trs:
         # ### FILTER OUT REACTION WHEEL SIGNALS
         # ###
     
-        #if removeReactionWheelTone == True:
-        #    for i in reactionWheelTone[0,:]:
-                
+        if removeReactionWheelTone == True:
+            for fft_ds in [Bn_fft,Bp_fft,Bq_fft,En_fft,Ep_fft,Eq_fft]:
+                for wheelNumber in xrange(len(reactionWheelTone[0,:])):
+                    if gt(len(reactionWheelTone[:,wheelNumber][where(valid(reactionWheelTone[:,wheelNumber]))]), 0):
+                        try:
+                            wheelToneMask = reactionWheelToneRemover(fft_ds, reactionWheelTone[:,wheelNumber], wheelToneSpectralWidth=5, chi_squared_critical_min = 0.05, maxAttempts = 30)
+                            fft_ds = fft_ds-wheelToneMask
+                        except:
+                            continue
     
         # ###
         # ### CALCULATE POLARIZATION PARAMETERS

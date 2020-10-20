@@ -179,6 +179,8 @@ for tr in trs:
         time_last = TimeUtil.now()
         
         v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+        v_z.putProperty(QDataSet.NAME,'v_z')
+        v_z.putProperty(QDataSet.LABEL,'v!Bz!N (km/s)')
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
@@ -279,7 +281,22 @@ for tr in trs:
         waitUntilIdle()
         if writeStuff == True:
             writeToPng('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Plots/SPC_VDF_%s.png'%tr)
-            formatDataSet(vdf,outputFile)
+            
+            vdf.putProperty(  QDataSet.NAME,'vdf')
+            U.putProperty(    QDataSet.NAME,'sc_x_deflection')
+            V.putProperty(    QDataSet.NAME,'sc_y_deflection')
+            pinch.putProperty(QDataSet.NAME,'spot_ellipticity')
+            
+            vdf.putProperty(  QDataSet.LABEL,'vdf')
+            U.putProperty(    QDataSet.LABEL,'sc_x deflection!C(degrees)')
+            V.putProperty(    QDataSet.LABEL,'sc_y deflection!C(degrees)')
+            pinch.putProperty(QDataSet.LABEL,'ellipticity ([A+C]-[B+D])')
+            
+            vdf_bindle = bundle(vdf,U,V,pinch)
+            vdf_bindle.putProperty( QDataSet.DEPEND_0,vdf.property(QDataSet.DEPEND_0) )
+            vdf_bindle.putProperty( QDataSet.DEPEND_1,vdf.property(QDataSet.DEPEND_1) )
+            
+            formatDataSet(vdf_bindle,outputFile+'?bundle=T')
     except:
         if fileAlreadyExists == False:
             print 'vdf processing failed for %s'%tr

@@ -7,7 +7,7 @@
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')#
 #timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
-timerange = getParam('timerange','2020-01-01','Iteration Timerange')
+timerange = getParam('timerange','2020-01-27','Iteration Timerange')
 version = getParam('version','0.4.5','Version number to be appended to filenames')
 
 #separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
@@ -497,30 +497,30 @@ for tr in trs:
         
         # If we want to use the peaks as weights in fitting, import L3 data and build model distributions
         if separatePeaksWithL3Values == True:
-            sweap_spc_file = 'http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+            sweap_spc_L3_file = 'http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
             
-            DQF = getDataSet(sweap_spc_file+'?DQF',tr)
+            DQF = getDataSet(sweap_spc_L3_file+'?DQF',tr)
             goodFlags = where(eq(DQF[:,0],0))
 
-            np_fit = getDataSet(sweap_spc_file+'?np_fit',tr)[goodFlags]
-            wp_fit = getDataSet(sweap_spc_file+'?wp_fit',tr)[goodFlags]
-            vp_fit_SC = getDataSet(sweap_spc_file+'?vp_fit_SC',tr)[goodFlags]
+            np_fit = getDataSet(sweap_spc_L3_file+'?np_fit',tr)[goodFlags]
+            wp_fit = getDataSet(sweap_spc_L3_file+'?wp_fit',tr)[goodFlags]
+            vp_fit_SC = getDataSet(sweap_spc_L3_file+'?vp_fit_SC',tr)[goodFlags]
             vp_fit = magnitude(vp_fit_SC)
             spc_time = np_fit.property(QDataSet.DEPEND_0)
             
-            np1_fit = getDataSet(sweap_spc_file+'?np1_fit',tr)[goodFlags]
-            wp1_fit = getDataSet(sweap_spc_file+'?wp1_fit',tr)[goodFlags]
-            vp1_fit_SC = getDataSet(sweap_spc_file+'?vp1_fit_SC',tr)[goodFlags]
+            np1_fit = getDataSet(sweap_spc_L3_file+'?np1_fit',tr)[goodFlags]
+            wp1_fit = getDataSet(sweap_spc_L3_file+'?wp1_fit',tr)[goodFlags]
+            vp1_fit_SC = getDataSet(sweap_spc_L3_file+'?vp1_fit_SC',tr)[goodFlags]
             vp1_fit = magnitude(vp1_fit_SC)
             
-            n3_fit = getDataSet(sweap_spc_file+'?n3_fit',tr)[goodFlags]
-            w3_fit = getDataSet(sweap_spc_file+'?w3_fit',tr)[goodFlags]
-            v3_fit_SC = getDataSet(sweap_spc_file+'?v3_fit_SC',tr)[goodFlags]
+            n3_fit = getDataSet(sweap_spc_L3_file+'?n3_fit',tr)[goodFlags]
+            w3_fit = getDataSet(sweap_spc_L3_file+'?w3_fit',tr)[goodFlags]
+            v3_fit_SC = getDataSet(sweap_spc_L3_file+'?v3_fit_SC',tr)[goodFlags]
             v3_fit = magnitude(v3_fit_SC)
             
-            na_fit = getDataSet(sweap_spc_file+'?na_fit',tr)[goodFlags]
-            wa_fit = getDataSet(sweap_spc_file+'?wa_fit',tr)[goodFlags]
-            va_fit_SC = getDataSet(sweap_spc_file+'?va_fit_SC',tr)[goodFlags]
+            na_fit = getDataSet(sweap_spc_L3_file+'?na_fit',tr)[goodFlags]
+            wa_fit = getDataSet(sweap_spc_L3_file+'?wa_fit',tr)[goodFlags]
+            va_fit_SC = getDataSet(sweap_spc_L3_file+'?va_fit_SC',tr)[goodFlags]
             va_fit = magnitude(va_fit_SC)
             
             # Define Gaussian parameters
@@ -603,13 +603,17 @@ for tr in trs:
         #plot(vz_tanPhi)
         #stop
         
-        # Define background flow to avoid weird slope values?
-        u_x = vz_tanTheta[r]
-        u_y = vz_tanPhi[r]
-        u_z = v_z[r]
-        #u_x = 0*vz_tanTheta[r]
-        #u_y = 0*vz_tanPhi[r]
-        #u_z = 0*v_z[r]
+        #U is supposed to be v_sc so that we keep the spacecraft motion out of this (duh...)
+        #HOWEVER, it has little to no effect on the results
+        psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+        psp_ephem_file = psp_ephem_file_local #Some day I need to figure out how to grab a nonlocal copy of these files
+        v_scz = getDataSet(psp_ephem_file+'?SC_VR_kms',tr)
+        v_scx = getDataSet(psp_ephem_file+'?SC_VORB_kms',tr)
+        v_scy = getDataSet(psp_ephem_file+'?SC_VZ_kms',tr)
+        u_x = synchronize(v_z,v_scx)
+        u_y = synchronize(v_z,v_scy)
+        u_z = synchronize(v_z,v_scz)
+        
         
         #if 'alreadyPlottedOnce' not in globals():
             #setLayoutOverplot(4) 

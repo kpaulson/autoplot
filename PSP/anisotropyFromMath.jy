@@ -630,19 +630,34 @@ for tr in trs:
         #####
         ##########
         #################
+        
+        # Why was this using the full-resolution data instead of the 1min product? I am smoothing it on that order anyway, this was a dumb choice.
         try:
-            mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-            mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+            # First try public 1min data
+            mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+            mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
             print 'Used mag data from:',mag_datafile
         except:
             try:
-                mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-                mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                # Then try team 1min data
+                mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
                 print 'Used mag data from:',mag_datafile
             except:
-                mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
-                print 'Used mag data from:',mag_datafile
+                try:
+                    # Then start probing the full-resolution files to see if anything is there
+                    mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+                    mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                    print 'Used mag data from:',mag_datafile
+                except:
+                    try:
+                        mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+                        mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                        print 'Used mag data from:',mag_datafile
+                    except:
+                        mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+                        mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
+                        print 'Used mag data from:',mag_datafile
                 
         #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
         mag = trim(mag,tr)

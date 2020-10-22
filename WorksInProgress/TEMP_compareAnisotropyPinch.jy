@@ -1,0 +1,41 @@
+
+tr = '2020-01-27'
+
+vdf_file = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Files/SPC_VDF_$Y-$m-$d.cdf'
+anisotropy_file = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v1.1.5/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.5.cdf'
+mag_file = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+
+
+
+vdf              = getDataSet(vdf_file+'?vdf&y=v_z',tr)
+spot_ellipticity = getDataSet(vdf_file+'?spot_ellipticity&y=v_z',tr)
+magSC            = getDataSet(mag_file+'?psp_fld_l2_mag_SC_1min',tr)
+anisotropy       = getDataSet(anisotropy_file+'?anisotropy',tr)
+
+peaks = reduceMax(vdf,1)
+r = where(eq(vdf,peaks))
+peakPinch = spot_ellipticity[r]
+
+
+magSC = synchronize(anisotropy,magSC)
+peakPinch = synchronize(anisotropy,peakPinch)
+
+
+projectedMagAngle = putProperty(atan2(magSC[:,1],magSC[:,0]),QDataSet.UNITS,Units.radians)+toRadians(225)
+
+plot(magSC)
+plot(1,projectedMagAngle)
+
+plot(peakPinch)
+plot(1,peakPinch*cos(projectedMagAngle),peakPinch*sin(projectedMagAngle),renderType='scatter')
+plot(2,anisotropy)
+
+plot(3,anisotropy,peakPinch*sin(projectedMagAngle),renderType='scatter')
+stop
+
+
+
+plot(1,peakPinch)
+plot(2,anisotropy)
+
+plot(3,anisotropy,peakPinch,renderType='scatter')

@@ -6,37 +6,38 @@ import org.das2.graph.SpectrogramRenderer
 ############################################################################
 ############################################################################
 
-timerange = getParam('timerange','2018-11-01','Iteration Timerange')
-#version = getParam('version','0.4.1','Version number to be appended to filenames')
+timerange             = getParam('timerange','2018-11-01','Iteration Timerange')
 checkForPreviousFiles = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
+onlyUsePrivateSPC     = getParam('non-publicSPCFiles','T','Skip looking at the public SPC directory and use private files (requires password)?',['T','F'])
+writeStuff            = getParam('writeStuff','T','Write out cdf and png of SPC vdf data to local directory?',['T','F'])
 
-writeStuff = True
 manuallyRemoveFullScans = False
-
-plotFitsAndPauseALot = False
-separatePeaksWithL3Values = False
 calculateVDFUncertainty = False
 
 
+if onlyUsePrivateSPC == 'T':
+    onlyUsePrivateSPC = True
+elif onlyUsePrivateSPC == 'F':
+    onlyUsePrivateSPC = False
 
 if checkForPreviousFiles == 'T':
     checkForPreviousFiles = True
 elif checkForPreviousFiles == 'F':
     checkForPreviousFiles = False
+    
+if writeStuff == 'T':
+    writeStuff = True
+    outputDirectory = getParam('ouputDirectory','/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/','Local directory in which to write vdf cdf')
+elif writeStuff == 'F':
+    writeStuff = False
+    outputDirectory = '/tmp/'
 
-#output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-#output_folder = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_Files/TEMP/'
-#output_folder = 'D:/Research/ParkerProbe/SWEAP/SPC/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 
 m_p                  = 1.6726231E-24
 q                    = 1.6022E-12
-#trend_seconds        = getParam('Bfield_window' , 30 , 'Number of seconds over which to average magField to determine background field direction' )
-#minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
-#fitSeconds           = getParam('fit_window' , 5 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
-#modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
 
-cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-#cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2i_$Y$m$d_v$v.cdf'
+cfa_sweap_file_private = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+cfa_sweap_file_public = 'http://sweap.cfa.harvard.edu/pub/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
         
     
 ############################################################################
@@ -56,7 +57,7 @@ for tr in trs:
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
         
-    outputFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Files/SPC_VDF_%s.cdf'%tr
+    outputFile = outputDirectory+'Files/SPC_VDF_%s.cdf'%tr
     
     fileAlreadyExists = False
     if checkForPreviousFiles == True:
@@ -76,13 +77,10 @@ for tr in trs:
             raise fileAlreadyExistsException
             
         try:
-#            spc_a = getDataSet(cfa_sweap_file+'?a_current',tr)
-#            spc_b = getDataSet(cfa_sweap_file+'?b_current',tr)
-#            spc_c = getDataSet(cfa_sweap_file+'?c_current',tr)
-#            spc_d = getDataSet(cfa_sweap_file+'?d_current',tr)
-#
-#            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo',tr)
-#            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi',tr)
+            if onlyUsePrivateSPC == True:
+                raise moveItAlongException
+                
+            cfa_sweap_file = cfa_sweap_file_public
             
             spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
             spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
@@ -99,9 +97,29 @@ for tr in trs:
 
             mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
             mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            
         except:
-            noSPCData = None
-            raise java.io.FileNotFoundException
+            try:
+                cfa_sweap_file = cfa_sweap_file_private
+                
+                spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+                spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+                spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+                spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+    
+                mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+                mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+                
+                spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+                spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+                spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+                spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+    
+                mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+                mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            except:
+                noSPCData = None
+                raise java.io.FileNotFoundException
             
         print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
         time_last = TimeUtil.now()
@@ -138,14 +156,15 @@ for tr in trs:
         totalFlux = sum(spc_list)
         #totalFlux = totalFlux/((mv_lo + (mv_hi-mv_lo)/2) * (mv_hi-mv_lo))
         
-        fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
-        fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
+        fluxDifference_scx =   (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
+        fluxDifference_scy =   (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
         fluxDifference_pinch = (spc_list[0]+spc_list[2]) - (spc_list[1]+spc_list[3])
         
         U = (fluxDifference_scy/totalFlux)/0.035
         V = (fluxDifference_scx/totalFlux)/0.035
         pinch = (fluxDifference_pinch/totalFlux)/0.035
         
+        # Temporarily set the valid range to None, since the medianFilter function can't handle fill values yet
         U.putProperty(QDataSet.VALID_MIN,None)
         V.putProperty(QDataSet.VALID_MIN,None)
         pinch.putProperty(QDataSet.VALID_MIN,None)
@@ -164,16 +183,20 @@ for tr in trs:
             except:
                 continue
         
+        # Set this back to a reasonable range so that we don't have issues plotting later
+        U.putProperty(QDataSet.VALID_MIN,-360)
+        V.putProperty(QDataSet.VALID_MIN,-360)
+        pinch.putProperty(QDataSet.VALID_MIN,-360)
+        U.putProperty(QDataSet.VALID_MAX,360)
+        V.putProperty(QDataSet.VALID_MAX,360)
+        pinch.putProperty(QDataSet.VALID_MAX,360)
+        
         U.putProperty(QDataSet.UNITS,Units.degrees)
         V.putProperty(QDataSet.UNITS,Units.degrees)
         
         #plot(0,totalFlux)
         #plot(1,U)
         #plot(2,V)
-        
-        
-        #Are you measuring the slope near the peak in current or near the peak in the velocity distribution function? 
-        #(the VDF goes like current divided by speed time window width in speed units)
         
         print 'Calculating Flow Angles took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
@@ -182,7 +205,7 @@ for tr in trs:
         v_z.putProperty(QDataSet.NAME,'v_z')
         v_z.putProperty(QDataSet.LABEL,'v!Bz!N (km/s)')
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
-        vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
+        vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values. Need to figure this out at some point. conversion to NYs?
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
         
         if calculateVDFUncertainty == True:
@@ -212,6 +235,7 @@ for tr in trs:
         
         del(windowWidths,mv_hi)
         
+        # Temporary kludge to skip mislabeled full scans
         if manuallyRemoveFullScans == True:
             for i in xrange(len(v_z)):
                 try:
@@ -239,10 +263,14 @@ for tr in trs:
         time_last = TimeUtil.now()
         
         #setLayoutOverplot(2)
-        load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
+        try:
+            load('https://github.com/kpaulson/autoplot/blob/master/PSP/VAPs/SPC_VDF_stack.vap')
+        except:
+            try:
+                load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
+            except:
+                continue
         waitUntilIdle()
-        
-        #tempTime = timegen('October 1st, 2019','0.8sec',len(vdf))
         
         plot(0,vdf,zlog=True,xrange=tr, zrange=[0.05,20], ytitle='Vz (km/s)', ztitle='VDF!C(cm!U-3!N km!U-1!N s)', title='PSP SPC VDF %s'%(timerange))
         
@@ -263,10 +291,6 @@ for tr in trs:
         
         U.putProperty(QDataSet.UNITS,spc_a.property(QDataSet.UNITS))
         V.putProperty(QDataSet.UNITS,spc_a.property(QDataSet.UNITS))
-        #spc_a.putProperty(QDataSet.UNITS,None)
-        #spc_b.putProperty(QDataSet.UNITS,None)
-        #spc_c.putProperty(QDataSet.UNITS,None)
-        #spc_d.putProperty(QDataSet.UNITS,None)
         
         diag1 = V + 2*(spc_c-spc_d)/totalFlux/0.035
         diag2 = U - 2*(spc_a-spc_d)/totalFlux/0.035
@@ -278,9 +302,10 @@ for tr in trs:
 #        plot(5,pinch/diag2,zrange=[-1,1])
 #        stop
 #        plot(4,spc_a.property(QDataSet.DEPEND_0),v_z,pinch/diag)
+
         waitUntilIdle()
         if writeStuff == True:
-            writeToPng('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/Plots/SPC_VDF_%s.png'%tr)
+            writeToPng(outputDirectory+'Plots/SPC_VDF_%s.png'%tr)
             
             vdf.putProperty(  QDataSet.NAME,'vdf')
             U.putProperty(    QDataSet.NAME,'sc_x_deflection')

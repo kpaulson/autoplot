@@ -1,5 +1,6 @@
 timerange = getParam('timerange', '2018-11-02', 'timerange of data to add to PSP ephemeris file')
 cfa_sweap_spc_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+local_hourlyEphem_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
 
 PSP_ephem_directory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/'
 
@@ -22,14 +23,20 @@ for tr in trs:
         if 'previous_file' in globals():
             print 'Already have data for %s'%(tr)
             break
-            
         try:
-            sc_pos_HCI = getDataSet(cfa_sweap_spc_L3_file+'?sc_pos_HCI',tr)
-            carr_latitude = getDataSet(cfa_sweap_spc_L3_file+'?carr_latitude',tr)
-            carr_longitude = getDataSet(cfa_sweap_spc_L3_file+'?carr_longitude',tr)
-            spc_time = sc_pos_HCI.property(QDataSet.DEPEND_0)
-        except:
-            raise noSPCDataException
+            sc_pos_HCI     = getDataSet(local_hourlyEphem_file+'?pos_HCI',tr)
+            carr_latitude  = getDataSet(local_hourlyEphem_file+'?CARR_LAT',tr)
+            carr_longitude = getDataSet(local_hourlyEphem_file+'?CARR_LON',tr)
+            print 'Used local hourly file'
+        except:    
+            try:
+                sc_pos_HCI     = getDataSet(cfa_sweap_spc_L3_file+'?sc_pos_HCI',tr)
+                carr_latitude  = getDataSet(cfa_sweap_spc_L3_file+'?carr_latitude',tr)
+                carr_longitude = getDataSet(cfa_sweap_spc_L3_file+'?carr_longitude',tr)
+                spc_time = sc_pos_HCI.property(QDataSet.DEPEND_0)
+                print 'Used sweap L3 file'
+            except:
+                raise noSPCDataException
     
         new_time = timegen(str(tr),'5 min',12*24)
         

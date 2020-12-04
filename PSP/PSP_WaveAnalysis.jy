@@ -10,20 +10,21 @@
 #timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
 timerange = getParam('timerange','2019-04-12 06:00 to 12:00','Timerange over which to calculate Poynting Flux')
 
-freq_min       = getParam('minFrequency', 0.3,  'Lower frequency bound of analysis (Hz)')
+freq_min       = getParam('minFrequency', 0.1,  'Lower frequency bound of analysis (Hz)')
 freq_max       = getParam('maxFrequency', 9.,  'Upper frequency bound of analysis (Hz)')
-window         = getParam('windowWidth',  1024, 'Number of points in fft window')
+window         = getParam('windowWidth',  256, 'Number of points in fft window')
 slide          = getParam('slideFactor',  8,    'Reciprocal of fraction of non-overlap between neighboring windows')
 trend_seconds  = getParam('trendSeconds', 60,   'Number of seconds used to identify the background magnetic field')
 poynting_min   = getParam('poyntingMin',  1E-6, 'Minimum Poynting Flux value to be plotted (filters out noise)')
 wave_power_min = getParam('wavePowerMin', 1E-4, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
 
 version = '1.1'
+filterOutIncoherent = False
 
 useLocalSubprocesses      = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
 useLocalFiles             = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
 plotStuff                 = getParam('plotStuff','T','Plot dataset',['T','F'])
-writeStuff                = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
+writeStuff                = getParam('writeStuff','F','Write dataset out to cdf file',['T','F'])
 useRegularTimestamps      = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
 checkForPreviousFiles     = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
 removeReactionWheelTone   = getParam('removeReactionWheelTone','F','Attempt to remove signal from reaction wheels',['T','F'])
@@ -360,6 +361,10 @@ for tr in trs:
         
         Angle_Normal.putProperty(QDataSet.VALID_MIN,0)
         Angle_Normal.putProperty(QDataSet.VALID_MAX,90)
+        
+        Power_compressional.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
+        Power_perp.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
+        Wave_Power.putProperty(QDataSet.UNITS,Units.lookupUnits('nT!U2!N/Hz'))
     
         # ###
         # ### CALCULATE POYNTING FLUX
@@ -511,15 +516,19 @@ for tr in trs:
             
         monitor.setProgressMessage('Plotting')
         if plotStuff == True:
-            incoherent = where(lt(medianFilter(Coherency,10),0.9))
-            Smag[incoherent] = 0
-            Sn[incoherent] = -1E38
-            Sp[incoherent] = -1E38
-            Sq[incoherent] = -1E38
-            Ellipticity[incoherent] = -2
-            Poynting_theta[incoherent] = -1
-            Poynting_phi[incoherent] = -181
-            Angle_Normal[incoherent] = -1
+            if filterOutIncoherent == True:
+                incoherent = where(lt(medianFilter(Coherency,10),0.9))
+                Smag[incoherent] = 0
+                Power_perp[incoherent] = 0
+                Power_compressional[incoherent] = 0
+                Wave_Power[incoherent] = 0
+                Sn[incoherent] = -1E38
+                Sp[incoherent] = -1E38
+                Sq[incoherent] = -1E38
+                Ellipticity[incoherent] = -2
+                Poynting_theta[incoherent] = -1
+                Poynting_phi[incoherent] = -181
+                Angle_Normal[incoherent] = -1
             
             #setLayoutOverplot(3)
             waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/'
@@ -529,8 +538,9 @@ for tr in trs:
             plot(1, mag_time, Bp_pol, ytitle='B (nT)', color='red')
             plot(2, mag_time, Bq_pol, ytitle='B (nT)', color='blue')
             plot(3, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
+            #plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo          From!CSun          Sun', zlog=False, zrange=[0,180]) 
-            #plot(2, Poynting_phi, colorTable='apl_rainbow_black0')   
+            #plot(4, Poynting_phi, colorTable='apl_rainbow_black0')   
             plot(5, Ellipticity, colorTable='blue_white_red', ztitle='Ellipticity!C!CRH            LH')
             plot(6, Coherency, colorTable='grayscale', ztitle='Coherency', zrange=[0,1], zlog=False)
             #plot(1, Sn, ztitle='Sn (along B)', colorTable='blue_white_red') 

@@ -72,13 +72,13 @@ tr = '2019-09-17 09:00 to 2019-09-18 6:00' # Orbit 3 both fast and slow
 tr = nishuTime
 #tr = mikeEvent2
 #tr = '2018-11-02 to 2018-12-16'
-#tr = orbit3
+tr = orbit3
 
 tr_WIND = '2018-11-04 to 2018-11-07'#carringtonRotation_2220
 tr_WIND = carringtonRotation_2213
 tr_STA = tr_WIND
 
-plotType = 'longitudeStack'  #'longitudeStack', 'dialPlot'
+plotType = 'dialPlot'  #'longitudeStack', 'dialPlot'
 longitudeProjectionRadius_inRs = 25
 longitudeProjectionRadius = longitudeProjectionRadius_inRs/215.032
 filterLongitude = True
@@ -476,20 +476,29 @@ if plotType == 'dialPlot':
         plot(5,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=7,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
         
         plot(6,circle(1./215.))
-   
-    #setLayoutOverplot(6)
-    load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
-    #load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots.vap')
-    plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2,title='Positive Polarity',ztitle='v!Br!N  (AU/day)')
-    plot(4,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
-    plot(2,(rTot_WIND*cos(toRadians(lonTot_WIND)))[posSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[posSector_WIND],(vTot_WIND)[posSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
-    plot(3,(rTot_STA*cos(toRadians(lonTot_STA)))[posSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[posSector_STA],(vTot_STA)[posSector_STA],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
+    else:
+        #setLayoutOverplot(6)
+        v = v*AU_in_km/(60*60*24)
+        vTot_PSP = vTot_PSP*AU_in_km/(60*60*24)
+        vTot_WIND = vTot_WIND*AU_in_km/(60*60*24)
+        r0 = r0*215.032
+        rTot_PSP = rTot_PSP*215.032
+        rTot_WIND = rTot_WIND*215.032
+        rTot_STA = rTot_STA*215.032
+        load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
+        #load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots.vap')
+        plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2,title='Positive Polarity',ztitle='v!Br!N  (km/s)')
+        plot(4,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,renderType='scatter',xrange=[-22,220],yrange=[-22,80])
+        plot(2,(rTot_WIND*cos(toRadians(lonTot_WIND)))[posSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[posSector_WIND],(vTot_WIND)[posSector_WIND],symbolSize=2,xrange=[-230,230],yrange=[-230,230])
+        plot(3,(rTot_STA*cos(toRadians(lonTot_STA)))[posSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[posSector_STA],(vTot_STA)[posSector_STA],symbolSize=2,xrange=[-230,230],yrange=[-230,230])
+        plot(5,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=7,colorTable='apl_rainbow_black0',xrange=[-22,220],yrange=[-22,80], xtitle='r!B&#10752;!N', ytitle='r!B&#10752;!N')
+            
+        plot(1,(rTot_PSP*cos(toRadians(lonTot_PSP)))[negSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[negSector_PSP],vTot_PSP[negSector_PSP],symbolSize=2,title='Negative Polarity',ztitle='v!Br!N  (km/s)')
+        plot(7,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,renderType='scatter',xrange=[-22,220],yrange=[-22,80])
+        plot(8,(rTot_WIND*cos(toRadians(lonTot_WIND)))[negSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[negSector_WIND],(vTot_WIND)[negSector_WIND],symbolSize=2,xrange=[-230,230],yrange=[-230,230])
+        plot(9,(rTot_STA*cos(toRadians(lonTot_STA)))[negSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[negSector_STA],(vTot_STA)[negSector_STA],symbolSize=2,xrange=[-230,230],yrange=[-230,230])
+        plot(10,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=7,colorTable='apl_rainbow_black0',xrange=[-22,220],yrange=[-22,80], xtitle='r!B&#10752;!N', ytitle='r!B&#10752;!N', zrange=[200,700])
     
-    plot(1,(rTot_PSP*cos(toRadians(lonTot_PSP)))[negSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[negSector_PSP],vTot_PSP[negSector_PSP],symbolSize=2,title='Negative Polarity',ztitle='v!Br!N  (AU/day)')
-    plot(7,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,colorTable='apl_rainbow_black0',xrange=[-0.1,1.],yrange=[-0.1,0.4])
-    plot(8,(rTot_WIND*cos(toRadians(lonTot_WIND)))[negSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[negSector_WIND],(vTot_WIND)[negSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
-    plot(9,(rTot_STA*cos(toRadians(lonTot_STA)))[negSector_STA],(rTot_STA*sin(toRadians(lonTot_STA)))[negSector_STA],(vTot_STA)[negSector_STA],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1])
-
     dom.plotElements[0].controller.renderer.setDataSetSizeLimit(int(1E8))
     dom.plotElements[1].controller.renderer.setDataSetSizeLimit(int(1E8))
     dom.plots[2].setTitle('PSP: '+tr+'!C Carr. Rot.: '+tr_WIND)

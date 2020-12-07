@@ -1,0 +1,46 @@
+
+def dscovr_getBfield_FCCoordinates(tr):
+    '''
+    For a given timerange, downloads magnetic field data from DSCOVR in GSE and rotates into FC coordinates.
+    Input:
+        tr = string listing timerange for aggregation
+    Output:
+        B_FC = rank2 QDataSet array consisting of Bx_FC, By_FC, and Bz_FC (with timetags)
+    '''
+    
+    # LIST FILE LOCATIONS
+    dsc_attitudeFC_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/plasmag/l1/csv/$Y/dsc_attitude_l1_$Y_$j.csv'
+    dsc_Bfield_cdaweb_file = 'vap+cdaweb:ds=DSCOVR_H0_MAG'
+    
+    # LOAD ATTITUDE AND SET TIME
+    dsc_attitude = getDataSet(dsc_attitudeFC_file+'?rank2=field1-field9',tr)
+    dsc_attitude_epoch = getDataSet(dsc_attitudeFC_file+'?column=field0',tr)
+    
+    dsc_FC_t0 = datum('1968-05-24 00:00')
+    dsc_attitude_epoch.putProperty(QDataSet.UNITS,Units.seconds)
+    dsc_attitude_epoch = dsc_FC_t0 + dsc_attitude_epoch
+    
+    dsc_attitude = link(dsc_attitude_epoch,dsc_attitude)
+    
+    # LOAD BFIELD IN GSE
+    Bfield_GSE = getDataSet(dsc_Bfield_cdaweb_file+'&id=B1GSE',tr)
+    
+    # ROTATE BFIELD INTO FC COORDINATES
+    dsc_attitude = synchronize(Bfield_GSE, dsc_attitude)
+    Bfield_FC = dblarr(len(dsc_attitude),3)
+    Bfield_FC.putProperty(QDataSet.DEPEND_0,Bfield_GSE.property(QDataSet.DEPEND_0))
+    
+    Bfield_FCx = dsc_attitude[:,0]*Bfield_GSE[:,0] + dsc_attitude[:,1]*Bfield_GSE[:,1] + dsc_attitude[:,2]*Bfield_GSE[:,2]
+    Bfield_FCy = dsc_attitude[:,3]*Bfield_GSE[:,0] + dsc_attitude[:,4]*Bfield_GSE[:,1] + dsc_attitude[:,5]*Bfield_GSE[:,2]
+    Bfield_FCz = dsc_attitude[:,6]*Bfield_GSE[:,0] + dsc_attitude[:,7]*Bfield_GSE[:,1] + dsc_attitude[:,8]*Bfield_GSE[:,2]
+    
+    Bfield_FCx.putProperty(QDataSet.LABEL, 'Bx (FC)')
+    
+    Bfield_FC[:,0] = Bfield_FCx
+    Bfield_FC[:,1] = Bfield_FCy
+    Bfield_FC[:,2] = Bfield_FCz
+    
+    Bfield_FC = trim(Bfield_FC,tr)
+    
+    return(Bfield_FC)
+

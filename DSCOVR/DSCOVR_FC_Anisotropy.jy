@@ -1,0 +1,381 @@
+
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
+
+
+
+
+#timerange = '2017-03-13 17:50 to 2017-03-13 19:55' # First event test time (should be A=0.25)
+timerange = '2017-12-26 05:00 to 2017-12-26 06:30' #'Extra' event (should be A=0.22)
+#timerange = '2017-03-13 17:50 to 2017-03-13 18:35' # shorter test time
+timerange = '2017-08-01 00:00 to 2017-08-01 03:00' # Should be 1
+#timerange = '2017-04-14 0:00 to 2017-04-14 2:45' # Event test time (should be A=2.)
+timerange = '2017-04-21 06:15 to 2017-04-21 08:25' # 'Extra' event test time (should be A=2.1)
+#timerange = '2017-01-04 12:05 to 2017-01-04 13:30' # Event test time (should be A=4.)
+timerange = getParam('timerange','2017-04-21 06:15 to 08:25','Iteration Timerange')
+version = getParam('version','0.4.0','Version number to be appended to filenames')
+
+
+#timerange = getParam('timerange','2020-01-27','Iteration Timerange')
+verbose = False
+
+                   
+
+trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over which to average magField to determine background field direction' )
+fitSeconds           = getParam('fit_window' , 1 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
+minVoltage           = 150     # Throw out points in mv_lo channels below this voltage
+minFluxValueForFit   = getParam('Minimum_VDF' , 0.0005 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
+smoothSeconds        = 0
+
+angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
+anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
+
+plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+
+m_p                  = 1.6726231E-24
+q                    = 1.6022E-12
+
+skipPreviousFiles              = getParam('skipPreviousFiles','F','Look for previously generated files and skip analysis if found',['T','F'])
+useVDFFluxForWeights           = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
+useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
+separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
+writeStuff                     = getParam('writeStuff','F','Write out L0 anisotropy file',['T','F'])
+conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','F','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
+usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','F','Use Downsampled data file created previously',['T','F'])
+analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
+
+#vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/Anisotropy/WIND-DSCOVR_verification/dsc_angle_by_speed/dsc_angle_by_speed_20170129.idl?DSC.PHI.DAT
+dsc_flowAngle_file = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/Anisotropy/WIND-DSCOVR_verification/dsc_angle_by_speed/dsc_angle_by_speed_$Y$m$d.idl'
+
+   
+if useLocalSubprocesses == 'T':
+    useLocalSubprocesses = True
+elif useLocalSubprocesses == 'F':
+    useLocalSubprocesses = False
+    
+if usePreviouslyDownsampledData == 'T':
+    usePreviouslyDownsampledData = True
+elif usePreviouslyDownsampledData == 'F':
+    usePreviouslyDownsampledData = False
+    
+if writeStuff == 'T':
+    writeStuff = True
+elif writeStuff == 'F':
+    writeStuff = False
+    
+if useVDFFluxForWeights == 'T':
+    useVDFFluxForWeights = True
+elif useVDFFluxForWeights == 'F':
+    useVDFFluxForWeights = False
+    
+if conflateAndDownsampleSpectra == 'T':
+    conflateAndDownsampleSpectra = True
+elif conflateAndDownsampleSpectra == 'F':
+    conflateAndDownsampleSpectra = False
+    
+if analyzingTimeWidthComparisons == 'T':
+    analyzingTimeWidthComparisons = True
+elif analyzingTimeWidthComparisons == 'F':
+    analyzingTimeWidthComparisons = False
+    
+if separatePeaksWithL3Values == 'T':
+    separatePeaksWithL3Values = True
+elif separatePeaksWithL3Values == 'F':
+    separatePeaksWithL3Values = False
+    
+if plotFitsAndPauseALot_yn == 'T':
+    plotFitsAndPauseALot = True
+elif plotFitsAndPauseALot_yn == 'F':
+    plotFitsAndPauseALot = False
+    
+if skipPreviousFiles == 'T':
+    skipPreviousFiles = True
+elif skipPreviousFiles == 'F':
+    skipPreviousFiles = False
+   
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+    
+
+import sys
+### IMPORT SUBPROCESSES
+localGithubDirectory = 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/'
+remoteGithubDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
+try:
+    if useLocalSubprocesses == True:
+        findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+        execfile( findVDFAnisotropy.toString() )
+        
+        writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+        execfile( writeAnisotropyL0.toString() )
+        
+        fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+        execfile( fittingUncertainties.toString() )
+        
+        field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+        execfile( field_aligner.toString() )
+
+        get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+        execfile( get_OS_version.toString() )
+
+        getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+        execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+
+        #smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+        #execfile( smoothSPCByVoltage.toString() )
+
+        #smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+        #execfile( smoothAndDownsampleSPCByVoltage.toString() )
+        
+        dscovr_getBfield_FCCoordinates = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/DSCOVR/dscovr_getBfield_FCCoordinates.jy',monitor.getSubtaskMonitor('import dscovr_getBfield_FCCoordinates()'))
+        execfile( dscovr_getBfield_FCCoordinates.toString() )
+       
+    else:
+    
+        findVDFAnisotropy = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+        execfile( findVDFAnisotropy.toString() )
+        
+        writeAnisotropyL0 = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+        execfile( writeAnisotropyL0.toString() )
+        
+        fittingUncertainties = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+        execfile( fittingUncertainties.toString() )
+        
+        field_aligner = getFile( remoteGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+        execfile( field_aligner.toString() )
+
+        get_OS_version = getFile( remoteGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+        execfile( get_OS_version.toString() )
+
+        getSPCAnisotropyUncertaintyMaps = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+        execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+
+        smoothSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+        execfile( smoothSPCByVoltage.toString() )
+
+        smoothAndDownsampleSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+        execfile( smoothAndDownsampleSPCByVoltage.toString() )
+    
+except:
+
+    print 'Unable to grab subprocess from github'
+    
+    findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+    execfile( findVDFAnisotropy.toString() )
+    
+    writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+    execfile( writeAnisotropyL0.toString() )
+        
+    fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+    execfile( fittingUncertainties.toString() )
+    
+    field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    execfile( field_aligner.toString() )
+
+    get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    execfile( get_OS_version.toString() )
+
+    getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+
+    smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+    execfile( smoothSPCByVoltage.toString() )
+
+    smoothAndDownsampleSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    execfile( smoothAndDownsampleSPCByVoltage.toString() )
+       
+from org.apache.commons.math.optimization.fitting import CurveFitter
+from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
+from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+from org.apache.commons.math.stat.regression      import SimpleRegression
+
+OS = get_os_version().split()[0]
+if OS == 'mac':
+    googleDrive_path = '/Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+    googleDrive_path = '/Volumes/GoogleDrive/My Drive/'
+elif OS == 'windows':
+    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+
+#addToSearchPath(sys.path,googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar',monitor)
+#
+#from org.apache.commons.math3.fitting import AbstractCurveFitter
+#from org.apache.commons.math3.fitting import SimpleCurveFitter
+#from org.apache.commons.math3.fitting.leastsquares import LevenbergMarquardtOptimizer as LMO
+#from org.apache.commons.math3.fitting.leastsquares import GaussNewtonOptimizer
+#from org.apache.commons.math3.analysis import ParametricUnivariateFunction
+
+class LinFit(ParametricRealFunction):
+#class LinFit(ParametricUnivariateFunction):
+    def value(self, x, params):
+        a = params[0]
+        b = params[1]
+        return (a*x + b)
+    def gradient(self, x, params):
+        a = params[0]
+        b = params[1]
+        return [x,1]
+
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+import java
+time_begin = TimeUtil.now()    
+
+output_folder = googleDrive_path+'Research/DSCOVR/Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+        
+# Set up error/uncertainty maps
+(anisotropy_deltaPlus,anisotropy_deltaMinus) = getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS)
+   
+anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
+anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
+anisotropy_deltaMinus.putProperty(QDataSet.VALID_MIN,0)
+anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
+
+
+# Split analysis by day
+monitor.started()
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
+    
+    fileAlreadyExists = False
+    time_begin_tr = TimeUtil.now() 
+    timeTitle = str(tr)    
+    
+    if lt(datumRange(timerange).width(), datumRange(tr).width()):
+        tr = timerange
+        tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
+        tp_end = TimeParser.create('-$H$M')
+        timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
+    
+    # Create list of VDF poulations over which to perform analysis
+    vdfList = list() 
+    if separatePeaksWithL3Values == True:
+        vdfList.append('vdf_p1')
+        vdfList.append('vdf_3')
+        vdfList.append('vdf_a')
+    else:
+        vdfList.append('vdf_full')
+
+
+    phi = getDataSet(dsc_flowAngle_file+'?DSC.PHI.DAT',tr)
+    theta = getDataSet(dsc_flowAngle_file+'?DSC.THETA.DAT',tr)
+    vdf = getDataSet(dsc_flowAngle_file+'?DSC.F.DAT',tr)
+    vz = getDataSet(dsc_flowAngle_file+'?DSC.VZ.DAT',tr)
+    doy = getDataSet(dsc_flowAngle_file+'?DSC.FDOY.DAT',tr)
+    
+    doy.putProperty(QDataSet.UNITS,Units.days)
+    
+    dscEpoch = timegen(tr[0:4],'1 sec',1)[0] + (doy - 1)
+    
+    v_z = link(dscEpoch, vz[0,:,:])
+    phi = link(dscEpoch, vz[0,:,:], phi[0,:,:])
+    theta = link(dscEpoch, vz[0,:,:], theta[0,:,:])
+    vdf = link(dscEpoch, vz[0,:,:], vdf[0,:,:])
+    
+    vdf_full = copy(vdf)
+    peaks = reduceMax(vdf_full,1)
+    peaks_smooth = synchronize( vdf_full, medianFilter(peaks[where(valid(peaks))],5) )
+    r = where(eq(vdf_full,peaks))
+    r_smooth = where(eq(vdf_full,peaks_smooth))
+    
+    reset()
+    load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
+        
+    plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True,title='%s-sec downsample,  %s-sec fit'%(smoothSeconds,fitSeconds))
+    plot(1,v_z[r_smooth])
+    time_last = TimeUtil.now()
+    
+    #plot(0,vdf)
+    #plot(1,theta)
+    #plot(2,phi)
+    
+    
+    vz_tanTheta = v_z * tan(toRadians(theta))     # Vx
+    vz_tanPhi   = v_z * tan(toRadians(phi))       # Vy 
+    
+    # For now, setting v_sc to zero. It should not affect measurements, but at some point will update with L1 sc velocites        
+    v_scx = putProperty(zeros(len(v_z)),QDataSet.DEPEND_0,v_z.property(QDataSet.DEPEND_0))
+    v_scy = copy(v_scx)
+    v_scz = copy(v_scx)
+    
+    u_x = synchronize(v_z,v_scx)
+    u_y = synchronize(v_z,v_scy)
+    u_z = synchronize(v_z,v_scz)
+    
+    # Grab DSCOVR magnetic field data - This routine downloads it and rotates into faraday cup coordinates
+    mag = dscovr_getBfield_FCCoordinates(tr)
+#    reset()
+#    plot(mag)
+#    stop
+    mag_time = mag.property(QDataSet.DEPEND_0)
+    
+    Bx = mag[:,0]
+    By = mag[:,1]
+    Bz = mag[:,2]
+    Btotal = magnitude(mag)
+    
+    # These inputs are arbitrary since we don't really care what the B_perp directions are for now. Does not affect outcome
+    TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+    TEMP_Ry = putProperty(-1*ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+    TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+    
+    ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+    print 'Downloading MAG Data took:',TimeUtil.now()-time_last
+    time_last = TimeUtil.now()
+        
+    plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+        
+    #plot(1, mag_time, bundle(Bn, Bp, Bq))
+#    plot(6, Bn)
+#    stop
+    
+    if True:
+        vdf_label = 'DSCOVR FC vdf'
+        vdf_in = vdf
+        u_x_in = u_x
+        u_y_in = u_y
+        u_z_in = u_z
+        Nx_temp = Nx
+        Ny_temp = Ny
+        Nz_temp = Nz
+        
+        if True:
+                plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True, xrange=tr)
+                (chiline, psiline, chiSquaredReduced_chi, chiSquaredReduced_psi,
+                    rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
+                    epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
+                    epsilonEpoch, anisotropy_chi_deltaPlus,
+                    anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
+                    anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev) = findVDFAnisotropy(v_z, vz_tanPhi, vz_tanTheta, 
+                                                 u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
+                                                 Ny_temp, Nz_temp)
+                plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+                plot(5,epsilonEpoch,bundle(slopeError_chi,slopeError_psi), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+                
+
+        if writeStuff == True:
+            output_file = output_folder+'DSC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+            time_write_begin = TimeUtil.now()
+            print 'writing %s file'%(vdf)
+            #if vdf == 'vdf_full':
+            tempB = synchronize(chiline,[Nx,Ny,Nz])
+            Bunit = bundle(tempB[0],tempB[1],tempB[2])
+            Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+            Btotal_in = synchronize(Bunit,Btotal)
+            writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline, psiline, 
+                 chiSquaredReduced_chi, chiSquaredReduced_psi,
+                 rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
+                 epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
+                 epsilonEpoch, anisotropy_chi_deltaPlus,
+                 anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
+                 anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, 
+                 anisotropy_psi_standardDev)

@@ -1,0 +1,60 @@
+
+DSCOVR_directory = 'file:///C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/'
+ionspec_file = 'vap+idlsav:'+DSCOVR_directory+'plasmag/l2/idl/ionspec/2017/dsc_fc_ionspec_2017_004.idl'
+lookupTable_file = 'vap+idlsav:'+DSCOVR_directory+'code/modules/DSCOVR_FLOWANGLE_LOOKUP_HIRES_V1.idl'
+
+
+
+A = getDataSet(ionspec_file+'?SPEC.IA')
+B = getDataSet(ionspec_file+'?SPEC.IB')
+C = getDataSet(ionspec_file+'?SPEC.IC')
+
+v = getDataSet(ionspec_file+'?SPEC.V')
+dv = getDataSet(ionspec_file+'?SPEC.DV')
+t0 = getDataSet(ionspec_file+'?SPEC.T0')
+
+t0.putProperty(QDataSet.UNITS,Units.t1970)
+
+#plot(t0,v,A)
+
+EW = getDataSet(lookupTable_file+'?EW')
+NS = getDataSet(lookupTable_file+'?NS')
+X_GRID = getDataSet(lookupTable_file+'?X_GRID')
+
+X = (B-A)/(A+B+C)
+Y = (A+B-C)/(A+B+C)
+#(phi,theta)
+
+plot(0,t0,v,X)
+plot(1,t0,v,Y)
+
+
+#; rescale the plate signals
+#sa1 = p[0] + p[1]*sa + p[2]*sb + p[3]*sc
+#sb1 = p[0+4] + p[1+4]*sa + p[2+4]*sb + p[3+4]*sc
+#sc1 = p[0+8] + p[1+8]*sa + p[2+8]*sb + p[3+8]*sc
+#x_fc = (sb1 - sa1)/(sa1+sb1+sc1)
+#y_fc = (sa1+sb1-sc1)/(sa1+sb1+sc1)
+x_fc = (B-A)/(A+B+C)
+y_fc = (A+B-C)/(A+B+C)
+#dfc_loadflowangle_lookup_table, xx, yy, EW, NS
+#flip_x = 2.*(x_FC gt 0) - 1.
+#x_FC = abs(x_fc)
+#xr = xx[*]
+#yr = yy[*]
+#xinterp = interpol(findgen(n_elements(xr)), xr, x_FC)
+#yinterp = interpol(findgen(n_elements(yr)), yr, y_FC)
+#phi = interpolate(EW, xinterp, yinterp, cubic=(-0.5)) * flip_x ; phi FC angle
+#theta = interpolate(NS, xinterp, yinterp, cubic=(-0.5)) ; theta FC angle
+
+
+
+
+
+
+
+
+
+
+
+

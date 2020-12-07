@@ -706,7 +706,7 @@ for tr in trs:
                     epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
                     epsilonEpoch, anisotropy_chi_deltaPlus,
                     anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
-                    anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev) = findVDFAnisotropy(v_z, vz_tanPhi, vz_tanTheta, 
+                    anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev) = findVDFAnisotropy(-v_z, vz_tanPhi, vz_tanTheta, 
                                                  u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
                                                  Ny_temp, Nz_temp)
                 plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
@@ -727,7 +727,7 @@ for tr in trs:
                     rSquared_chi_p1, rSquared_psi_p1, slopeError_chi_p1, slopeError_psi_p1,
                     epsilon_chi_p1, epsilon_psi_p1, anisotropy_chi_p1, anisotropy_psi_p1, 
                     epsilonEpoch_p1, anisotropy_chi_deltaPlus_p1, anisotropy_chi_deltaMinus_p1,
-                    anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1, anisotropy_chi_standardDev_p1, anisotropy_psi_standardDev_p1) = findVDFAnisotropy(v_z, vz_tanPhi,
+                    anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1, anisotropy_chi_standardDev_p1, anisotropy_psi_standardDev_p1) = findVDFAnisotropy(-v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
                                                  Nx_temp, Ny_temp, Nz_temp)
                 plot(4,epsilonEpoch_p1,bundle(anisotropy_chi_p1,anisotropy_psi_p1), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
@@ -748,7 +748,7 @@ for tr in trs:
                     rSquared_chi_3, rSquared_psi_3, slopeError_chi_3, slopeError_psi_3,
                     epsilon_chi_3, epsilon_psi_3, anisotropy_chi_3, anisotropy_psi_3, 
                     epsilonEpoch_3, anisotropy_chi_deltaPlus_3, anisotropy_chi_deltaMinus_3,
-                    anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3, anisotropy_chi_standardDev_3, anisotropy_psi_standardDev_3) = findVDFAnisotropy(v_z, vz_tanPhi,
+                    anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3, anisotropy_chi_standardDev_3, anisotropy_psi_standardDev_3) = findVDFAnisotropy(-v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
                                                  Nx_temp, Ny_temp, Nz_temp)
                 plot(4,epsilonEpoch_3,bundle(anisotropy_chi_3,anisotropy_psi_3), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
@@ -769,7 +769,7 @@ for tr in trs:
                     rSquared_chi_a, rSquared_psi_a, slopeError_chi_a, slopeError_psi_a,
                     epsilon_chi_a, epsilon_psi_a, anisotropy_chi_a, anisotropy_psi_a, 
                     epsilonEpoch_a, anisotropy_chi_deltaPlus_a, anisotropy_chi_deltaMinus_a,
-                    anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a, anisotropy_chi_standardDev_a, anisotropy_psi_standardDev_a) = findVDFAnisotropy(v_z, vz_tanPhi,
+                    anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a, anisotropy_chi_standardDev_a, anisotropy_psi_standardDev_a) = findVDFAnisotropy(-v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
                                                  Nx_temp, Ny_temp, Nz_temp)
                 plot(4,epsilonEpoch_a,bundle(anisotropy_chi_a,anisotropy_psi_a), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')

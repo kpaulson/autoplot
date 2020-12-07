@@ -1,0 +1,65 @@
+#from github.com.kpaulson.
+
+
+tr = '2020-06-07 7:29:57.400 to 7:30:01.200' #Encounter 5 example
+tr = '2019-04-03 11:00 to 12:00' #Encounter 2 example
+eventIndex = 2
+
+dvac_file = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_dbm_dvac/$Y/$m/psp_fld_l2_dfb_dbm_dvac_$Y$m$d$(H,span=6)_v$v.cdf'
+
+freq_min = 800.
+freq_max = 2000.
+window = 8192
+slide = 10
+
+
+###########
+
+Hanningfft = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+execfile( Hanningfft.toString() )
+
+
+
+###########
+
+
+
+
+
+
+
+dvac34_brst = getDataSet(dvac_file+'?psp_fld_l2_dfb_dbm_dvac34',tr)
+time_tt2000 = getDataSet(dvac_file+'?psp_fld_l2_dfb_dbm_dvac_time_series_TT2000',tr)
+
+#dvac34_brst = trim(dvac34_brst,tr)[eventIndex,:]
+#time_tt2000 = trim(dvac34_brst,tr)[eventIndex,:]
+
+dvac34_brst = dvac34_brst[eventIndex,:]
+time_tt2000 = time_tt2000[eventIndex,:]
+timerange = datumRange(str(time_tt2000[0])[-24:]+' to '+str(time_tt2000[-1])[-24:])
+
+dvac34_brst = link(time_tt2000, dvac34_brst)
+
+plot(0,dvac34_brst)
+#plot(1,dvac34_brst,xrange=timerange)
+
+
+#dsSmooshed = None
+#timeSmooshed = None
+##for step in xrange(len(ds)):
+#for step in xrange(3):
+#    dsSmooshed = concatenate(dsSmooshed,ds[step,:])
+#    timeSmooshed = concatenate(timeSmooshed,time[step,:])
+#
+#dsSmooshed = link(timeSmooshed,dsSmooshed)
+
+
+dvac34_brst_fft = Hanningfft(dvac34_brst, freq_min, freq_max, window, slide)
+dvac34_brst_fft = dvac34_brst_fft[:,:,0]**2 + dvac34_brst_fft[:,:,1]**2
+
+plot(1,dvac34_brst_fft,xrange=timerange, zrange=[1.0E-12,1.0E-8], zlog=True, yrange=[800,2000]) 
+
+
+
+
+

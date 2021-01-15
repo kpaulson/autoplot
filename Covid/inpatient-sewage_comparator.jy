@@ -1,0 +1,66 @@
+
+bmcCovidFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/Covid/BMC Covid numbers_2ndsurge_justData.xls'
+
+ds = getDataSet(bmcCovidFile+'?column=D&depend0=Date')
+icu = getDataSet(bmcCovidFile+'?column=ICU_COVID19_Census&depend0=Date')
+inpatient = getDataSet(bmcCovidFile+'?column=Inpatient_COVID19_Census&depend0=Date')
+dsTime = ds.property(QDataSet.DEPEND_0)
+
+sewageData = getDataSet('file:///C:/Users/kpaulson/GoogleDrive/Research/Covid/Waste_Management_Covid_Data_-_2020-12-10.csv?column=field1&depend0=field0')
+
+#
+#ds[r] = -1
+#ds.putProperty(QDataSet.VALID_MIN, 0)
+
+r = where(valid(ds))
+ds = ds[r]
+
+r = where(valid(icu))
+icu = icu[r]
+
+r = where(valid(inpatient))
+inpatient = inpatient[r]
+
+#for i in xrange(len(ds)):
+#    if eq(valid(ds[i]), 0):
+#        ds[i] = ds[i-1]
+#    print ds[i].value()
+
+
+newTime = timegen(str(dsTime[0])[5:],'1 days',500)
+temp = putProperty(ones(len(newTime)), QDataSet.DEPEND_0, newTime)
+
+print newTime[200]
+
+#dayRatio = findex(dsTime, newTime)
+#ds = interpolate(ds, dayRatio)
+
+ds = synchronize(temp, ds)
+ds = diff(ds)
+
+r = where( gt(ds, 0) )
+ds = ds[r]
+ds_smooth = smooth(ds, 7)
+
+icu_smooth = smooth(synchronize(temp, icu), 7)
+inpatient_smooth = smooth(synchronize(temp, inpatient), 7)
+
+reset()
+plot(0, ds, color='blue', ylog=False, renderType='scatter', symbolSize=3, ytitle='Daily Case Rates', title='BMC Covid Case Rates vs WM Sewage Assessment')#, overplotOf=plot[0])
+plot(1, ds_smooth, color='blue', ylog=False, lineThick=3, overplotOf=dom.plots[0], legendLabel='HCW')
+plot(2, icu, color='black', renderType='scatter', symbolSize=3, overplotOf=dom.plots[0])
+plot(3, icu_smooth, color='black', lineThick=3, overplotOf=dom.plots[0], legendLabel='ICU')
+plot(4, inpatient, color='green', renderType='scatter', symbolSize=3, overplotOf=dom.plots[0])
+plot(5, inpatient_smooth, color='green', lineThick=3, overplotOf=dom.plots[0], legendLabel='Inpatient', yrange=[-10,250])
+
+
+sewageData_smooth = smooth(sewageData, 7)
+
+plot(6, sewageData, color='red', renderType='scatter', symbolSize=3, ytitle='Covid Sewage Rates - South (counts/mL)')
+plot(7, sewageData_smooth, color='red', lineThick=3, overplotOf=dom.plots[1], yrange=[-64.0, 1575.0])#[-100.0, 2460.0])
+
+dom.plots[1].yaxis.setOpposite(True)
+dom.plots[1].yaxis.controller.dasAxis.foreground = colorFromString('red')
+dom.plots[1].setRowId('row_1')
+
+fixLayout()

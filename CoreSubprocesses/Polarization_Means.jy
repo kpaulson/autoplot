@@ -309,7 +309,11 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     ### SPIT OUT RESULTS
     ###
     
-    return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp, Wave_Power ) 
+    try:
+        if giveUsTheK == True:
+            return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp, Wave_Power, kx, ky, kz )
+    except:
+        return ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp, Wave_Power ) 
 
 
 # ############################################################################################

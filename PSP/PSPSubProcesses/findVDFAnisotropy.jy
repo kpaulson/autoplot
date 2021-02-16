@@ -306,7 +306,6 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                     anisotropy_psi_deltaPlus  = -1
                     anisotropy_psi_deltaMinus = -1
                 
-                print 'line 824'
                 #plot(3,dataset([datumRange(tr_dds).min(),datumRange(tr_dds).max(),'xff00ff','event']),renderType='eventsBar',color='magenta')
                 plot(3,event,renderType='eventsBar')
                 plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=3)
@@ -334,7 +333,10 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 #plot(10,sqrt(temp_totalVariance_chi),renderType='scatter',color='red')
                 #plot(11,sqrt(temp_totalVariance_psi),renderType='scatter',color='blue')
                 
-                sleep(5000)
+                waitUntilIdle()
+                print '/tmp/autoplot/anisotropyFits/singleFit_%s.png'%dds_title[ind]
+                writeToPng('/tmp/autoplot/anisotropyFits/singleFit_%s.png'%dds_title[ind])
+                #sleep(5000)
                 print '----'
                 continue
         except:

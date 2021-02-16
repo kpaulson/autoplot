@@ -195,7 +195,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
 
     Wave_Power = Jxx + Jyy
 
-    del ( [ factor , kx , ky , kz , Nx , Ny , Nz , Rx , Ry , Rz , Sx , Sy , Sz , Jxy_prime_real , Jxz_prime_real , Jyz_prime_real , Jxy_prime_img , Jxz_prime_img , Jyz_prime_img ] )
+    del ( [ factor , Nx , Ny , Nz , Rx , Ry , Rz , Sx , Sy , Sz , Jxy_prime_real , Jxz_prime_real , Jyz_prime_real , Jxy_prime_img , Jxz_prime_img , Jyz_prime_img ] )
 
     ###
     ### SMOOTHING OVER FREQUENCY BINS (NECESSARY FOR POLARIZATION COMPARISON ANALYSIS)

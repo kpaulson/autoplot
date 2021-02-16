@@ -6,7 +6,7 @@
 
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
-timerange = getParam('timerange','2019-04-01 06:00 to 09:00','Timerange over which to calculate Poynting Flux')
+timerange = getParam('timerange','2018-11-02 10:40 to 11:40','Timerange over which to calculate Poynting Flux')
 
 freq_min      = getParam('minFrequency', 0.1,  'Lower frequency bound of analysis (Hz)')
 freq_max      = getParam('maxFrequency', 9.,  'Upper frequency bound of analysis (Hz)')
@@ -15,9 +15,25 @@ slide         = getParam('slideFactor',  8,    'Reciprocal of fraction of non-ov
 trend_seconds = getParam('trendSeconds', 30,   'Number of seconds used to identify the background magnetic field')
 poynting_min  = getParam('poyntingMin',  1E-4, 'Minimum Poynting Flux value to be plotted (filters out noise)')
 
+useLocalEfieldData = getParam('localEfieldData', 'T', 'Use local Efield files (in cases where callibrated data has been downloaded)', ['T','F'])
+if useLocalEfieldData == 'T':
+    efield_corrected_directory = getParam('efield_', 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/FIELDS/Efield_Phase-Corrected/', 'local directory for efield data')
+
+writeStuff = getParam('writeStuff', 'F', 'Write the calculated Poynting Flux out to a file', ['T','F'])
+
 useLocalSubprocesses = False
 useLocalFiles = False
-writeStuff = False
+#writeStuff = False
+
+if useLocalEfieldData == 'T':
+    useLocalEfieldData = True
+elif useLocalEfieldData == 'F':
+    useLocalEfieldData = False
+    
+if writeStuff == 'T':
+    writeStuff = True
+elif writeStuff == 'F':
+    writeStuff = False
 
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -101,7 +117,29 @@ else:
 try:
     title_warning = ''
     mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
-    efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+    if useLocalEfieldData == False:
+        efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
+    elif useLocalEfieldData == True:
+        efield_datafile = 'L3_E_2018-11-02_fullrate.txt'
+        efield_data_raw = getDataSet(efield_corrected_directory+'L3_E_2018-11-02_fullrate.txt?column=field0-field2')
+        
+        efield_time = efield_data_raw[:,0]
+        efield_x = efield_data_raw[:,1]
+        efield_y = efield_data_raw[:,2]
+        del(efield_data_raw)
+        
+        efield_time.putProperty(QDataSet.UNITS, Units.t1970)
+        efield_x.putProperty(QDataSet.DEPEND_0, efield_time)
+        efield_y.putProperty(QDataSet.DEPEND_0, efield_time)
+        efield_data = putProperty(dblarr(len(efield_x),2), QDataSet.DEPEND_0, efield_time)
+        #efield_data = link(efield_data, efield_time)
+        
+        efield_data[:,0] = efield_x
+        efield_data[:,1] = efield_y
+        #efield_data.putProperty(QDataSet.DEPEND_0, efield_time)
+        print efield_data
+        #efield_data = bundle(efield_x, efield_y)
+        
 except:
     title_warning = '  - Uncalibrated Fields Data'
     mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
@@ -109,6 +147,11 @@ except:
     mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',timerange)
     efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',timerange)
 print 'mag data used:',mag_datafile
+print 'efield data used:',efield_datafile
+
+#if useLocalEfieldData == True:
+#    efield_data = getDataSet(efield_corrected_directory+'L3_E_2018-11-02_fullrate.txt?column=field0-field2')
+    
 
 mag_data = trim(mag_data,timerange)
 mag_time = mag_data.property(QDataSet.DEPEND_0)
@@ -118,6 +161,7 @@ By = mag_data[:,1]
 Bz = mag_data[:,2]
 Btotal = magnitude(mag_data)
 
+#plot(efield_time,efield_data)
 efield_data = synchronize(mag_data,efield_data)
 Ex = efield_data[:,0]
 Ey = efield_data[:,1]
@@ -194,6 +238,7 @@ plot(0, Smag, xrange=timerange, title='PSP Poynting Flux'+title_warning, colorTa
 plot(1, Sn, colorTable='blue_white_red', ztitle='Sn (along B)') 
 plot(2, Sp, colorTable='blue_white_red', ztitle='Sp (~RTN!BT!N)')    
 plot(3, Sq, colorTable='blue_white_red', ztitle='Sq (~RTN!BN!N)')    
+plot(3, smooth(Sq,7), colorTable='blue_white_red', ztitle='Sq (~RTN!BN!N)')    
     
 background_grey = java.awt.Color(180,180,180,255)
 dom.plots[1].controller.dasColorBar.setFillColor(background_grey)

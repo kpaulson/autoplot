@@ -15,7 +15,7 @@ timerange = '2017-08-01 00:00 to 2017-08-01 03:00' # Should be 1
 timerange = '2017-04-21 06:15 to 2017-04-21 08:25' # 'Extra' event test time (should be A=2.1)
 #timerange = '2017-01-04 12:05 to 2017-01-04 13:30' # Event test time (should be A=4.)
 timerange = getParam('timerange','2017-04-21 06:15 to 08:25','Iteration Timerange')
-version = getParam('version','0.4.0','Version number to be appended to filenames')
+version = getParam('version','0.4.2','Version number to be appended to filenames')
 
 
 #timerange = getParam('timerange','2020-01-27','Iteration Timerange')
@@ -24,7 +24,7 @@ verbose = False
                    
 
 trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over which to average magField to determine background field direction' )
-fitSeconds           = getParam('fit_window' , 1 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
+fitSeconds           = getParam('fit_window' , 60 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
 minVoltage           = 150     # Throw out points in mv_lo channels below this voltage
 minFluxValueForFit   = getParam('Minimum_VDF' , 0.0005 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
@@ -100,7 +100,7 @@ elif skipPreviousFiles == 'F':
 ##################            IMPORTS            ###########################
 ############################################################################
 ############################################################################
-    
+ 
 
 import sys
 ### IMPORT SUBPROCESSES
@@ -266,20 +266,20 @@ for tr in trs:
         vdfList.append('vdf_full')
 
 
-    phi = getDataSet(dsc_flowAngle_file+'?DSC.PHI.DAT',tr)
+    phi   = getDataSet(dsc_flowAngle_file+'?DSC.PHI.DAT',tr)
     theta = getDataSet(dsc_flowAngle_file+'?DSC.THETA.DAT',tr)
-    vdf = getDataSet(dsc_flowAngle_file+'?DSC.F.DAT',tr)
-    vz = getDataSet(dsc_flowAngle_file+'?DSC.VZ.DAT',tr)
-    doy = getDataSet(dsc_flowAngle_file+'?DSC.FDOY.DAT',tr)
+    vdf   = getDataSet(dsc_flowAngle_file+'?DSC.F.DAT',tr)
+    vz    = getDataSet(dsc_flowAngle_file+'?DSC.VZ.DAT',tr)
+    doy   = getDataSet(dsc_flowAngle_file+'?DSC.FDOY.DAT',tr)
     
     doy.putProperty(QDataSet.UNITS,Units.days)
     
     dscEpoch = timegen(tr[0:4],'1 sec',1)[0] + (doy - 1)
     
-    v_z = link(dscEpoch, vz[0,:,:])
-    phi = link(dscEpoch, vz[0,:,:], phi[0,:,:])
+    v_z =   link(dscEpoch, vz[0,:,:])
+    phi =   link(dscEpoch, vz[0,:,:], phi[0,:,:])
     theta = link(dscEpoch, vz[0,:,:], theta[0,:,:])
-    vdf = link(dscEpoch, vz[0,:,:], vdf[0,:,:])
+    vdf =   link(dscEpoch, vz[0,:,:], vdf[0,:,:])
     
     vdf_full = copy(vdf)
     peaks = reduceMax(vdf_full,1)
@@ -299,8 +299,12 @@ for tr in trs:
     #plot(2,phi)
     
     
-    vz_tanTheta = v_z * tan(toRadians(theta))     # Vx
-    vz_tanPhi   = v_z * tan(toRadians(phi))       # Vy 
+    #vz_tanTheta = -v_z * tan(toRadians(theta))     # Vx
+    #vz_tanPhi   = v_z * tan(toRadians(phi))       # Vy 
+    
+    # This very unfortunate naming convention comes about due to differences in how the axes on DSCOVR are labeled.
+    vz_tanPhi   = -v_z * tan(toRadians(theta))     # Vy
+    vz_tanTheta = -v_z * tan(toRadians(phi))       # Vx
     
     # For now, setting v_sc to zero. It should not affect measurements, but at some point will update with L1 sc velocites        
     v_scx = putProperty(zeros(len(v_z)),QDataSet.DEPEND_0,v_z.property(QDataSet.DEPEND_0))
@@ -314,7 +318,7 @@ for tr in trs:
     # Grab DSCOVR magnetic field data - This routine downloads it and rotates into faraday cup coordinates
     mag = dscovr_getBfield_FCCoordinates(tr)
 #    reset()
-#    plot(mag)
+#    plot(9,mag)
 #    stop
     mag_time = mag.property(QDataSet.DEPEND_0)
     

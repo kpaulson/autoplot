@@ -8,9 +8,13 @@
 ############################################################################
 
 timerange          = '2020-01-30'
-timeSubset_minutes = 5
+timerange          = '2021-01-17'
+timeSubset_minutes = 30 #5
 
-spc_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+use_SPCorSPAN = 'span' #'spc' 'span'
+
+spc_L3_file_cfa =  'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+span_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
 mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
 mag_L2_file_berkeley_team = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
     
@@ -148,8 +152,11 @@ def HoffmannTellerizer(v,B):
 ############################################################################
 ############################################################################
  
-
-vp_moment_rtn = getDataSet(spc_L3_file_cfa+'?vp_moment_RTN',timerange)
+if use_SPCorSPAN == 'spc':
+    vp_moment_rtn = getDataSet(spc_L3_file_cfa+'?vp_moment_RTN',timerange)
+elif use_SPCorSPAN == 'span':
+    vp_moment_rtn = getDataSet(span_L3_file_cfa+'?VEL',timerange)
+    
 try:
     bfield_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange)
 except:
@@ -174,7 +181,7 @@ plot(1,efield_mag,ytitle='-v &times; B')
 
 plot(0,bfield_rtn)
 plot(1,bfield_mag,ytitle='B!BRTN!N (nT)')
-stop
+#stop
 
 ###
 ### SOLVE FOR V_HT NUMERICALLY BY MINIMIZING THE FUNCTION
@@ -216,7 +223,7 @@ for tr in trs:
        
     timestamp = timegen(str(datum(tr)+datum('%s min'%(timeSubset_minutes/2.))),'1sec',1)[0]
     tr = datumRange(tr+' to '+str(datum(tr)+datum('%s min'%(timeSubset_minutes)) ))
-    #print timestamp
+    print timestamp
 
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
@@ -227,15 +234,16 @@ for tr in trs:
     
     try:
         v_HT = HoffmannTellerizer(v_rtn,B_rtn)
-        #print 'deHoffmann-Teller velocity: (',v_HT[0],v_HT[1],v_HT[2],' )'
+        #print '    deHoffmann-Teller velocity: (',v_HT[0],v_HT[1],v_HT[2],' )'
+        print '    deHoffmann-Teller velocity (RTN): (',round(v_HT[0],2),'km/s', round(v_HT[1],2),'km/s', round(v_HT[2],2),'km/s',' )'
         
         v_HT_long = bundle( ones(len(B_rtn))*v_HT[0] , ones(len(B_rtn))*v_HT[1] , ones(len(B_rtn))*v_HT[2] )
         D_v_HT = total( magnitude(crossProduct((v_rtn-v_HT_long),B_rtn))**2 ) / len(v_rtn)
         D_v_0 = total( magnitude(crossProduct((v_rtn-bundle(zeros(len(v_rtn)),zeros(len(v_rtn)),zeros(len(v_rtn)))),B_rtn))**2 ) / len(v_rtn)
         D_v_mean = total( magnitude(crossProduct((v_rtn-bundle(ones(len(v_rtn))*mean(v_rtn[:,0]),zeros(len(v_rtn))*mean(v_rtn[:,1]),zeros(len(v_rtn))*mean(v_rtn[:,2]))),B_rtn))**2 ) / len(v_rtn)
     
-        #print 'D_v_HT/D_v_0',D_v_HT/D_v_0
-        #print 'D_v_HT/D_v_mean',D_v_HT/D_v_mean
+        #print 'D_v_HT/D_v_0: ',D_v_HT/D_v_0
+        #print 'D_v_HT/D_v_mean: ',D_v_HT/D_v_mean
     except:
         v_HT = dataset([-1E38,-1E38,-1E38])
     
@@ -271,17 +279,21 @@ v3_fit_rtn  = getDataSet(spc_L3_file_cfa+'?v3_fit_RTN',timerange)
 vp1_fit_rtn = trim(vp1_fit_rtn,timerange)
 va_fit_rtn  = trim(va_fit_rtn,timerange)
 v3_fit_rtn  = trim(v3_fit_rtn,timerange)
+v_HT_upsample_spc = synchronize(vp1_fit_rtn,v_HT_dataset)
 
 
-plot(4,vp1_fit_rtn - v_HT_upsample, ytitle='vp_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
-plot(5,va_fit_rtn - v_HT_upsample, ytitle='va_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
-plot(6,v3_fit_rtn - v_HT_upsample, ytitle='vbeam_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
+#plot(3,vp_moment_rtn, ytitle='vp_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})', renderType='series')
+plot(4,vp1_fit_rtn - v_HT_upsample_spc, ytitle='vp_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
+#plot(5,va_fit_rtn - v_HT_upsample_spc, ytitle='va_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
+#plot(6,v3_fit_rtn - v_HT_upsample_spc, ytitle='vbeam_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
 
 
 STOP
 
-plot(4,bfield_rtn,ytitle='B!BRTN!N')
+#plot(4,bfield_rtn,ytitle='B!BRTN!N')
 
+
+# I'm not sure what I was doing down here
 c = 2.9979E10 #speed of light in cm/s. don't we want km/s?
 c = c*(1E-5) #This should take it from cm/s to km/s
 v_cross_E = crossProduct(v_HT_upsample,efield_rtn)

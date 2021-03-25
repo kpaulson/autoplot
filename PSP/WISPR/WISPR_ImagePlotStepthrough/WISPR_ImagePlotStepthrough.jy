@@ -19,9 +19,11 @@ if tryingDirectoryScan == True:
     dd_top = 'https://wispr.nrl.navy.mil/data/rel/fits/L3/'
     orbits = listDirectory(dd_top)
     for orbit in orbits:
-        dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'inner/'
+        #dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'inner/'
+        dd_inner='https://wispr.nrl.navy.mil/data/rel.20191112/fits/L3/'+orbit+'inner/'
         dd_inner_folders = listDirectory(dd_inner)
-        dd_outer='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'outer/'
+        #dd_outer='https://wispr.nrl.navy.mil/data/rel/fits/L3/'+orbit+'outer/'
+        dd_outer='https://wispr.nrl.navy.mil/data/rel.20191112/fits/L3/'+orbit+'outer/'
         dd_outer_folders = listDirectory(dd_outer)
         
         for date in dd_inner_folders:
@@ -47,7 +49,8 @@ if tryingDirectoryScan == True:
             #    continue
                 
 else:
-    dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/20181105/'
+    #dd_inner='https://wispr.nrl.navy.mil/data/rel/fits/L3/orbit01/inner/20181105/'
+    dd_inner='https://wispr.nrl.navy.mil/data/rel.20191112/fits/L3/orbit01/inner/20181105/'
     ff_inner= listDirectory(dd+'*.fits')
     
 tp= TimeParser.create('psp_L3_wispr_$Y$m$dT$H$M$S_V1_1221.fits')

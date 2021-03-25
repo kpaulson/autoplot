@@ -137,7 +137,7 @@ def Butterworth_Bandpassify( ds , polynomial_order , freq_min , freq_max , pass_
 # ############################################################################################   
 
 def Butterworth_Bandpassify_zeroPhase( ds , polynomial_order , freq_min , freq_max , pass_or_reject ):
-    """Butterworth bandwidth filter guaranteed to preserve original waveform phase by running dataset through filter both forwards and backwards. 
+    '''Butterworth bandwidth filter guaranteed to preserve original waveform phase by running dataset through filter both forwards and backwards. 
     
     Parameters:
         ds = The rank1 time-series input data.
@@ -147,7 +147,7 @@ def Butterworth_Bandpassify_zeroPhase( ds , polynomial_order , freq_min , freq_m
         pass_or_reject = True/False boolean input on whether keep/reject input frequency range 
         
     Returns:
-        ds_bandfilter = The rank1 dataset either limited to or excluding frequency range."""
+        ds_bandfilter = The rank1 dataset either limited to or excluding frequency range.'''
         
     ds_bandfilter = butterworth( ds , polynomial_order , freq_min , freq_max , pass_or_reject )
     ds_bandfilter_reversed = copy(reverse(ds_bandfilter))

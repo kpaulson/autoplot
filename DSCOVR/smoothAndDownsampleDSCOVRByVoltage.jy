@@ -1,0 +1,240 @@
+
+def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
+    '''
+    Smooth the rank2 SPC data by the mv_lo value (time-varying DEPEND_1 variable)
+    rather than just smoothing across indices. Replaces smoothSPCByVoltage() by smoothing
+    according to given timerange in seconds rather than arbitrary number of indices
+    
+    input:
+        spc_ds         = rank2 dataset - raw measurements
+        mv_lo          = rank2 dataset that acts as spc_ds DEPEND_1 variable - lower bound
+        mv_hi          = rank2 dataset that acts as spc_ds DEPEND_1 variable - upper bound
+        smoothSeconds  = number of seconds over which to smooth (corresponded to spectra on SPC)
+    output:
+        spc_ds_smooth_downsampled  = rank2 dataset - smoothed and downsampled to smoothSeconds cadence
+        
+    TODO: Add sliding window functionality (is it as simple as decimating the downsampling?)
+    TODO: Nested iteration is extremely slow, find way to implement boxcar function across energy channels
+    TODO: Interpolating mv_lo will cause trouble with where() calls and is obvisouly wrong, 
+              look into discrete integration using only values from uniq_mv_lo
+    '''
+    
+    import java
+    
+    temp_time = spc_ds.property(QDataSet.DEPEND_0)
+    temp_time.putProperty(QDataSet.NAME,None)
+    minimumCadence = min(diff(temp_time)[where(ne(diff(temp_time),0))])
+    
+    trs_downsampler= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%smoothSeconds,str(datumRange('%s to %s'%(str(temp_time[0]),str(temp_time[-1])))) )
+    
+    # Generate fill arrays to be populated in iteration
+    spc_ds_smooth_downsampled_mean   = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    spc_ds_smooth_downsampled_median = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    spc_ds_smooth_downsampled_mode   = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    mv_lo_downsampled                = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    mv_hi_downsampled                = -1*ones(len(trs_downsampler),len(spc_ds[0,:]))
+    time_downsampled                 = -1*ones(len(trs_downsampler))
+    
+    tr_downsampler_index = 0
+    for tr_downsampler in trs_downsampler:
+        
+        try:
+            tr_downsampler_timerange = datumRange( '%s to %s'%(tr_downsampler,datum(tr_downsampler)+datum('%ssec'%smoothSeconds)) )
+            
+            # isolate spc dataset over timerange window
+            spc_ds_temp = trim(spc_ds,tr_downsampler_timerange)
+            mv_lo_temp  = trim(mv_lo, tr_downsampler_timerange)
+            mv_hi_temp  = trim(mv_hi, tr_downsampler_timerange)
+            timestamp   = mean(spc_ds_temp.property(QDataSet.DEPEND_0))
+            
+            mv_lo_range = extent(mv_lo_temp)
+            min_mv_lo = mv_lo_range[0]
+            max_mv_lo = mv_lo_range[1]
+            
+            # Identify minimum and maximum nonfill mv_lo values
+            valid_mv_lo = where(valid(mv_lo_temp))
+            
+            min_mv_lo_sliceIndex = where(eq(mv_lo_temp,min_mv_lo))
+            min_mv_lo_sliceIndex = min_mv_lo_sliceIndex[imin(min_mv_lo_sliceIndex[:,1]),0]
+            max_mv_lo_sliceIndex = where(eq(mv_lo_temp,max_mv_lo))
+            max_mv_lo_sliceIndex = max_mv_lo_sliceIndex[imax(max_mv_lo_sliceIndex[:,1]),0]
+            
+            TEMP_mv_lo = concatenate(mv_lo_temp[min_mv_lo_sliceIndex,:],mv_lo_temp[max_mv_lo_sliceIndex,:])
+            
+            s = sort(TEMP_mv_lo)
+            uniq_mv_lo = uniqValues(TEMP_mv_lo,s)
+            
+            # Identify mean, median, and mode values across each identified uniq mv_lo channel           
+            mv_index = 0
+            for mv in uniq_mv_lo:
+                r = where(eq(mv_lo_temp,mv))
+                
+                spc_ds_smooth_downsampled_mean[tr_downsampler_index,mv_index] = mean(spc_ds_temp[r])
+                spc_ds_smooth_downsampled_median[tr_downsampler_index,mv_index] = median(spc_ds_temp[r])
+                spc_ds_smooth_downsampled_mode[tr_downsampler_index,mv_index] = mode(spc_ds_temp[r])
+                mv_lo_downsampled[tr_downsampler_index,mv_index] = mv
+                mv_hi_downsampled[tr_downsampler_index,mv_index] = median(mv_hi_temp[r])
+                
+                mv_index += 1
+                
+            time_downsampled[tr_downsampler_index] = timestamp
+        except(java.lang.IndexOutOfBoundsException):
+            continue
+        tr_downsampler_index += 1
+    
+    #This trims the original arrays to places where the time variable is nonzero and not the original -1 (necessary for lower-cadence data as in cruise)
+    goodValues = where(gt(putProperty(copy(time_downsampled),QDataSet.UNITS,None),0))
+    
+    spc_ds_smooth_downsampled_mean   = spc_ds_smooth_downsampled_mean[goodValues,:]
+    spc_ds_smooth_downsampled_median = spc_ds_smooth_downsampled_median[goodValues,:]
+    spc_ds_smooth_downsampled_mode   = spc_ds_smooth_downsampled_mode[goodValues,:]
+    mv_lo_downsampled                = mv_lo_downsampled[goodValues,:]
+    mv_hi_downsampled                = mv_hi_downsampled[goodValues,:]
+    time_downsampled                 = time_downsampled[goodValues]
+        
+    mv_lo_downsampled.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    mv_hi_downsampled.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    
+    spc_ds_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    spc_ds_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
+    spc_ds_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    spc_ds_smooth_downsampled_median.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
+    spc_ds_smooth_downsampled_mode.putProperty(QDataSet.DEPEND_0,time_downsampled)
+    spc_ds_smooth_downsampled_mode.putProperty(QDataSet.DEPEND_1,mv_lo_downsampled)
+  
+    spc_ds_smooth_downsampled_mean.putProperty(QDataSet.VALID_MIN,0)
+    spc_ds_smooth_downsampled_median.putProperty(QDataSet.VALID_MIN,0)
+    spc_ds_smooth_downsampled_mode.putProperty(QDataSet.VALID_MIN,0)
+    
+    return(spc_ds_smooth_downsampled_mean, spc_ds_smooth_downsampled_median, spc_ds_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled)
+
+
+##########################################
+
+timerange = getParam('timerange','2017-04-21 06:15 to 08:25','Iteration Timerange')
+dsc_flowAngle_file = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/Anisotropy/WIND-DSCOVR_verification/dsc_angle_by_speed/dsc_angle_by_speed_$Y$m$d.idl'
+
+writeStuff  = True
+writeBundle = True
+
+
+smoothSeconds = getParam('smoothseconds', 20, 'How many seconds to lump into each bin')
+numberOfChannels = '' #32
+    
+googleDrive_path = '/Users/kpaulson/GoogleDrive/' 
+
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
+    
+    localDownsampledDataDirectory = googleDrive_path+'Research/DSCOVR/DownsampledSpectra/%ssec/'%smoothSeconds
+    localDownsampledDataFile = localDownsampledDataDirectory+'DSCOVR_DownsampledSpectra_%s_%ssec.cdf'%(tr,smoothSeconds)
+    
+    fileAlreadyExists = False
+    time_begin_tr = TimeUtil.now() 
+    timeTitle = str(tr)    
+    
+    if lt(datumRange(timerange).width(), datumRange(tr).width()):
+        tr = timerange
+        tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
+        tp_end = TimeParser.create('-$H$M')
+        timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
+    
+
+
+    phi   = getDataSet(dsc_flowAngle_file+'?DSC.PHI.DAT',tr)
+    theta = getDataSet(dsc_flowAngle_file+'?DSC.THETA.DAT',tr)
+    vdf   = getDataSet(dsc_flowAngle_file+'?DSC.F.DAT',tr)
+    vz    = getDataSet(dsc_flowAngle_file+'?DSC.VZ.DAT',tr)
+    doy   = getDataSet(dsc_flowAngle_file+'?DSC.FDOY.DAT',tr)
+    
+    doy.putProperty(QDataSet.UNITS,Units.days)
+    
+    dscEpoch = timegen(tr[0:4],'1 sec',1)[0] + (doy - 1)
+    
+    v_z =   link(dscEpoch, vz[0,:,:])
+    phi =   link(dscEpoch, vz[0,:,:], phi[0,:,:])
+    theta = link(dscEpoch, vz[0,:,:], theta[0,:,:])
+    vdf =   link(dscEpoch, vz[0,:,:], vdf[0,:,:])
+    
+    
+    mv_lo = v_z
+    mv_hi = v_z
+    
+    # Rewrite this for DSCOVR variables
+    (dscovr_vdf_smooth_downsampled_mean, dscovr_vdf_smooth_downsampled_median, dscovr_vdf_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(vdf,mv_lo,mv_hi,smoothSeconds)
+    (dscovr_phi_smooth_downsampled_mean, dscovr_phi_smooth_downsampled_median, dscovr_phi_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(phi,mv_lo,mv_hi,smoothSeconds)
+    (dscovr_theta_smooth_downsampled_mean, dscovr_theta_smooth_downsampled_median, dscovr_theta_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(theta,mv_lo,mv_hi,smoothSeconds)
+    
+    v_z = mv_lo_downsampled
+    time = dscovr_vdf_smooth_downsampled_mean.property(QDataSet.DEPEND_0)
+    
+    numberOfChannels = len(v_z[0,:])
+    v_z = v_z[:,0:numberOfChannels]
+    
+    dscovr_vdf_smooth_downsampled_mean   = dscovr_vdf_smooth_downsampled_mean[:,0:numberOfChannels]
+    dscovr_vdf_smooth_downsampled_median = dscovr_vdf_smooth_downsampled_median[:,0:numberOfChannels]
+    dscovr_vdf_smooth_downsampled_mode   = dscovr_vdf_smooth_downsampled_mode[:,0:numberOfChannels]
+    
+    dscovr_phi_smooth_downsampled_mean   = dscovr_phi_smooth_downsampled_mean[:,0:numberOfChannels]
+    dscovr_phi_smooth_downsampled_median = dscovr_phi_smooth_downsampled_median[:,0:numberOfChannels]
+    dscovr_phi_smooth_downsampled_mode   = dscovr_phi_smooth_downsampled_mode[:,0:numberOfChannels]
+    
+    dscovr_theta_smooth_downsampled_mean   = dscovr_theta_smooth_downsampled_mean[:,0:numberOfChannels]
+    dscovr_theta_smooth_downsampled_median = dscovr_theta_smooth_downsampled_median[:,0:numberOfChannels]
+    dscovr_theta_smooth_downsampled_mode   = dscovr_theta_smooth_downsampled_mode[:,0:numberOfChannels]
+    
+    dscovr_phi_smooth_downsampled_mean.putProperty(QDataSet.VALID_MIN,None)
+    dscovr_theta_smooth_downsampled_mean.putProperty(QDataSet.VALID_MIN,None)
+    
+    dscovr_phi_smooth_downsampled_mean.putProperty(QDataSet.FILL_VALUE,37.81)
+    dscovr_theta_smooth_downsampled_mean.putProperty(QDataSet.FILL_VALUE,22.59)
+    
+    if writeStuff == True:
+        if writeBundle == True:
+            
+            ###
+            ### WRITE STUFF
+            ###
+            
+            time.putProperty(QDataSet.NAME,'epoch')
+            
+            v_z.putProperty(QDataSet.DEPEND_0,time)
+            
+            dscovr_vdf_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_0,time)
+            dscovr_vdf_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0,time)
+            dscovr_vdf_smooth_downsampled_mode.putProperty(QDataSet.DEPEND_0,time)
+            
+            dscovr_phi_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_0,time)
+            dscovr_phi_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0,time)
+            dscovr_phi_smooth_downsampled_mode.putProperty(QDataSet.DEPEND_0,time)
+            
+            dscovr_theta_smooth_downsampled_mean.putProperty(QDataSet.DEPEND_0,time)
+            dscovr_theta_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0,time)
+            dscovr_theta_smooth_downsampled_mode.putProperty(QDataSet.DEPEND_0,time)
+            
+            dscovr_vdf_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'dsc_vdf_mean')
+            dscovr_vdf_smooth_downsampled_median.putProperty(QDataSet.NAME,'dsc_vdf_median')
+            dscovr_vdf_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'dsc_vdf_mode')
+            
+            dscovr_phi_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'dsc_phi_mean')
+            dscovr_phi_smooth_downsampled_median.putProperty(QDataSet.NAME,'dsc_phi_median')
+            dscovr_phi_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'dsc_phi_mode')
+            
+            dscovr_theta_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'dsc_theta_mean')
+            dscovr_theta_smooth_downsampled_median.putProperty(QDataSet.NAME,'dsc_theta_median')
+            dscovr_theta_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'dsc_theta_mode')
+        
+        
+            bindle = bundle(v_z, dscovr_vdf_smooth_downsampled_mean, dscovr_vdf_smooth_downsampled_median)
+            bindle = bundle(bindle, dscovr_phi_smooth_downsampled_mean, dscovr_phi_smooth_downsampled_median)
+            bindle = bundle(bindle, dscovr_theta_smooth_downsampled_mean, dscovr_theta_smooth_downsampled_median)
+           
+            bindle.putProperty(QDataSet.DEPEND_0, time)
+            
+            formatDataSet(bindle,localDownsampledDataFile+'?bundle=T')
+
+
+plot(0,dscovr_vdf_smooth_downsampled_mean, zlog=True)
+plot(1,phi)
+plot(2,dscovr_phi_smooth_downsampled_mean)
+plot(3,dscovr_theta_smooth_downsampled_mean)

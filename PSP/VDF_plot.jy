@@ -7,7 +7,7 @@ import org.das2.graph.SpectrogramRenderer
 ############################################################################
 
 timerange             = getParam('timerange','2018-11-01','Iteration Timerange')
-checkForPreviousFiles = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
+checkForPreviousFiles = getParam('checkPrevious','T','If previous copies of VDF file exist, then skip to next day',['T','F'])
 onlyUsePrivateSPC     = getParam('non-publicSPCFiles','T','Skip looking at the public SPC directory and use private files (requires password)?',['T','F'])
 writeStuff            = getParam('writeStuff','T','Write out cdf and png of SPC vdf data to local directory?',['T','F'])
 
@@ -82,44 +82,89 @@ for tr in trs:
                 
             cfa_sweap_file = cfa_sweap_file_public
             
-            spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
-            spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
-            spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
-            spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+            spc_a = getDataSet(cfa_sweap_file+'?a_current',tr)
+            spc_b = getDataSet(cfa_sweap_file+'?b_current',tr)
+            spc_c = getDataSet(cfa_sweap_file+'?c_current',tr)
+            spc_d = getDataSet(cfa_sweap_file+'?d_current',tr)
 
-            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
-            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo',tr)
+            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi',tr)
             
-            spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-            spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-            spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-            spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR',tr)
+            spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR',tr)
+            spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR',tr)
+            spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR',tr)
 
-            mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-            mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+            mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR',tr)
+            mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR',tr)
             
         except:
             try:
                 cfa_sweap_file = cfa_sweap_file_private
                 
-                spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
-                spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
-                spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
-                spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+                spc_a = getDataSet(cfa_sweap_file+'?a_current',tr)
+                spc_b = getDataSet(cfa_sweap_file+'?b_current',tr)
+                spc_c = getDataSet(cfa_sweap_file+'?c_current',tr)
+                spc_d = getDataSet(cfa_sweap_file+'?d_current',tr)
     
-                mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
-                mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+                mv_lo = getDataSet(cfa_sweap_file+'?mv_lo',tr)
+                mv_hi = getDataSet(cfa_sweap_file+'?mv_hi',tr)
                 
-                spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-                spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-                spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-                spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+                spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR',tr)
+                spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR',tr)
+                spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR',tr)
+                spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR',tr)
     
-                mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
-                mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+                mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR',tr)
+                mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR',tr)
             except:
                 noSPCData = None
-                raise java.io.FileNotFoundException
+                raise java.io.FileNotFoundExceptiontry
+            
+#        try:
+#            if onlyUsePrivateSPC == True:
+#                raise moveItAlongException
+#
+#            cfa_sweap_file = cfa_sweap_file_public
+#
+#            spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+#            spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+#            spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+#            spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+#
+#            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+#            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+#
+#            spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#            spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#            spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#            spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#
+#            mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#            mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#
+#        except:
+#            try:
+#                cfa_sweap_file = cfa_sweap_file_private
+#
+#                spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+#                spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+#                spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+#                spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+#
+#                mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+#                mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+#
+#                spc_a_DELTA_VAR = getDataSet(cfa_sweap_file+'?a_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#                spc_b_DELTA_VAR = getDataSet(cfa_sweap_file+'?b_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#                spc_c_DELTA_VAR = getDataSet(cfa_sweap_file+'?c_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#                spc_d_DELTA_VAR = getDataSet(cfa_sweap_file+'?d_current_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#
+#                mv_lo_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_lo_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#                mv_hi_DELTA_VAR = getDataSet(cfa_sweap_file+'?mv_hi_DELTA_VAR&where=MODE_FLAG.eq(0)',tr)
+#            except:
+#                noSPCData = None
+#                raise java.io.FileNotFoundException
             
         print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
         time_last = TimeUtil.now()
@@ -311,17 +356,25 @@ for tr in trs:
             U.putProperty(    QDataSet.NAME,'sc_x_deflection')
             V.putProperty(    QDataSet.NAME,'sc_y_deflection')
             pinch.putProperty(QDataSet.NAME,'spot_ellipticity')
+            MODE_FLAG.putProperty(QDataSet.NAME,'modeFlag')
             
             vdf.putProperty(  QDataSet.LABEL,'vdf')
             U.putProperty(    QDataSet.LABEL,'sc_x deflection!C(degrees)')
             V.putProperty(    QDataSet.LABEL,'sc_y deflection!C(degrees)')
             pinch.putProperty(QDataSet.LABEL,'ellipticity ([A+C]-[B+D])')
+            MODE_FLAG.putProperty(QDataSet.LABEL,'mode flag')
             
-            vdf_bindle = bundle(vdf,U,V,pinch)
+            vdf_bindle = bundle(vdf, U, V, pinch)
+            #print 'here'
+            #vdf_bindle = bundle(vdf_bindle, MODE_FLAG)
             vdf_bindle.putProperty( QDataSet.DEPEND_0,vdf.property(QDataSet.DEPEND_0) )
             vdf_bindle.putProperty( QDataSet.DEPEND_1,vdf.property(QDataSet.DEPEND_1) )
-            
             formatDataSet(vdf_bindle,outputFile+'?bundle=T')
+            
+            formatDataSet(MODE_FLAG,outputFile+'?append=T')
+            
+            print 'Writing VDF cdf took:',TimeUtil.now()-time_last
+            time_last = TimeUtil.now()
     except:
         if fileAlreadyExists == False:
             print 'vdf processing failed for %s'%tr

@@ -254,7 +254,7 @@ def synchroterpolate(ds1,ds2):
 # ######################################################################################################### 
 # #########################################################################################################     
 
-brst_or_srvy = 'brst'
+brst_or_srvy = 'srvy' #'brst' 'srvy'
 
 #timerange = '2015-09-18 13:16:15 to 13:16:21'
 ## timerange = '2015-08-15 14:42:30 to 14:43:45' # This is the one I am working on
@@ -266,11 +266,12 @@ if brst_or_srvy == 'srvy':
     #timerange = '2015-06-25 11:50 to 12:07' # Pearl elements
     timerange = '2018-09-22 22:29 to 22:34' # Conjunction study
     #timerange = '2016-05-20 19:00 to 20:45' # Usanova's EMIC harmonics event
+    timerange = '2016-11-05 20:00 to 23:45' # Mark Engebretson's event for talk
     sc_list = ['mms1','mms2','mms3','mms4']
     
     freq_min = 0.1
     freq_max = 30.
-    window = 128
+    window = 1024
     slide = 8
     minPower = 0.003
     
@@ -885,13 +886,13 @@ V_phase_analytical.putProperty(QDataSet.VALID_MIN,0)
 
 if brst_or_srvy == 'brst':
     if b_or_e == 'bfield':
-        plot(0 , crossSpectralPower , ytitle='CSD!CSCM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in GSE   V!Ba!N = %s km/s'%(round(V_a,2)) )
+        plot(0 , crossSpectralPower , ytitle='CSD!CSCM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)) )
     if b_or_e == 'efield':
-        plot(0 , crossSpectralPower , ytitle='CSD!CEPD E!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in GSE   V!Ba!N = %s km/s'%(round(V_a,2)) )
+        plot(0 , crossSpectralPower , ytitle='CSD!CEPD E!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)) )
 elif brst_or_srvy == 'srvy':
-    plot(0 , crossSpectralPower , zlog=True , ytitle='CSD!CFGM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in GSE   V!Ba!N = %s km/s'%(round(V_a,2)) )
+    plot(0 , crossSpectralPower , zlog=True , ytitle='CSD!CFGM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)) )
 
-plot_kvec_or_kunit = 'kvec'
+plot_kvec_or_kunit = 'kangles' # 'kunit' 'kvec' 'kangles'
 if plot_kvec_or_kunit == 'kunit':  
     plot(1,k[:,:,0]/kmag,ytitle='(%{UNITS})',ztitle='k!D||!N / |k|')
     plot(2,k[:,:,1]/kmag,ytitle='(%{UNITS})',ztitle='k!B&perp;az!N / |k|')

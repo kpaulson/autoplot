@@ -8,6 +8,7 @@ tr = '2019-04-06 17:49:00 to 17:49:30'  #
 tr = '2020-01-30 12:18:15 to 12:18:25'  # 
 #tr = '2019-04-06 17:20 to 17:22'  # 
 #tr = '2019-04-06 15:00 to 19:30'  # 
+tr = '2021-04-29 07:35 to 07:40'
 trend_seconds = 60
 
 tr_outer = datumRange( str(datumRange(tr).min() - datum(str(trend_seconds)+' s'))+' to '+str(datumRange(tr).max() + datum(str(trend_seconds)+' s')) )
@@ -37,6 +38,8 @@ fieldAligner= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSub
 execfile( fieldAligner.toString() )
 #######################################################################
 #######################################################################
+
+import java
 
 # Download and trim down magnetic field data
 #mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
@@ -161,21 +164,107 @@ timeWidth = str( round(datumRange(tr).width()/2E6, 1) )
 
 #plot(1,numberFlux)
 
-vx_bins = linspace(0,1000,40)
-vy_bins = linspace(0,700,20)
-vz_bins = linspace(-600,600,20)
+vx_bins = linspace(0,1000,30)
+vy_bins = linspace(0,700,18)
+vz_bins = linspace(-600,600,18)
 
 #rebinnedSPANBundle_vxvy = rebin( link(-vx_Collapsed,vy_Collapsed,vdfCollapsed) , vx_bins , vy_bins )
 #rebinnedSPANBundle_vxvz = rebin( link(-vx_Collapsed,vz_Collapsed,vdfCollapsed) , vx_bins , vz_bins )
 rebinnedSPANBundle_vxvy = rebin( link(-vx,vy,vdf) , vx_bins , vy_bins )
 rebinnedSPANBundle_vxvz = rebin( link(-vx,vz,vdf) , vx_bins , vz_bins )
 
-plot(0,rebinnedSPANBundle_vxvy,xtitle='v!Bx!N',ytitle='v!By!N',title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf')
-plot(1,mag_span[:,0],mag_span[:,1],color='red')
-plot(2,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)', ztitle='vdf')
-plot(3,mag_span[:,0],mag_span[:,2],color='red')
+#plot(0, rebinnedSPANBundle_vxvy)
+def fillHistogramGaps(rebinHistogram, sizeOfGap=1):
+    rebinHistogram_interpolated = dblarr(len(rebinHistogram[:,0]), len(rebinHistogram[0,:]))
+    rebinHistogram_output = ones(len(rebinHistogram[:,0]), len(rebinHistogram[0,:]))*-1E38
+    for i in xrange(len(rebinHistogram[:,0])):
+        #print rebinHistogram.property(QDataSet.DEPEND_1)[where(valid(rebinHistogram[i,:]))]
+        if len(rebinHistogram.property(QDataSet.DEPEND_1)[where(valid(rebinHistogram[i,:]))]) > 1:
+            tempRatio = findex(rebinHistogram.property(QDataSet.DEPEND_1)[where(valid(rebinHistogram[i,:]))], rebinHistogram.property(QDataSet.DEPEND_1))
+        
+            rebinHistogram_interpolated[i,:] = interpolate(rebinHistogram[i,:][where(valid(rebinHistogram[i,:]))], tempRatio)
+            tempDiff = diff(valid(rebinHistogram[i,:]))
+            for j in xrange(len(rebinHistogram[0,:])-1):
+                if valid(rebinHistogram[i,j]) == 0 and tempDiff[j] == 1:
+                    #print i,j,' ',rebinHistogram_interpolated[i,j]
+                    rebinHistogram[i,j] = rebinHistogram_interpolated[i,j]
+                    rebinHistogram_output[i,j] = rebinHistogram_interpolated[i,j]
+                if valid(rebinHistogram[i,j]) == 1:
+                    rebinHistogram_output[i,j] = rebinHistogram[i,j]
+        #stop
+    for j in xrange(len(rebinHistogram[0,:])):
+        if len(rebinHistogram.property(QDataSet.DEPEND_0)[where(valid(rebinHistogram[:,j]))]) > 1:
+            tempRatio = findex(rebinHistogram.property(QDataSet.DEPEND_0)[where(valid(rebinHistogram[:,j]))], rebinHistogram.property(QDataSet.DEPEND_0))
+        
+            rebinHistogram_interpolated[:,j] = interpolate(rebinHistogram[:,j][where(valid(rebinHistogram[:,j]))], tempRatio)
+            tempDiff = diff(valid(rebinHistogram[:,j]))
+            for i in xrange(len(rebinHistogram[:,0])-1):
+                if valid(rebinHistogram[i,j]) == 0 and tempDiff[i] == 1:
+                    #print i,j,' ',rebinHistogram_interpolated[i,j]
+                    rebinHistogram[i,j] = rebinHistogram_interpolated[i,j]
+                    rebinHistogram_output[i,j] = rebinHistogram_interpolated[i,j]
+                if valid(rebinHistogram[i,j]) == 1:
+                    rebinHistogram_output[i,j] = rebinHistogram[i,j]
+        
+    return( rebinHistogram_output )
+        
+rebinnedSPANBundle_vxvy_degapped = fillHistogramGaps(rebinnedSPANBundle_vxvy)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.VALID_MIN, 0)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_1, vy_bins)
+rebinnedSPANBundle_vxvy_degapped = fillHistogramGaps(rebinnedSPANBundle_vxvy_degapped)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.VALID_MIN, 0)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_1, vy_bins)
+rebinnedSPANBundle_vxvy_degapped = fillHistogramGaps(rebinnedSPANBundle_vxvy_degapped)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.VALID_MIN, 0)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_1, vy_bins)
+
+rebinnedSPANBundle_vxvz_degapped = fillHistogramGaps(rebinnedSPANBundle_vxvz)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.VALID_MIN, 0)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_1, vz_bins)
+rebinnedSPANBundle_vxvz_degapped = fillHistogramGaps(rebinnedSPANBundle_vxvz_degapped)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.VALID_MIN, 0)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_1, vz_bins)
+rebinnedSPANBundle_vxvz_degapped = fillHistogramGaps(rebinnedSPANBundle_vxvz_degapped)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.VALID_MIN, 0)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_1, vz_bins)
+#plot(0, rebinnedSPANBundle_vxvy_degapped)
+#plot(2, rebinnedSPANBundle_vxvz_degapped)
+#stop
+
+#r = where(valid(rebinnedSPANBundle_vxvy))
+#rebinnedSPANBundle_vxvy = rebinnedSPANBundle_vxvy[r]
+# Trying to switch to contour plots
+
+vv = dataset([1E-7, 1E-6, 1E-5, 1E-4, 1E-3, 1E-2])
+vv = logspace(1E-8,1E-2, 10)
+#contour_vxvz = contour( link(-vx,vz,vdf), vv )
+contour_vxvz = contour( rebinnedSPANBundle_vxvz_degapped, vv )
+contour_vxvy = contour( rebinnedSPANBundle_vxvy_degapped, vv )
+print contour_vxvz
+
+plot(0,link(-vx,vy,vdf), xtitle='v!Bx!N', ytitle='v!By!N', title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf', symbolSize=3, renderType='colorScatter')
+#plot(0,rebinnedSPANBundle_vxvy,xtitle='v!Bx!N',ytitle='v!By!N',title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf')
+#plot(1,abs(mag_span[:,0]),mag_span[:,1],color='red')
+plot(1, contour_vxvy)
+#plot(2,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)', ztitle='vdf')
+plot(2,link(-vx,vz,vdf), xtitle='v!Bx!N', ytitle='v!Bz!N   (v!BR!N)', ztitle='vdf', symbolSize=3, renderType='colorScatter')
+#plot(3,abs(mag_span[:,0]),mag_span[:,2],color='red')
+plot(3, contour_vxvz)
+#stop
+
+
+#plot(4, contour_vxvz)
+#plot(4, link(-vx,vz,vdf), symbolSize=3, zlog=True)
+
 stop
 
+# Not sure what this does (below). It looks like rotation into field-aligned coordinates, but that doesn't work without the boost velocity
 
 r = where(eq(valid( rebinnedSPANBundle_vxvz ),0))
 rebinnedSPANBundle_vxvz[r] = 0

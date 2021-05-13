@@ -1,5 +1,5 @@
 
-def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_in, vdf_full_in, Nx_temp_in, Ny_temp_in, Nz_temp_in):
+def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_in, vdf_full_in, Nx_temp_in, Ny_temp_in, Nz_temp_in, minNormalizedFluxValue=0.5):
     '''
     Process that is the heart of SPC script calculating the anisotropy of a given VDF
     using the pre-calculated plasma deflection angle/velocity for each energy channel
@@ -10,9 +10,9 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
         v_z_in         = rank2 DEPEND_1 of the VDF. velocity of each bin across sweep for each timestamp
         vz_tanPhi_in   = rank2 deflection velocity in s/c y-direction for each bin across sweep for each timestamp
         vz_tanTheta_in = rank2 deflection velocity in s/c x-direction for each bin across sweep for each timestamp
-        u_x_in         = rank1 bulk plasma flow velocity in s/c x-direction
-        u_y_in         = rank1 bulk plasma flow velocity in s/c y-direction
-        u_z_in         = rank1 bulk plasma flow velocity in s/c z-direction
+        u_x_in         = rank1 s/c-driven boost velocity in s/c x-direction
+        u_y_in         = rank1 s/c-driven boost velocity in s/c y-direction
+        u_z_in         = rank1 s/c-driven boost velocity in s/c z-direction
         vdf_full_in    = rank2 calculated (or fit) velocity distribution function 
         Nx_temp_in     = rank1 unit vector of magnetic field strength in s/c x-direction
         Ny_temp_in     = rank1 unit vector of magnetic field strength in s/c y-direction
@@ -20,7 +20,9 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
     Outputs:
         
     '''
-    #verbose = True
+    #minNormalizedFluxValue = 0.5 #affixed in input parameters (I think?...)
+    
+    verbose = True
     # Now time for the real work
     inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
     chiline                = None
@@ -135,8 +137,8 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
             
             
-            # These two lines below should create a step function on the normalized weights such that anything less than 0.5 goes to 0. The idea is that this will only fit the points that are above half the max of the peak
-            blackoutNormalized = where(lt(norm_temp_vdf,0.5))
+            # These two lines below should create a step function on the normalized weights such that anything less than 0.5 (minNormalizedFluxValue) goes to 0. The idea is that this will only fit the points that are above half the max of the peak
+            blackoutNormalized = where(lt(norm_temp_vdf,minNormalizedFluxValue))
             norm_temp_vdf[blackoutNormalized] = 0.01
             temp_vdf[blackoutNormalized] = 0.01
                 #plot(norm_temp_vdf[r]*100,xrange=[0,600],renderType='scatter')
@@ -181,7 +183,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                     psi_point = WeightedObservedPoint(point_weight, float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]), float(temp_vz_tanPhi[r][i]))
                     #print 'chi_point_weight',chi_point.getWeight()
                     #print 'psi_point_weight',psi_point.getWeight()
-                    if float(norm_temp_vdf[r][i]) >= 0.5:
+                    if float(norm_temp_vdf[r][i]) >= minNormalizedFluxValue:
                         ftr_chi.addObservedPoint( chi_point )
                         ftr_psi.addObservedPoint( psi_point )
                     
@@ -308,8 +310,8 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 
                 #plot(3,dataset([datumRange(tr_dds).min(),datumRange(tr_dds).max(),'xff00ff','event']),renderType='eventsBar',color='magenta')
                 plot(3,event,renderType='eventsBar')
-                plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=3)
-                plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=3)
+                plot(4,temp_v_z[r]*temp_Nx_temp_dd[r],temp_vz_tanTheta[r] ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=5)
+                plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=5)
                 #plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
                 #plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
                 plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N*B!Bx!N (nT km s!U-1!N)!C!C'+tr_dds,title='Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4))+'     Anisotropy!B&Chi;!N = '+str(round(plot_anisotropy_chi,3))+' &plusmn; ['+str(round(anisotropy_chi_deltaPlus,3))+','+str(round(anisotropy_chi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!Bx!N (km s!U-1!N)')

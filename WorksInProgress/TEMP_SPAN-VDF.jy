@@ -91,7 +91,7 @@ phi    = trim(phi  , tr)
 eflux  = trim(eflux, tr)
 time   = trim(time , tr)
 
-mag_span = synchronize(eflux,mag_span)
+#mag_span = synchronize(eflux,mag_span)
 #reset()
 
 numberFlux = eflux / eflux.property(QDataSet.DEPEND_1)
@@ -276,12 +276,11 @@ plot(2,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)', ztitl
 plot(3, contour_vxvz)
 #stop
 
-formatDataSet()
 
 #plot(4, contour_vxvz)
 #plot(4, link(-vx,vz,vdf), symbolSize=3, zlog=True)
 
-stop
+#stop
 
 # Not sure what this does (below). It looks like rotation into field-aligned coordinates, but that doesn't work without the boost velocity
 
@@ -311,9 +310,9 @@ rebinnedSPANBundle_vxvz_sc = rebin( link(-vSPAN_sc[:,:,0],vSPAN_sc[:,:,2],vdf) ,
 
 
 # Run Field-Alignement routine to establish field coordinates
-TEMP_Rx = putProperty(ones(len(eflux)),QDataSet.DEPEND_0,time)
-TEMP_Ry = putProperty(zeros(len(eflux)),QDataSet.DEPEND_0,time)
-TEMP_Rz = putProperty(zeros(len(eflux)),QDataSet.DEPEND_0,time)
+TEMP_Rx = putProperty(ones(len(mag_span)),QDataSet.DEPEND_0,mag_time)
+TEMP_Ry = putProperty(zeros(len(mag_span)),QDataSet.DEPEND_0,mag_time)
+TEMP_Rz = putProperty(zeros(len(mag_span)),QDataSet.DEPEND_0,mag_time)
 
 ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( mag_span[:,0] , mag_span[:,1] , mag_span[:,2] , mag_magnitude , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
 
@@ -346,7 +345,7 @@ rebinnedSPANBundle_vpvq_mag = rebin( link(vSPAN_p,vSPAN_q,vdf) , vp_span_bins , 
 rebinnedSPANBundle_vpvq_mag_reflected = rebin( temp , vp_span_bins , vq_span_bins )
 
 plot(0,rebinnedSPANBundle_vpvn_mag,ytitle='v!B||!N',xtitle='v!B&perp;1!N',xrange=[vp_span_bins[0],vp_span_bins[-1]],title=str(timestamp)[:-1]+' ± '+timeWidth)
-plot(1,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
+plot(2,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
 #plot(1,rebinnedSPANBundle_vpvq_mag_reflected,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
 
 

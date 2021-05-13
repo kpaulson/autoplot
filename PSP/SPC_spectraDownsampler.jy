@@ -56,7 +56,8 @@ OS = get_os_version().split()[0]
 if OS == 'mac':
     googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
-    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
        
 
 ############################################################################

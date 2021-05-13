@@ -198,15 +198,16 @@ if OS == 'mac':
     googleDrive_path = '/Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
     googleDrive_path = '/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
-    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
 
-addToSearchPath(sys.path,googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar',monitor)
+#addToSearchPath(sys.path, str(googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar'), monitor)
 
-from org.apache.commons.math3.fitting import AbstractCurveFitter
-from org.apache.commons.math3.fitting import SimpleCurveFitter
-from org.apache.commons.math3.fitting.leastsquares import LevenbergMarquardtOptimizer as LMO
-from org.apache.commons.math3.fitting.leastsquares import GaussNewtonOptimizer
-from org.apache.commons.math3.analysis import ParametricUnivariateFunction
+#from org.apache.commons.math3.fitting import AbstractCurveFitter
+#from org.apache.commons.math3.fitting import SimpleCurveFitter
+#from org.apache.commons.math3.fitting.leastsquares import LevenbergMarquardtOptimizer as LMO
+#from org.apache.commons.math3.fitting.leastsquares import GaussNewtonOptimizer
+#from org.apache.commons.math3.analysis import ParametricUnivariateFunction
 
 class LinFit(ParametricRealFunction):
 #class LinFit(ParametricUnivariateFunction):

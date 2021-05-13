@@ -1,12 +1,20 @@
 timerange = getParam('timerange', '2018-11-02', 'timerange of data to add to PSP ephemeris file')
+checkPrevious = getParam('checkPrevious', 'T', 'check for previous instances of output file and skip day if present', ['T', 'F'])
 cfa_sweap_spc_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
-local_hourlyEphem_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+#local_hourlyEphem_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+local_hourlyEphem_file = 'file:/G:/My Drive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
 
-PSP_ephem_directory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/'
+#PSP_ephem_directory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/'
+PSP_ephem_directory = 'G:/My Drive/Research/PSP/Ephemeris/'
 
 #inputEphemeris_txt_r_Sun = getDataSet(PSP_ephem_file_txt+'?r_Sun&depend0=time')
 #inputEphemeris_txt = getDataSet(PSP_ephem_file_txt+'?rank2=r_Sun-z_HCI&depend0=time')
 #time = inputEphemeris_txt.property(QDataSet.DEPEND_0)
+
+if checkPrevious == 'T':
+    checkPrevious = True
+elif checkPrevious == 'F':
+    checkPrevious = False
 
 rsun = 696340.
 
@@ -15,29 +23,32 @@ for tr in trs:
     PSP_ephem_file_cdf = PSP_ephem_directory+'PSP_ephemeris_%s.cdf'%(tr)
     PSP_ephem_file_txt = PSP_ephem_directory+'PSP_ephemeris_%s.txt'%(tr)
     try:
-    #if True:
+        if checkPrevious == True:
+            try:
+                previous_file = getFile(PSP_ephem_file_cdf,None)
+            except:
+                pass
+            if 'previous_file' in locals():
+                print 'Already have data for %s'%(tr)
+                break
+                del(previous_file)
+        
         try:
-            previous_file = getFile(PSP_ephem_file_txt,None)
-        except:
-            pass
-        if 'previous_file' in globals():
-            print 'Already have data for %s'%(tr)
-            break
-        try:
-            sc_pos_HCI     = getDataSet(local_hourlyEphem_file+'?pos_HCI',tr)
-            carr_latitude  = getDataSet(local_hourlyEphem_file+'?CARR_LAT',tr)
-            carr_longitude = getDataSet(local_hourlyEphem_file+'?CARR_LON',tr)
+            old_sc_pos_HCI     = getDataSet(local_hourlyEphem_file+'?pos_HCI',tr)
+            old_carr_latitude  = getDataSet(local_hourlyEphem_file+'?CARR_LAT',tr)
+            old_carr_longitude = getDataSet(local_hourlyEphem_file+'?CARR_LON',tr)
             print 'Used local hourly file'
         except:    
             try:
-                sc_pos_HCI     = getDataSet(cfa_sweap_spc_L3_file+'?sc_pos_HCI',tr)
-                carr_latitude  = getDataSet(cfa_sweap_spc_L3_file+'?carr_latitude',tr)
-                carr_longitude = getDataSet(cfa_sweap_spc_L3_file+'?carr_longitude',tr)
-                spc_time = sc_pos_HCI.property(QDataSet.DEPEND_0)
+                old_sc_pos_HCI     = getDataSet(cfa_sweap_spc_L3_file+'?sc_pos_HCI',tr)
+                old_carr_latitude  = getDataSet(cfa_sweap_spc_L3_file+'?carr_latitude',tr)
+                old_carr_longitude = getDataSet(cfa_sweap_spc_L3_file+'?carr_longitude',tr)
+                spc_time = old_sc_pos_HCI.property(QDataSet.DEPEND_0)
                 print 'Used sweap L3 file'
             except:
                 raise noSPCDataException
-    
+                
+        old_time = old_sc_pos_HCI.property(QDataSet.DEPEND_0)
         new_time = timegen(str(tr),'5 min',12*24)
         
 #        already_there = where( time.ge(new_time[0]).and(time.le(new_time[-1])) )
@@ -47,7 +58,10 @@ for tr in trs:
 #            print 'Already have data for %s'%(tr)
 #            raise DataAlreadyThereException
     
-        (sc_pos_HCI,carr_latitude,carr_longitude) = synchronize(new_time,[sc_pos_HCI,carr_latitude,carr_longitude])
+        (sc_pos_HCI, carr_latitude, carr_longitude) = synchronize(new_time,[old_sc_pos_HCI, old_carr_latitude, old_carr_longitude])
+        
+        old_to_new_timeRatio = findex(old_time, new_time)
+        carr_longitude = interpolateMod(old_carr_longitude , dataset(datumRange('-180 to 180 degrees')), old_to_new_timeRatio)
     
         solar_distance = magnitude(sc_pos_HCI)/rsun
         
@@ -55,8 +69,8 @@ for tr in trs:
         solar_distance.putProperty(QDataSet.VALID_MAX,250)
         carr_latitude.putProperty(QDataSet.VALID_MIN,-180)
         carr_latitude.putProperty(QDataSet.VALID_MAX,180)
-        carr_longitude.putProperty(QDataSet.VALID_MIN,0)
-        carr_longitude.putProperty(QDataSet.VALID_MAX,360)
+        carr_longitude.putProperty(QDataSet.VALID_MIN,-180)
+        carr_longitude.putProperty(QDataSet.VALID_MAX,180)
         
         solar_distance.putProperty(QDataSet.NAME,'r_Sun')
         carr_latitude.putProperty( QDataSet.NAME,'latitude')
@@ -86,6 +100,7 @@ for tr in trs:
 #        output_ephem = output_ephem[uniqueValues]
         
         formatDataSet(output_ephem, PSP_ephem_file_txt+'?header=rich')
+        #formatDataSet(output_ephem, PSP_ephem_file_cdf+'?bundle=T')
         
         formatDataSet(solar_distance, PSP_ephem_file_cdf)
         formatDataSet(carr_latitude, PSP_ephem_file_cdf+'?append=T')

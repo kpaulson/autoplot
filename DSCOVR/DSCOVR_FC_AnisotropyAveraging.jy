@@ -42,8 +42,8 @@ def getTrimDataSet(ds_string,ds_timerange):
 import sys
 
 tr = getParam('timerange','2017-01-04','Timerange over which to generate combined anisotropy measurement')
-version_L0 = getParam('L0Version','0.4.2','Version number of input L0 file')
-version_L1 = getParam('L1Version','1.1.2','Version number of output L1 file')
+version_L0 = getParam('L0Version','0.4.3','Version number of input L0 file')
+version_L1 = getParam('L1Version','1.1.3','Version number of output L1 file')
 
 checkForPreviousFiles = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
 writeStuff = getParam('writeFiles','T','Write out the L1 files with this version of the code?',['T','F'])
@@ -96,7 +96,8 @@ OS = get_os_version().split()[0]
 if OS == 'mac':
     googleDrive_directory = 'file:/home/kpaulson/Google Drive File Stream/My Drive/'
 elif OS == 'windows':
-    googleDrive_directory = 'file:/C:/Users/kpaulson/GoogleDrive/'
+    #googleDrive_directory = 'file:/C:/Users/kpaulson/GoogleDrive/'
+    googleDrive_directory = 'file:/G:/My Drive/'
 
 #filename = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
 filename = googleDrive_directory+'Research/DSCOVR/Anisotropy/Anisotropy_Files/L0/v%s/DSC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)

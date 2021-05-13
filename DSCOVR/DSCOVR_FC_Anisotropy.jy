@@ -45,10 +45,11 @@ separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attem
 writeStuff                     = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
 conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','F','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
 usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
-analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','T','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
+analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
 
 #vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/Anisotropy/WIND-DSCOVR_verification/dsc_angle_by_speed/dsc_angle_by_speed_20170129.idl?DSC.PHI.DAT
-dsc_flowAngle_file = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/Anisotropy/WIND-DSCOVR_verification/dsc_angle_by_speed/dsc_angle_by_speed_$Y$m$d.idl'
+#dsc_flowAngle_file = 'vap+idlsav:file:///C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/Anisotropy/WIND-DSCOVR_verification/dsc_angle_by_speed/dsc_angle_by_speed_$Y$m$d.idl'
+dsc_flowAngle_file = 'vap+idlsav:file:///G:/My Drive/Research/DSCOVR/Anisotropy/WIND-DSCOVR_verification/dsc_angle_by_speed/dsc_angle_by_speed_$Y$m$d.idl'
 
    
 if useLocalSubprocesses == 'T':
@@ -200,7 +201,8 @@ if OS == 'mac':
     googleDrive_path = '/Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
     googleDrive_path = '/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
-    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
 
 #addToSearchPath(sys.path,googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar',monitor)
 #
@@ -282,7 +284,8 @@ for tr in trs:
         vdf =   link(dscEpoch, vz[0,:,:], vdf[0,:,:])
         
     elif usePreviouslyDownsampledData == True:
-        dsc_flowAngle_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/DownsampledSpectra/%ssec/DSCOVR_DownsampledSpectra_$Y-$m-$d_%ssec.cdf'%(smoothSeconds, smoothSeconds)
+        #dsc_flowAngle_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/DSCOVR/DownsampledSpectra/%ssec/DSCOVR_DownsampledSpectra_$Y-$m-$d_%ssec.cdf'%(smoothSeconds, smoothSeconds)
+        dsc_flowAngle_file = 'file:/G:/My Drive/Research/DSCOVR/DownsampledSpectra/%ssec/DSCOVR_DownsampledSpectra_$Y-$m-$d_%ssec.cdf'%(smoothSeconds, smoothSeconds)
         
         phi   = getDataSet(dsc_flowAngle_file+'?dsc_phi_mean',tr)
         theta = getDataSet(dsc_flowAngle_file+'?dsc_theta_mean',tr)
@@ -317,7 +320,7 @@ for tr in trs:
     
     # This very unfortunate naming convention comes about due to differences in how the axes on DSCOVR are labeled from PSP (I hope.. double check PSP isn't messed up too).
     vz_tanPhi   = -v_z * tan(toRadians(theta))     # Vy
-    vz_tanTheta = -v_z * tan(toRadians(phi))       # Vx
+    vz_tanTheta =  v_z * tan(toRadians(phi))       # Vx
     
     # For now, setting v_sc to zero. It should not affect measurements, but at some point will update with L1 sc velocites        
     v_scx = putProperty(zeros(len(v_z)),QDataSet.DEPEND_0,v_z.property(QDataSet.DEPEND_0))
@@ -378,8 +381,8 @@ for tr in trs:
                     epsilonEpoch, anisotropy_chi_deltaPlus,
                     anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
                     anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev) = findVDFAnisotropy(v_z, vz_tanPhi, vz_tanTheta, 
-                                                 u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
-                                                 Ny_temp, Nz_temp)
+                                                                                                         u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
+                                                                                                         Ny_temp, Nz_temp, minNormalizedFluxValue=0.3)
                 plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
                 plot(5,epsilonEpoch,bundle(slopeError_chi,slopeError_psi), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
                 

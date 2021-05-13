@@ -74,6 +74,7 @@ tr = nishuTime
 #tr = '2018-11-02 to 2018-12-16'
 tr = orbit1
 tr = '2018-08-12 08:15 to 2019-06-18 20:15'
+tr = '2020-11-20 to 2020-11-25'
 
 tr_WIND = '2018-11-04 to 2018-11-07'#carringtonRotation_2220
 tr_WIND = carringtonRotation_2213

@@ -1,0 +1,105 @@
+
+tr = getParam('timerange', '2021-04-25', 'overall timerange to generate plots (typically 1 day)')
+numberOfMinutesIntegration = getParam('numberOfMinutesIntegration', 60, 'number of minutes to integrate for each TOF plot')
+
+outputDirectory = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/tof/Plots/%smin/'%(numberOfMinutesIntegration)
+#outputDirectory = 'G:/My Drive/Research/PSP/SPAN/SPANi/tof/Plots/15min/'
+
+massTable_list = [0, 1, 2, 3]
+
+energySteps = getDataSet('file:///G:/My Drive/Research/PSP/SPAN/SPANi/energySteps_2021-02-20.txt?column=Energy')
+massTable = linspace(0,16,16)
+
+trs = generateTimeRanges('$Y-$m-$d $H:$M', tr)
+
+from org.das2.graph.SpectrogramRenderer.RebinnerEnum import nnTriScat
+
+#spi_sf20_L1_file = 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/L1/spi_sf20/$Y/$m/psp_swp_spi_sf20_L1_$Y$m$d_v$v.cdf'
+#spi_sf2X_L1_file = 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/L1/spi_sf20/$Y/$m/psp_swp_spi_sf20_L1_$Y$m$d_v$v.cdf'
+
+spi_sf2X_L1_file_list = list()
+for xx in massTable_list:
+    #spi_sf2X_L1_file_list.append('file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/L1/spi_sf2%s/$Y/$m/psp_swp_spi_sf2%s_L1_$Y$m$d_v$v.cdf'%(xx, xx) )
+    spi_sf2X_L1_file_list.append('file:///G:/My Drive/Research/PSP/SPAN/SPANi/L1/spi_sf2%s/$Y/$m/psp_swp_spi_sf2%s_L1_$Y$m$d_v$v.cdf'%(xx, xx) )
+
+
+
+
+plotIndex = 0
+#spi_sf2X_NRG_SPEC = list()
+#spi_sf2X_MAS_SPEC = list()
+spi_sf2X_DATA = list()
+for spi_sf2X_L1_file in spi_sf2X_L1_file_list:
+#spi_sf2X_L1_file = spi_sf2X_L1_file_list[0]
+#if True:
+    #spi_sf2X_NRG_SPEC = getDataSet(spi_sf2X_L1_file+'?NRG_SPEC',tr)
+    #spi_sf2X_NRG_SPEC.append(getDataSet(spi_sf2X_L1_file+'?NRG_SPEC',tr))
+    #spi_sf2X_MAS_SPEC = getDataSet(spi_sf2X_L1_file+'?MAS_SPEC',tr)
+    #spi_sf2X_ANO_SPEC = getDataSet(spi_sf2X_L1_file+'?ANO_SPEC',tr)
+    #spi_sf2X_DEF_SPEC = getDataSet(spi_sf2X_L1_file+'?DEF_SPEC',tr)
+    #spi_sf2X_DATA     = getDataSet(spi_sf2X_L1_file+'?DATA',tr)
+    spi_sf2X_DATA.append(getDataSet(spi_sf2X_L1_file+'?DATA',tr))
+    #print spi_sf2X_NRG_SPEC
+    #print spi_sf2X_MAS_SPEC
+    #print spi_sf2X_DATA
+
+
+for tr in trs[::numberOfMinutesIntegration]:
+    endTimeRange = str(tr+datum('%smin'%numberOfMinutesIntegration))
+    tr_title = tr + '  to  ' + endTimeRange[0:10] + ' ' + endTimeRange[11:16]
+    tr_filename = tr[0:10]+'_'+tr[11:13]+tr[14:16]
+    tr = str(datum(tr)) + ' to ' + endTimeRange
+    
+    outputFilename = 'SPANi_TOF_%s.png'%tr_filename
+    
+    for plotIndex in massTable_list:
+        TEMP_spi_sf2X_DATA = total(trim(spi_sf2X_DATA[plotIndex],tr),0)
+        spi_sf2X_DATA_matrix = zeros(32, 16)
+        
+        #try:
+        for j in xrange(16):
+            spi_sf2X_DATA_matrix[:,j] = TEMP_spi_sf2X_DATA[(j*32)+0:(j*32)+32]
+            
+        spi_sf2X_DATA_matrix.putProperty(QDataSet.DEPEND_0, energySteps)
+        spi_sf2X_DATA_matrix.putProperty(QDataSet.DEPEND_1, massTable)
+        
+        TEMP_spi_sf2X_DATA_matrix = rebin(link(spi_sf2X_DATA_matrix.property(QDataSet.DEPEND_0), spi_sf2X_DATA_matrix.property(QDataSet.DEPEND_1),spi_sf2X_DATA_matrix ), logspace(5, 3E4, 32), linspace(0,16,16))
+            
+        #plot(3-plotIndex, spi_sf2X_DATA_matrix, xrange=[0,32], yrange=[0,16], zrange=[0.2, 9.0E6], title='SPANi TOF!C'+tr_title, xtitle='Energy Index', ytitle='Mass Index!CSF2%s'%plotIndex, ztitle='Flux')
+        #plot(3-plotIndex, spi_sf2X_DATA_matrix, xrange=[7, 20000], xlog=True, yrange=[0,16], zrange=[0.2, 9.0E6], zlog=True, title='SPANi TOF!C'+tr_title, xtitle='Energy (eV)', ytitle='Mass Index!CSF2%s'%plotIndex, ztitle='Flux', renderer=nnTriScat)
+        plot(3-plotIndex, TEMP_spi_sf2X_DATA_matrix, xrange=[10, 1.2E4], xlog=True, yrange=[0,16], zrange=[0.2, 9.0E6], zlog=True, title='SPANi TOF!C'+tr_title, xtitle='Energy (eV)', ytitle='Mass Index!CSF2%s'%plotIndex, ztitle='Flux' )
+        #dom.plotElements[3-plotIndex].controller.setRenderer(nnTriScat)
+
+    waitUntilIdle()
+    writeToPng(outputDirectory+outputFilename)
+    #writeToPng(outputDirectory+outputFilename)
+#stop
+#    #testIndex = 100
+#    #print spi_sf2X_DATA
+#
+#    spi_sf2X_DATA[plotIndex] = total(spi_sf2X_DATA,0)
+#    #spi_sf2X_DATA_matrix = reform(spi_sf2X_DATA[testIndex,:], zeros(32,32))
+#    #spi_sf2X_DATA_matrix = zeros(len(spi_sf2X_NRG_SPEC[0,:]),len(spi_sf2X_MAS_SPEC[0,:]))
+#    spi_sf2X_DATA_matrix = zeros(32, 16)
+#    #for j in xrange(len(spi_sf2X_MAS_SPEC[0,:])):
+#    #    spi_sf2X_DATA_matrix[(0):(len(spi_sf2X_NRG_SPEC[0,:])-1),j] = spi_sf2X_DATA[testIndex,(j+0):(j+len(spi_sf2X_NRG_SPEC[0,:])-1)]
+#    #for j in xrange(len(spi_sf2X_MAS_SPEC[0,:])):
+#    #    spi_sf2X_DATA_matrix[(0):(len(spi_sf2X_NRG_SPEC[0,:])-1),j] = spi_sf2X_DATA[(j+0):(j+len(spi_sf2X_NRG_SPEC[0,:])-1)]
+#    for j in xrange(16):
+#        spi_sf2X_DATA_matrix[:,j] = spi_sf2X_DATA[(j*32)+0:(j*32)+32]
+#        #spi_sf2X_DATA_matrix[i,(0):(32-1)] = spi_sf2X_DATA[(i+0):(i+32-1)]
+#    #for i in xrange(16):
+#    #    print spi_sf2X_DATA_matrix[0,i].value()
+#
+#    #plot(plotIndex, spi_sf2X_NRG_SPEC[testIndex,:], spi_sf2X_MAS_SPEC[testIndex,:], spi_sf2X_DATA_matrix, xlog=True, ylog=True, zlog=True, renderType='colorScatter')
+#
+#    #linkedData = link(spi_sf2X_NRG_SPEC[testIndex,:], spi_sf2X_MAS_SPEC[testIndex,:], spi_sf2X_DATA_matrix)
+#    #print linkedData
+#    plot(3-plotIndex, spi_sf2X_DATA_matrix, xrange=[0,32], yrange=[0,16], zrange=[0.2, 9.0E6], xtitle='Energy Index', ytitle='Mass Index', ztitle='Flux')
+#    plotIndex = plotIndex+1
+
+
+
+
+
+

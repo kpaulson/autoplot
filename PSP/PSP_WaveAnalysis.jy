@@ -8,7 +8,7 @@
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
 #timerange = getParam('timerange','2019-04-01 08:10 to 08:20','Timerange over which to calculate Poynting Flux')
 #timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
-timerange = getParam('timerange','2019-04-12 06:00 to 12:00','Timerange over which to calculate Poynting Flux')
+timerange = getParam('timerange','2021-04-28 09:00 to 12:00','Timerange over which to calculate Poynting Flux')
 
 freq_min       = getParam('minFrequency', 0.1,  'Lower frequency bound of analysis (Hz)')
 freq_max       = getParam('maxFrequency', 9.,  'Upper frequency bound of analysis (Hz)')
@@ -136,7 +136,8 @@ OS = get_os_version().split()[0]
 if OS == 'mac':
     googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
-    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
     
 waveAnalysisFiles_directory = googleDrive_path + outputDirectory
     
@@ -144,16 +145,16 @@ if useLocalFiles == True:
     cfa_sweap_file  = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     #mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     #efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
-    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
-    mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
+    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
 else:
     cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     #mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     #efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
-    mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-    efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
-    mag_100bpsfile  = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                
+    mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+    mag_100bpsfile  = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                
     #http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf
     
     
@@ -206,11 +207,13 @@ for tr in trs:
         monitor.setProgressMessage('Downloading Data')
         
         mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
+        print 'mag_data:',mag_datafile+'?psp_fld_l2_mag_SC'
         mag_data = trim(mag_data,tr)
         mag_time = mag_data.property(QDataSet.DEPEND_0)
         
         try:
             efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
+            print 'efield_data:',efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc'
         except:
             if generateEfieldFreeVersion == True:
                 efield_data = zeros(len(mag_data),3)
@@ -538,6 +541,7 @@ for tr in trs:
             plot(1, mag_time, Bp_pol, ytitle='B (nT)', color='red')
             plot(2, mag_time, Bq_pol, ytitle='B (nT)', color='blue')
             plot(3, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
+            #plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo          From!CSun          Sun', zlog=False, zrange=[0,180]) 
             #plot(4, Poynting_phi, colorTable='apl_rainbow_black0')   
@@ -547,6 +551,11 @@ for tr in trs:
             #plot(2, Sp, ztitle='Sp (~RTN!BT!N)', colorTable='blue_white_red')    
             #plot(3, Sq, ztitle='Sq (~RTN!BN!N)', colorTable='blue_white_red')  
             plot(7, Angle_Normal, xrange=tr, ztitle='Wave Normal!Ck &middot; |B|', colorTable='inverse_grayscale')  
+            
+            
+            if generateEfieldFreeVersion == True:
+                plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
+                plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             
             waitUntilIdle()
             writeToPng(waveAnalysis_directory+'PSP_WaveAnalysis_%s_v%s.png'%(tr_titles[index],version))

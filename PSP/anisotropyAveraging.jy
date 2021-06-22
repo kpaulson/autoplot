@@ -96,7 +96,8 @@ OS = get_os_version().split()[0]
 if OS == 'mac':
     googleDrive_directory = 'file:/home/kpaulson/Google Drive File Stream/My Drive/'
 elif OS == 'windows':
-    googleDrive_directory = 'file:/C:/Users/kpaulson/GoogleDrive/'
+    #googleDrive_directory = 'file:/C:/Users/kpaulson/GoogleDrive/'
+    googleDrive_directory = 'file:/G:/My Drive/'
 
 filename = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
     

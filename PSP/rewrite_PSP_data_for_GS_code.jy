@@ -19,7 +19,7 @@ write_output = getParam('writeOutput','T','Do you want to write the current setu
 #Full cadence magnetic field:
 #B_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_rtn',timerange)
 mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
-mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
+#mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
 B_input = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange) 
 
 #B_input = smooth(B_input,downsamplePoints)[::downsamplePoints,:]
@@ -171,7 +171,7 @@ last = TimeUtil.now()
 plot(0, newTime, fgm)
 plot(1, newTime, bundle(plasma_velocity_x, plasma_velocity_y, plasma_velocity_z))
 plot(2, newTime, density_upsampled)
-plot(3, newTime, temp_upsampled)
+plot(3, newTime, temp_upsampled, xrange=timerange)
 
 if write_output=='T':
     
@@ -192,7 +192,7 @@ if write_output=='T':
         # ###
         
         sc = 'PSP'
-        psp_data_directory = 'C:/Users/kpaulson/GoogleDrive/Research/GradShafranovReconstruction/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
+        psp_data_directory = 'G:/My Drive/Research/GradShafranovReconstruction/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
         #'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
         psp_data_file = '%s_%s_merged.txt'%(sc,dd)
         

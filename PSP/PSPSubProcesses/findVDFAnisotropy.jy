@@ -22,7 +22,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
     '''
     #minNormalizedFluxValue = 0.5 #affixed in input parameters (I think?...)
     
-    verbose = True
+    verbose = False
     # Now time for the real work
     inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])]            
     chiline                = None
@@ -76,9 +76,11 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             
             if mod(ind,modFits) == 0:
                 plot(3, event , renderType='eventsBar')
-            
-            v_z_dd = trim(v_z_in,tr_dds) # this is made negative to rotate SPC coords into MAG coordinates
+                
+            v_z_dd = trim(v_z_in,tr_dds) 
             if eq(len(v_z_dd),0):
+                if verbose == True:
+                    print '     -- No Data in interval'
                 raise noDataInFitSecondIntervalException
                 
             vz_tanPhi_dd = trim(vz_tanPhi_in,tr_dds)
@@ -89,7 +91,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             u_z_dd = trim(u_z_in,tr_dds)
             
             #totalFlux_dd = trim(totalFlux,tr_dds)
-            vdf_dd = trim(vdf_in,tr_dds)
+            vdf_dd = trim(vdf_full_in,tr_dds)
             
             Nx_temp_dd = trim(Nx_temp_in,tr_dds)
             Ny_temp_dd = trim(Ny_temp_in,tr_dds)
@@ -131,6 +133,8 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 continue
             
             temp_vdf.putProperty(QDataSet.VALID_MIN,0.01)
+            if vdf_label[0:4] == 'WIND':
+                temp_vdf.putProperty(QDataSet.VALID_MIN,1E-13)
             temp_vdf.putProperty(QDataSet.VALID_MAX,1E4)  #Arbitrarily-chosen upper limit
             #norm_temp_totalFlux = normalize(temp_totalFlux)
             norm_temp_vdf = normalize(temp_vdf)
@@ -157,7 +161,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             ftr_psi = CurveFitter(LevenbergMarquardtOptimizer())
             #ftr_psi = AbstractCurveFitter(LevenbergMarquardtOptimizer())
             
-            
+            print temp_v_z[r]
             for i in xrange(len(temp_v_z[r])):
                 # This weighting uses the normalized VDF data - It isn't working because it loses the weights for some reason (floats->doubles)
                 #ftr_chi.addObservedPoint( int(float(norm_temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))
@@ -266,7 +270,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 print 'Plotting each fit as we go'
                 if 'vapAlreadyLoaded' not in locals():
                     load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_IterativeFitPlotter.vap')
-                    plot(0,vdf_full,xrange=tr,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
+                    plot(0,vdf_full_in,xrange=tr,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True)
                     #plot(1,v_z[r])
                     vapAlreadyLoaded = None
                     

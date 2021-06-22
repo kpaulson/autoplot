@@ -27,7 +27,7 @@ elif checkForPreviousFiles == 'F':
     
 if writeStuff == 'T':
     writeStuff = True
-    outputDirectory = getParam('ouputDirectory','/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/','Local directory in which to write vdf cdf')
+    outputDirectory = getParam('ouputDirectory','G:/My Drive/Research/PSP/SPC/VDF/','Local directory in which to write vdf cdf')
 elif writeStuff == 'F':
     writeStuff = False
     outputDirectory = '/tmp/'
@@ -173,7 +173,72 @@ for tr in trs:
         MODE_FLAG = getDataSet(cfa_sweap_file+'?MODE_FLAG',tr)
         #where=MODE_FLAG.eq(0)
         
-        spc_a = trim(spc_a,tr)
+        try:
+            spc_a = trim(spc_a,tr)
+        except:
+            print 'resorting the data since the time is non-monotonic'
+            spc_time = spc_a.property(QDataSet.DEPEND_0)
+            print spc_time[0]
+            s = sort(spc_time)
+            spc_time = spc_time[s]
+            print spc_time[0]
+            spc_a = spc_a[s,:]
+            spc_b = spc_b[s,:]
+            spc_c = spc_c[s,:]
+            spc_d = spc_d[s,:]
+            
+            mv_lo = mv_lo[s,:]
+            mv_hi = mv_hi[s,:]
+            
+            spc_a_DELTA_VAR = spc_a_DELTA_VAR[s,:]
+            spc_b_DELTA_VAR = spc_b_DELTA_VAR[s,:]
+            spc_c_DELTA_VAR = spc_c_DELTA_VAR[s,:]
+            spc_d_DELTA_VAR = spc_d_DELTA_VAR[s,:]
+            
+            mv_lo_DELTA_VAR = mv_lo_DELTA_VAR[s,:]
+            mv_hi_DELTA_VAR = mv_hi_DELTA_VAR[s,:]
+            
+            s = uniq(spc_time)
+            spc_time = spc_time[s]
+            spc_a = spc_a[s,:]
+            spc_b = spc_b[s,:]
+            spc_c = spc_c[s,:]
+            spc_d = spc_d[s,:]
+            
+            mv_lo = mv_lo[s,:]
+            mv_hi = mv_hi[s,:]
+            
+            spc_a_DELTA_VAR = spc_a_DELTA_VAR[s,:]
+            spc_b_DELTA_VAR = spc_b_DELTA_VAR[s,:]
+            spc_c_DELTA_VAR = spc_c_DELTA_VAR[s,:]
+            spc_d_DELTA_VAR = spc_d_DELTA_VAR[s,:]
+            
+            mv_lo_DELTA_VAR = mv_lo_DELTA_VAR[s,:]
+            mv_hi_DELTA_VAR = mv_hi_DELTA_VAR[s,:]
+            
+            spc_a.putProperty(QDataSet.DEPEND_0, spc_time)
+            spc_b.putProperty(QDataSet.DEPEND_0, spc_time)
+            spc_c.putProperty(QDataSet.DEPEND_0, spc_time)
+            spc_d.putProperty(QDataSet.DEPEND_0, spc_time)
+            
+            mv_lo.putProperty(QDataSet.DEPEND_0, spc_time)
+            mv_hi.putProperty(QDataSet.DEPEND_0, spc_time)
+            
+            spc_a_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
+            spc_b_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
+            spc_c_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
+            spc_d_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
+            
+            mv_lo_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
+            mv_hi_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
+            
+            print 'Resorting data took:',TimeUtil.now()-time_begin_tr
+            time_last = TimeUtil.now()
+            
+            spc_a = trim(spc_a,tr)
+            print 'here'
+            
+            
         spc_b = trim(spc_b,tr)
         spc_c = trim(spc_c,tr)
         spc_d = trim(spc_d,tr)
@@ -309,10 +374,12 @@ for tr in trs:
         
         #setLayoutOverplot(2)
         try:
-            load('https://github.com/kpaulson/autoplot/blob/master/PSP/VAPs/SPC_VDF_stack.vap')
+            #load('https://github.com/kpaulson/autoplot/blob/master/PSP/VAPs/SPC_VDF_stack.vap')
+            saying = CHEESE
         except:
             try:
-                load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
+                #load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
+                load('G:/My Drive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
             except:
                 continue
         waitUntilIdle()

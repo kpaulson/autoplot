@@ -18,61 +18,81 @@ def writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psi
     #print epsilonEpoch.property(QDataSet.UNITS)
                  
     Bunit.putProperty(QDataSet.NAME,'B_hat')
+    Bunit.putProperty(QDataSet.LABEL,'B_hat')
     Bunit.putProperty(QDataSet.TITLE,'Unit vector of background B-field direction using %s-second average'%(trend_seconds))
     Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
     
     
     Btotal.putProperty(QDataSet.NAME,'B_total')
+    Btotal.putProperty(QDataSet.LABEL,'B_total')
     Btotal.putProperty(QDataSet.TITLE,'Total B-field magnitude')
     Btotal.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
     
     
     psiline.putProperty(QDataSet.NAME,'Psi')
+    psiline.putProperty(QDataSet.LABEL,'Psi')
     psiline.putProperty(QDataSet.TITLE,'Linear fit of scan points over %s-second range in Vy/Vz space'%fitSeconds)
     psiline.putProperty(QDataSet.DESCRIPTION,'Determined from slope between Vy and Vz*B_hat_y around peak of VDF')
     chiline.putProperty(QDataSet.NAME,'Chi')
+    chiline.putProperty(QDataSet.LABEL,'Chi')
     chiline.putProperty(QDataSet.TITLE,'Linear fit of scan points over %s-second range in Vx/Vz space'%fitSeconds)
     chiline.putProperty(QDataSet.DESCRIPTION,'Determined from slope between Vx and Vz*B_hat_x around peak of VDF')
     chiSquaredReduced_chi.putProperty(QDataSet.NAME,'ChiSquared_chi')
+    chiSquaredReduced_chi.putProperty(QDataSet.LABEL,'ChiSquared_chi')
     chiSquaredReduced_chi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Chi')
     chiSquaredReduced_psi.putProperty(QDataSet.NAME,'ChiSquared_psi')
+    chiSquaredReduced_psi.putProperty(QDataSet.LABEL,'ChiSquared_psi')
     chiSquaredReduced_psi.putProperty(QDataSet.TITLE,'Reduced chi-squared from linear fit determining Psi')
     rSquared_chi.putProperty(QDataSet.NAME,'rSquared_chi')
+    rSquared_chi.putProperty(QDataSet.LABEL,'rSquared_chi')
     rSquared_chi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Chi')
     rSquared_psi.putProperty(QDataSet.NAME,'rSquared_psi')
+    rSquared_psi.putProperty(QDataSet.LABEL,'rSquared_psi')
     rSquared_psi.putProperty(QDataSet.TITLE,'R-squared from linear fit determining Psi')
     slopeError_chi.putProperty(QDataSet.NAME,'slopeError_chi')
+    slopeError_chi.putProperty(QDataSet.LABEL,'slopeError_chi')
     slopeError_chi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Chi')
     slopeError_psi.putProperty(QDataSet.NAME,'slopeError_psi')
+    slopeError_psi.putProperty(QDataSet.LABEL,'slopeError_psi')
     slopeError_psi.putProperty(QDataSet.TITLE,'Uncertainty in the slope from the linear fit that is Psi')
     
     
     anisotropy_chi.putProperty(QDataSet.NAME,'Anisotropy_chi')
+    anisotropy_chi.putProperty(QDataSet.LABEL,'Anisotropy_chi')
     anisotropy_chi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vx/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
     anisotropy_psi.putProperty(QDataSet.NAME,'Anisotropy_psi')
+    anisotropy_psi.putProperty(QDataSet.LABEL,'Anisotropy_psi')
     anisotropy_psi.putProperty(QDataSet.TITLE,'Anisotropy from SPC determined from Vy/Vz fit over %s-second range with %s-second averaged background B-field direction'%(fitSeconds,trend_seconds))
     
     
     anisotropy_chi_deltaPlus.putProperty(QDataSet.NAME, 'anisotropy_chi_deltaPlus')
+    anisotropy_chi_deltaPlus.putProperty(QDataSet.LABEL, 'anisotropy_chi_deltaPlus')
     anisotropy_chi_deltaPlus.putProperty(QDataSet.TITLE, 'DELTA_PLUS values for anisotropy_chi determined from ideal model (ie best we can do even assuming perfect data input)')
     
     anisotropy_chi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_chi_deltaMinus')
+    anisotropy_chi_deltaMinus.putProperty(QDataSet.LABEL, 'anisotropy_chi_deltaMinus')
     anisotropy_chi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_chi determined from ideal model (ie best we can do even assuming perfect data input)')
     
     anisotropy_psi_deltaPlus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaPlus')
+    anisotropy_psi_deltaPlus.putProperty(QDataSet.LABEL, 'anisotropy_psi_deltaPlus')
     anisotropy_psi_deltaPlus.putProperty(QDataSet.TITLE, 'DELTA_PLUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
     
     anisotropy_psi_deltaMinus.putProperty(QDataSet.NAME, 'anisotropy_psi_deltaMinus')
+    anisotropy_psi_deltaMinus.putProperty(QDataSet.LABEL, 'anisotropy_psi_deltaMinus')
     anisotropy_psi_deltaMinus.putProperty(QDataSet.TITLE, 'DELTA_MINUS values for anisotropy_psi determined from ideal model (ie best we can do even assuming perfect data input)')
     
     anisotropy_chi_standardDev.putProperty(QDataSet.NAME, 'anisotropy_chi_standardDev')
+    anisotropy_chi_standardDev.putProperty(QDataSet.LABEL, 'anisotropy_chi_standardDev')
     anisotropy_chi_standardDev.putProperty(QDataSet.TITLE, 'Standard deviation of the anisotropy_chi measurement (slopeError and instrument uncertainty propagation)')
     
+    anisotropy_psi_standardDev.putProperty(QDataSet.NAME, 'anisotropy_psi_standardDev')
     anisotropy_psi_standardDev.putProperty(QDataSet.NAME, 'anisotropy_psi_standardDev')
     anisotropy_psi_standardDev.putProperty(QDataSet.TITLE, 'Standard deviation of the anisotropy_psi measurement (slopeError and instrument uncertainty propagation)')
     
     epsilon_chi.putProperty(QDataSet.NAME,'Epsilon_chi')
+    epsilon_chi.putProperty(QDataSet.LABEL,'Epsilon_chi')
     epsilon_psi.putProperty(QDataSet.NAME,'Epsilon_psi')
+    epsilon_psi.putProperty(QDataSet.LABEL,'Epsilon_psi')
     
     ###############
     
@@ -80,16 +100,19 @@ def writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal, chiline, psi
     
         Nx = Bunit[:,0]
         Nx.putProperty(QDataSet.NAME,'Nx')
+        Nx.putProperty(QDataSet.LABEL,'Nx')
         Nx.putProperty(QDataSet.TITLE,'S/C x-component of unit vector of background B-field direction using %s-second average'%(trend_seconds))
         Nx.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         
         Ny = Bunit[:,1]
         Ny.putProperty(QDataSet.NAME,'Ny')
+        Ny.putProperty(QDataSet.LABEL,'Ny')
         Ny.putProperty(QDataSet.TITLE,'S/C y-component of unit vector of background B-field direction using %s-second average'%(trend_seconds))
         Ny.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
         
         Nz = Bunit[:,2]
         Nz.putProperty(QDataSet.NAME,'Nz')
+        Nz.putProperty(QDataSet.LABEL,'Nz')
         Nz.putProperty(QDataSet.TITLE,'S/C z-component of unit vector of background B-field direction using %s-second average'%(trend_seconds))
         Nz.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
     

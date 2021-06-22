@@ -10,6 +10,7 @@ tr = '2020-01-30 12:18:15 to 12:18:25'  #
 #tr = '2019-04-06 15:00 to 19:30'  # 
 tr = '2021-04-29 07:40:00 to 07:40:30'
 tr = '2019-04-04 18:55:06 to 18:55:56'
+tr = '2021-04-25 05:00 to 05:10'
 trend_seconds = 60
 
 tr_outer = datumRange( str(datumRange(tr).min() - datum(str(trend_seconds)+' s'))+' to '+str(datumRange(tr).max() + datum(str(trend_seconds)+' s')) )
@@ -75,7 +76,7 @@ try:
     phi    = getDataSet(L2_spani_w3sweap_file_public+'?PHI'  ,tr)
     eflux  = getDataSet(L2_spani_w3sweap_file_public+'?EFLUX',tr)
     time   = getDataSet(L2_spani_w3sweap_file_public+'?Epoch',tr)
-except():
+except(java.io.FileNotFoundException):
     theta  = getDataSet(L2_spani_w3sweap_file+'?THETA',tr)
     phi    = getDataSet(L2_spani_w3sweap_file+'?PHI'  ,tr)
     eflux  = getDataSet(L2_spani_w3sweap_file+'?EFLUX',tr)

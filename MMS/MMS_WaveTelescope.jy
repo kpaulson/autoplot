@@ -261,19 +261,29 @@ brst_or_srvy = 'srvy' #'brst' 'srvy'
 #timerange = '2015-08-04 16:24:00 to 16:25:00'
 #timerange = '2016-04-07 01:25:30 to 01:25:40'
 
+calculatePhaseVelocity = False
+writeMarksEvents = True
+
 if brst_or_srvy == 'srvy':
     #timerange = '2015-08-15 08:54 to 09:12' # Rising tone
     #timerange = '2015-06-25 11:50 to 12:07' # Pearl elements
     timerange = '2018-09-22 22:29 to 22:34' # Conjunction study
     #timerange = '2016-05-20 19:00 to 20:45' # Usanova's EMIC harmonics event
     timerange = '2016-11-05 20:00 to 23:45' # Mark Engebretson's event for talk
+    #timerange = '2016-11-05 22:42 to 23:18' # Closeup of Mark Engebretson's event for talk
+    timerange = '2016-11-16' # Mark event1
+    #timerange = '2015-12-18 12:00 to 15:00' # Mark event2
+    #timerange = '2021-04-06 12:15 to 15:30' # Mark event3
+    #timerange = '2016-04-20 13:00 to 17:00' # Mark event4
+    #timerange = '2021-04-03 07:30 to 09:00' # Mark event5
+    #timerange = '2015-09-10 05:30 to 09:30' # Mark event6
     sc_list = ['mms1','mms2','mms3','mms4']
     
-    freq_min = 0.1
-    freq_max = 30.
-    window = 1024
+    freq_min = 0.3
+    freq_max = 5.5
+    window = 2048
     slide = 8
-    minPower = 0.003
+    minPower = 0.001
     
     trend_seconds = 30
     
@@ -886,13 +896,13 @@ V_phase_analytical.putProperty(QDataSet.VALID_MIN,0)
 
 if brst_or_srvy == 'brst':
     if b_or_e == 'bfield':
-        plot(0 , crossSpectralPower , ytitle='CSD!CSCM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)) )
+        plot(0 , crossSpectralPower , ytitle='CSD!CSCM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)), xrange=timerange )
     if b_or_e == 'efield':
-        plot(0 , crossSpectralPower , ytitle='CSD!CEPD E!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)) )
+        plot(0 , crossSpectralPower , ytitle='CSD!CEPD E!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)), xrange=timerange )
 elif brst_or_srvy == 'srvy':
-    plot(0 , crossSpectralPower , zlog=True , ytitle='CSD!CFGM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)) )
+    plot(0 , crossSpectralPower , zlog=True , ytitle='CSD!CFGM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)), xrange=timerange )
 
-plot_kvec_or_kunit = 'kangles' # 'kunit' 'kvec' 'kangles'
+plot_kvec_or_kunit = 'kvec' # 'kunit' 'kvec' 'kangles'
 if plot_kvec_or_kunit == 'kunit':  
     plot(1,k[:,:,0]/kmag,ytitle='(%{UNITS})',ztitle='k!D||!N / |k|')
     plot(2,k[:,:,1]/kmag,ytitle='(%{UNITS})',ztitle='k!B&perp;az!N / |k|')
@@ -908,8 +918,8 @@ elif plot_kvec_or_kunit == 'kangles':
     plot(1,toDegrees(acos(k[:,:,0]/kmag)),ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
     plot(2,toDegrees(acos(k[:,:,1]/kmag)),ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
     plot(3,toDegrees(acos(k[:,:,2]/kmag)),ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N (%{UNITS})')
-    #plot(1,acos(k[:,:,0]),ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
-    #plot(2,acos(k[:,:,1]),ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
+    #plot(1,toDegrees(acos(k[:,:,0])),ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
+    #plot(2,toDegrees(acos(k[:,:,1])),ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
     #plot(3,acos(k[:,:,2]),ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N (%{UNITS})')
 
 #plot(4,k[:,:,0]/k6[:,:,0],ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
@@ -921,6 +931,31 @@ elif plot_kvec_or_kunit == 'kangles':
 #plot(3,(2*PI)/k[:,:,2],ytitle='(%{UNITS})',ztitle='&lambda;!B&perp;rad!N ')
 #plot(1,sin(k[:,:,0]/kmag),ytitle='(%{UNITS})',ztitle='Wave Normal')
 #plot(1,V_phase_analytical)
+
+if writeMarksEvents == True:
+    # Trim down Mark's event and average across kvec values for plot
+    tr_trim = timerange # '2015-12-18'
+    kparTrim = trim(k[:,:,0], tr_trim)
+    kazTrim = trim(k[:,:,1], tr_trim)
+    kradTrim = trim(k[:,:,2], tr_trim)
+    
+    kparTrim = reduceMean(kparTrim,1)
+    kazTrim = reduceMean(kazTrim,1)
+    kradTrim = reduceMean(kradTrim,1)
+    
+    plot(1,kparTrim, ytitle='k!D||!N (%{UNITS})!C!C(mean)')
+    plot(2,kazTrim, ytitle='k!D&perp;az!N (%{UNITS})!C!C(mean)')
+    plot(3,kradTrim, ytitle='k!D&perp;rad!N (%{UNITS})!C!C(mean)')
+    
+    kparTrim.putProperty(QDataSet.NAME, 'k_par')
+    kazTrim.putProperty(QDataSet.NAME, 'k_az')
+    kradTrim.putProperty(QDataSet.NAME, 'k_rad')
+    
+    kbindle = bundle(kparTrim, kazTrim, kradTrim)
+    kbindle.putProperty(QDataSet.DEPEND_0, kparTrim.property(QDataSet.DEPEND_0) )
+    
+    formatDataSet(kbindle, 'G:/My Drive/Research/Papers-in-Progress/Engebretson_-_ConstantFrequencyWaves/%s_MMSWaveTelescope_meanKVector.txt?header=rich&format=2.6f'%(timerange[0:10]))
+
 
 # For plotting scatter of w vs k
 #w_tot = None
@@ -937,59 +972,59 @@ elif plot_kvec_or_kunit == 'kangles':
 #plot(6,kz_tot,w_tot,renderType='scatter',xtitle='kz (rad/km)')
 #stop
 
-
-# ###
-# ###  CALCULATE PHASE VELOCITY FROM K-VECTOR
-# ###
-
-v_phase_apparent = dblarr(len(phi_difference_12[:,0]),len(phi_difference_12[0,:]),3)
-for i in xrange(len(phi_difference_12)):
-    v_phase_apparent[i,:,0] = fft_frequency / k[i,:,0]
-    v_phase_apparent[i,:,1] = fft_frequency / k[i,:,1]
-    v_phase_apparent[i,:,2] = fft_frequency / k[i,:,2]
-#    v_phase_apparent[i,:,0] = fft_frequency / k6[i,:,0]
-#    v_phase_apparent[i,:,1] = fft_frequency / k6[i,:,1]
-#    v_phase_apparent[i,:,2] = fft_frequency / k6[i,:,2]
-
-for q in xrange(len(v_phase_apparent[0,0,:])):
-    v_phase_apparent[:,:,q] = v_phase_apparent[:,:,q]*invalidMask
-
-v_phase_apparent.putProperty(QDataSet.VALID_MIN,-1E6)
-v_phase_apparent.putProperty(QDataSet.VALID_MAX, 1E6)
-v_phase_apparent.putProperty(QDataSet.DEPEND_0,fft_time)
-v_phase_apparent.putProperty(QDataSet.DEPEND_1,fft_frequency) 
-
-v_phase_magnitude = ( v_phase_apparent[:,:,0]**-2 + v_phase_apparent[:,:,1]**-2 + v_phase_apparent[:,:,2]**-2 )**(-0.5)
-
-v_phase_unit_vector = dblarr(len(phi_difference_12[:,0]),len(phi_difference_12[0,:]),3)
-v_phase_unit_vector_magnitude = v_phase_magnitude**-1
-v_phase_unit_vector[:,:,0] = (v_phase_apparent[:,:,0]**-1) / v_phase_unit_vector_magnitude
-v_phase_unit_vector[:,:,1] = (v_phase_apparent[:,:,1]**-1) / v_phase_unit_vector_magnitude
-v_phase_unit_vector[:,:,2] = (v_phase_apparent[:,:,2]**-1) / v_phase_unit_vector_magnitude
-
-v_phase_unit_vector.putProperty(QDataSet.VALID_MIN,-1)
-v_phase_unit_vector.putProperty(QDataSet.VALID_MAX, 1)
-v_phase_unit_vector.putProperty(QDataSet.DEPEND_0,fft_time)
-v_phase_unit_vector.putProperty(QDataSet.DEPEND_1,fft_frequency) 
-
-v_phase = v_phase_magnitude*v_phase_unit_vector
-
-v_phase.putProperty(QDataSet.VALID_MIN,-1E6)
-v_phase.putProperty(QDataSet.VALID_MAX, 1E6)
-
-#plot(0,v_phase[:,:,0]-k[:,:,0]/kmag)
-#stop
-
-plot(4,v_phase[:,:,0],ztitle='V!D||!N (km/s)')
-plot(5,v_phase[:,:,1],ztitle='V!B&perp;az!N (km/s)')
-plot(6,v_phase[:,:,2],ztitle='V!B&perp;rad!N (km/s)',zrange=[-1500,1500])
-
-dom.plots[0].xaxis.setRange(datumRange(timerange))
-
-background_grey = java.awt.Color(216,216,216,255)
-dom.plots[4].controller.dasColorBar.setFillColor(background_grey)
-dom.plots[5].controller.dasColorBar.setFillColor(background_grey)
-dom.plots[6].controller.dasColorBar.setFillColor(background_grey)
+if calculatePhaseVelocity == True:
+    # ###
+    # ###  CALCULATE PHASE VELOCITY FROM K-VECTOR
+    # ###
+    
+    v_phase_apparent = dblarr(len(phi_difference_12[:,0]),len(phi_difference_12[0,:]),3)
+    for i in xrange(len(phi_difference_12)):
+        v_phase_apparent[i,:,0] = fft_frequency / k[i,:,0]
+        v_phase_apparent[i,:,1] = fft_frequency / k[i,:,1]
+        v_phase_apparent[i,:,2] = fft_frequency / k[i,:,2]
+    #    v_phase_apparent[i,:,0] = fft_frequency / k6[i,:,0]
+    #    v_phase_apparent[i,:,1] = fft_frequency / k6[i,:,1]
+    #    v_phase_apparent[i,:,2] = fft_frequency / k6[i,:,2]
+    
+    for q in xrange(len(v_phase_apparent[0,0,:])):
+        v_phase_apparent[:,:,q] = v_phase_apparent[:,:,q]*invalidMask
+    
+    v_phase_apparent.putProperty(QDataSet.VALID_MIN,-1E6)
+    v_phase_apparent.putProperty(QDataSet.VALID_MAX, 1E6)
+    v_phase_apparent.putProperty(QDataSet.DEPEND_0,fft_time)
+    v_phase_apparent.putProperty(QDataSet.DEPEND_1,fft_frequency) 
+    
+    v_phase_magnitude = ( v_phase_apparent[:,:,0]**-2 + v_phase_apparent[:,:,1]**-2 + v_phase_apparent[:,:,2]**-2 )**(-0.5)
+    
+    v_phase_unit_vector = dblarr(len(phi_difference_12[:,0]),len(phi_difference_12[0,:]),3)
+    v_phase_unit_vector_magnitude = v_phase_magnitude**-1
+    v_phase_unit_vector[:,:,0] = (v_phase_apparent[:,:,0]**-1) / v_phase_unit_vector_magnitude
+    v_phase_unit_vector[:,:,1] = (v_phase_apparent[:,:,1]**-1) / v_phase_unit_vector_magnitude
+    v_phase_unit_vector[:,:,2] = (v_phase_apparent[:,:,2]**-1) / v_phase_unit_vector_magnitude
+    
+    v_phase_unit_vector.putProperty(QDataSet.VALID_MIN,-1)
+    v_phase_unit_vector.putProperty(QDataSet.VALID_MAX, 1)
+    v_phase_unit_vector.putProperty(QDataSet.DEPEND_0,fft_time)
+    v_phase_unit_vector.putProperty(QDataSet.DEPEND_1,fft_frequency) 
+    
+    v_phase = v_phase_magnitude*v_phase_unit_vector
+    
+    v_phase.putProperty(QDataSet.VALID_MIN,-1E6)
+    v_phase.putProperty(QDataSet.VALID_MAX, 1E6)
+    
+    #plot(0,v_phase[:,:,0]-k[:,:,0]/kmag)
+    #stop
+    
+    plot(4,v_phase[:,:,0],ztitle='V!D||!N (km/s)')
+    plot(5,v_phase[:,:,1],ztitle='V!B&perp;az!N (km/s)')
+    plot(6,v_phase[:,:,2],ztitle='V!B&perp;rad!N (km/s)',zrange=[-1500,1500])
+    
+    dom.plots[0].xaxis.setRange(datumRange(timerange))
+    
+    background_grey = java.awt.Color(216,216,216,255)
+    dom.plots[4].controller.dasColorBar.setFillColor(background_grey)
+    dom.plots[5].controller.dasColorBar.setFillColor(background_grey)
+    dom.plots[6].controller.dasColorBar.setFillColor(background_grey)
 
 ## Add entries to matrices
 #D.setEntry(0,0,pos_difference_12[:,0].value())

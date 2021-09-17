@@ -1,24 +1,39 @@
 
-orbit1 = '2018-08-12 08:15 to 2019-01-20 01:04'
-orbit2 = '2019-01-20 01:04 to 2019-06-18 20:15'
-orbit3 = '2019-06-18 20:15 to 2019-11-15 15:25'
-orbit4 = '2019-11-15 15:25 to 2020-04-03 09:00'
-orbit5 = '2020-04-03 09:00 to 2020-08-02 05:03'
-orbit3_inbound = '2019-08-20 to 2019-09-01'
-orbit3_outbound = '2019-09-01 to 2019-09-21'
+orbit1 = ['2018-08-12 08:15 to 2019-01-20 01:04']
+orbit2 = ['2019-01-20 01:04 to 2019-06-18 20:15']
+orbit3 = ['2019-06-18 20:15 to 2019-11-15 15:25']
+orbit4 = ['2019-11-15 15:25 to 2020-04-03 09:00']
+orbit5 = ['2020-04-03 09:00 to 2020-08-02 05:03']
+orbit3_inbound = ['2019-08-20 to 2019-09-01']
+orbit3_outbound = ['2019-09-01 to 2019-09-21']
 
+# Mike's stream selections
+FRS1 = ['2018-11-02 00:20 to 2018-11-05 16:30', '2018-11-13 10:20 to 2018-11-13 20:10', '2018-12-16 14:10 to 2018-12-16 16:30']
+PH1  = ['2018-11-05 05:00 to 2018-11-07 07:20', '2018-10-31 19:50 to 2018-11-02 12:50', '2018-11-12 07:20 to 2018-11-13 20:10', '2018-12-16 14:10 to 2018-12-16 16:30']
+FRS2 = ['2018-11-08 02:00 to 2018-11-10 12:50', '2018-10-03 22:30 to 2018-10-04 02:30']
+FRS3 = ['2019-03-31 15:00 to 2019-04-03 06:10', '2019-04-12 02:10 to 2019-04-13 06:10']
+PH2  = ['2019-04-03 08:20 to 2019-04-04 15:10', '2019-03-30 22:20 to 2019-04-02 00:20', '2019-04-11 13:20 to 2019-04-12 19:30', '2019-03-16 19:10 to 2019-03-19 04:00']
 
-tr = '2019-03 to 2019-06'
-tr = '2018 through 2019'
-tr = '2018'
-tr = '2019'
+trs = ['2019-03 to 2019-06']
+trs = ['2018 through 2019']
+trs = ['2018']
+trs = ['2019']
 #tr = '2019 04'
-tr = orbit4
+trs = ['2018 through 2020']
+#trs = ['2019-01-20 to 2019-04-01']
 
-wavePowerHandedness = 'LH' # Choose from 'LH', 'RH', or 'both'
+wavePowerHandedness = 'RH' # Choose from 'LH', 'RH', or 'both'
 
-vp_momentMin = 300
-vp_momentMax = 1E5
+vp_momentMin = 0 #0, 400
+vp_momentMax = 350 #350, 1E5
+
+vp_range_title = '%s to %s km/s' %(vp_momentMin, vp_momentMax)
+if vp_momentMax > 5E4:
+    vp_range_title = '> %s km/s  |  ' %(vp_momentMin)
+elif vp_momentMin < 10:
+    vp_range_title = '< %s km/s  |  ' %(vp_momentMax)
+if vp_momentMax > 5E4 and vp_momentMin < 10:
+    vp_range_title = ''
 
 xbins = 120
 ybins = 30
@@ -79,8 +94,8 @@ elif OS == 'windows':
 ############################################################################
     
 #wavePowerFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower_Copy/PSP_wavePower_$Y-$m-$d.cdf'
-wavePowerFile = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
-ephemFile     = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+wavePowerFile = 'G:/My Drive/Research/PSP/WaveAnalysis/WavePower/PSP_wavePower_$Y-$m-$d.cdf'
+ephemFile     = 'G:/My Drive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
 spcFile       = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 
 
@@ -91,8 +106,23 @@ spcFile       = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_
 ############################################################################
 
 lastTime = TimeUtil.now()
-wavePower_LH = getDataSet(wavePowerFile+'?wavePower_LH',tr)
-wavePower_RH = getDataSet(wavePowerFile+'?wavePower_RH',tr)
+
+wavePower_LH = None
+wavePower_RH = None
+r_au = None
+vp_moment = None
+for tr in trs:
+    wavePower_LH_TEMP = getDataSet(wavePowerFile+'?wavePower_LH',tr)
+    wavePower_RH_TEMP = getDataSet(wavePowerFile+'?wavePower_RH',tr)
+    
+    r_au_TEMP = getDataSet(ephemFile+'?SC_R_AU',tr)
+    vp_moment_TEMP = getDataSet(spcFile+'?vp_moment_RTN',tr)
+    
+    wavePower_LH = append(wavePower_LH, wavePower_LH_TEMP)
+    wavePower_RH = append(wavePower_RH, wavePower_RH_TEMP)
+    r_au = append(r_au, r_au_TEMP)
+    vp_moment = append(vp_moment, vp_moment_TEMP)
+
 
 if wavePowerHandedness == 'LH':
     wavePower = wavePower_LH
@@ -100,24 +130,31 @@ elif wavePowerHandedness == 'RH':
     wavePower = wavePower_RH
 elif wavePowerHandedness == 'both':
     wavePower = merge(wavePower_LH,wavePower_RH)
+    
+wavePower = monotonicSubset(wavePower)
+r_au = monotonicSubset(r_au)
+vp_moment = monotonicSubset(vp_moment)
 
 print 'Time taken to import data:',TimeUtil.now()-lastTime
 lastTime = TimeUtil.now()
 
-r_au = getDataSet(ephemFile+'?SC_R_AU',tr)
 r_au = synchronize(wavePower,r_au)
 r_au.putProperty(QDataSet.LABEL,'SC_r')
 
-vp_moment = getDataSet(spcFile+'?vp_moment_RTN',tr)
-vp_moment = synchronize(wavePower,vp_moment)
-vp_moment.putProperty(QDataSet.VALID_MIN,0)
+
+
+vp_to_wave_ratio = findex(vp_moment.property(QDataSet.DEPEND_0), wavePower.property(QDataSet.DEPEND_0))
+vp_moment = interpolate(vp_moment, vp_to_wave_ratio)
+#vp_moment = synchronize(wavePower,vp_moment)
+#vp_moment.putProperty(QDataSet.VALID_MIN,0)
 
 
 wavePower_log = log10(wavePower)
 r_au_log = log10(r_au)
-
+print r_au_log
 #setLayoutOverplot(2)
-plot(0,r_au_log,wavePower_log,renderType='hugeScatter',legendLabel='all data',title=tr)
+plot(0,r_au_log,wavePower_log,renderType='scatter',legendLabel='all data',title='%s!C%s%s-polarized waves'%(tr, vp_range_title, wavePowerHandedness))
+#plot(0,r_au_log,wavePower_log,vp_moment[:,0],legendLabel='all data',title='%s!C%s  |  %s-polarized waves'%(tr, vp_range_title, wavePowerHandedness))
 
 
 
@@ -140,6 +177,7 @@ r_au = r_au[r][radialSort]
 wavePower = wavePower[r][radialSort]
 r = []
 
+print r_au_log
 
 
 rr = linspace(xbinMin,xbinMax,xbins)
@@ -147,7 +185,6 @@ pp = linspace(ybinMin,ybinMax,ybins)
 
 zz_top = rebin(link(r_au_log[r],wavePower_log[r],ones(len(wavePower_log[r]))), rr, pp)
 zz_top_weights = zz_top.property(QDataSet.WEIGHTS)
-
 
 columnTotals = total(zz_top_weights,1)
 
@@ -160,7 +197,11 @@ for column in xrange(len(columnTotals)):
 
 weights = ones(len(r_au_log))
 r= where(gt(weights,1E-30).and(gt(wavePower_log,-7.5)).and(gt(vp_moment[:,0],vp_momentMin)).and(lt(vp_moment[:,0],vp_momentMax)))
-
+#r= where(gt(weights,1E-30).and(gt(vp_moment[:,0],vp_momentMin)).and(lt(vp_moment[:,0],vp_momentMax)))
+#zz_top = rebin(link(r_au_log[r],wavePower_log[r],ones(len(wavePower_log[r]))), rr, pp)
+#zz_top_weights = zz_top.property(QDataSet.WEIGHTS)
+#plot(2,zz_top_weights)
+#stop
 #plot(5,weights)      
 #stop
    
@@ -199,18 +240,25 @@ r= where(gt(weights,1E-30).and(gt(wavePower_log,-7.5)).and(gt(vp_moment[:,0],vp_
 #result = ftr.fit(f,inputGuessParams)
 #print 'Fit result:',result
 
+# MY FITTING ALGORITHM
+(TEMP_intercept,TEMP_slope,TEMP_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r) = linearRegressionAlgorithm(r_au_log[r],wavePower_log[r])
+
 # JEREMY'S FITTING SYSTEM
 from org.das2.qds.util import LinFit
 lf= LinFit(r_au_log[r],wavePower_log[r],weights[r])
 
-intercept=  lf.getIntercept()
-slope=      lf.getSlope()
-chiSquare = lf.getChi2()
-sigma_x =   lf.getSiga()
-sigma_y =   lf.getSigb()
-
-# MY FITTING ALGORITHM
-(TEMP_intercept,TEMP_slope,TEMP_chiSquared,TEMP_interceptError,TEMP_slopeError,pearson_r) = linearRegressionAlgorithm(r_au_log[r],wavePower_log[r])
+try:
+    intercept=  lf.getIntercept()
+    slope=      lf.getSlope()
+    chiSquare = lf.getChi2()
+    sigma_x =   lf.getSiga()
+    sigma_y =   lf.getSigb()
+except:
+    intercept=  TEMP_intercept
+    slope=      TEMP_slope
+    chiSquare = TEMP_chiSquared
+    sigma_x =   TEMP_interceptError
+    sigma_y =   TEMP_slopeError
 
 print 'slope:',slope
 print 'TEMP_slope:',TEMP_slope
@@ -247,14 +295,14 @@ zz_top = rebin(link(r_au_log[r],wavePower_log[r],ones(len(wavePower_log[r]))), r
 zz_top_weights = zz_top.property(QDataSet.WEIGHTS)
 
 
-plot(1,r_au_log[r],wavePower_log[r],color='red',renderType='hugeScatter',legendLabel='fit data')
-plot(2,zz_top_weights,zlog=True,yrange=[yplotLogMin,yplotLogMax])
-plot(4,(r_au[r]),(wavePower[r]),renderType='hugeScatter',yrange=[10**yplotLogMin,10**yplotLogMax])
+plot(1,r_au_log[r],wavePower_log[r],color='red',renderType='scatter',legendLabel='fit data')
+plot(2,zz_top_weights*3.495,zlog=True,yrange=[yplotLogMin,yplotLogMax], ytitle='Wave Power!C(nT!U2!N)', ztitle='Period of Activity!C(seconds)', zrange=[0.05, 5E3 ]) #3.495 is the width of each spectral bin in seconds
+plot(4,(r_au[r]),(wavePower[r]),renderType='scatter',yrange=[10**yplotLogMin,10**yplotLogMax])
 
-plot(3,x_prime_linear,y_prime_linear,color='red',symbolSize=0,lineWidth=2,lineStyle='dashes',legendLabel='Slope: %s &plusmn; %s'%(round(slope,2),round(slopeError,2)),xrange=[xplotLogMin,xplotLogMax],yrange=[yplotLogMin,yplotLogMax])
+plot(3,x_prime_linear,y_prime_linear,color='red',symbolSize=0,lineWidth=2,lineStyle='dashes',legendLabel='Slope: %s &plusmn; %s'%(round(slope,2),round(slopeError,2)),xrange=[xplotLogMin,xplotLogMax],yrange=[yplotLogMin,yplotLogMax], xtitle='log10(SC_r)')
 
 #plot(2,r_AU_LH,wavePower_LH)
-plot(5,x_prime,y_prime,color='red',symbolSize=0,lineWidth=2,lineStyle='dashes',xrange=[0,1.],ylog=True,yrange=[10**yplotLogMin,10**yplotLogMax],legendLabel='10!U%s!N (R/R!D0!N)!U%s &plusmn; %s'%(round(intercept,2),round(slope,2),round(slopeError,2)),title='Exponential fit to subset of wave power data')
+plot(5,x_prime,y_prime,color='red',symbolSize=0,lineWidth=2,lineStyle='dashes',xrange=[0,1.],ylog=True,yrange=[10**yplotLogMin,10**yplotLogMax],legendLabel='10!U%s!N (R/R!D0!N)!U%s &plusmn; %s'%(round(intercept,2),round(slope,2),round(slopeError,2)),title='Exponential fit to subset of wave power data', xtitle='Radial Distance (AU)')
 #plot(3,x_prime,(exp(b)*(x_prime**m))-500,color='red')
 
 

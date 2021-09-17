@@ -11,8 +11,8 @@
 timerange = getParam('timerange','2021-04-28 09:00 to 12:00','Timerange over which to calculate Poynting Flux')
 
 freq_min       = getParam('minFrequency', 0.1,  'Lower frequency bound of analysis (Hz)')
-freq_max       = getParam('maxFrequency', 9.,  'Upper frequency bound of analysis (Hz)')
-window         = getParam('windowWidth',  256, 'Number of points in fft window')
+freq_max       = getParam('maxFrequency', 9.,   'Upper frequency bound of analysis (Hz)')
+window         = getParam('windowWidth',  1024, 'Number of points in fft window', [256, 512, 1024, 2048, 4096, 8192, 16384])
 slide          = getParam('slideFactor',  8,    'Reciprocal of fraction of non-overlap between neighboring windows')
 trend_seconds  = getParam('trendSeconds', 60,   'Number of seconds used to identify the background magnetic field')
 poynting_min   = getParam('poyntingMin',  1E-6, 'Minimum Poynting Flux value to be plotted (filters out noise)')
@@ -24,7 +24,7 @@ filterOutIncoherent = False
 useLocalSubprocesses      = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
 useLocalFiles             = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
 plotStuff                 = getParam('plotStuff','T','Plot dataset',['T','F'])
-writeStuff                = getParam('writeStuff','F','Write dataset out to cdf file',['T','F'])
+writeStuff                = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
 useRegularTimestamps      = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
 checkForPreviousFiles     = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
 removeReactionWheelTone   = getParam('removeReactionWheelTone','F','Attempt to remove signal from reaction wheels',['T','F'])
@@ -145,16 +145,22 @@ if useLocalFiles == True:
     cfa_sweap_file  = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     #mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     #efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
-    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
-    mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
+    #mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    #efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    #mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
+    mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
 else:
     cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     #mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
     #efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
-    mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-    efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
-    mag_100bpsfile  = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                
+    #mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    #efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+    #mag_100bpsfile  = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                
+    mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+    efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+    mag_100bpsfile  = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                
     #http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/2018/11/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf
     
     
@@ -569,3 +575,5 @@ for tr in trs:
         
 monitor.finished()
         
+import java.awt.Toolkit # only once per script
+java.awt.Toolkit.getDefaultToolkit().beep()

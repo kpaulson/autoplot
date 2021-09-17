@@ -173,7 +173,8 @@ if write_output=='T':
         # ###
         
         sc = 'WIND'
-        mms_data_directory = 'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/WINDDATA/merged_mag_plasma/'
+        #mms_data_directory = 'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/WINDDATA/merged_mag_plasma/'
+        mms_data_directory = 'G:/My Drive/Research/GradShafranovReconstruction/gs_code_v1_windows/WINDDATA/merged_mag_plasma/'
         mms_data_file = '%s_%s_merged.txt'%(sc,dd)
         
         formatDataSet(output,mms_data_directory+mms_data_file+'?format=9.4f&tformat=milliseconds')

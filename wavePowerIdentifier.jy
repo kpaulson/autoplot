@@ -37,10 +37,10 @@ frequencyAxis_smoothpoints = 20
 ##############
 
 
-outputDirectory = '/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WavePower/'
+outputDirectory = 'G:/My Drive/Research/PSP/WaveAnalysis/WavePower/'
 outputFile = outputDirectory+'PSP_wavePower_%s.cdf'%(timerange)
 
-waveAnalysis_directory = '/Users/kpaulson/GoogleDrive/Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(fileVersion)
+waveAnalysis_directory = 'G:/My Drive/Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(fileVersion)
 waveAnalysis_file = waveAnalysis_directory+'PSP_WaveAnalysis_$Y-$m-$d_$(H,span=6)00_v%s.cdf'%(fileVersion)
 #polarization_file = 'C:/Users/krist/Downloads/PSP_Polarization_$Y$m$d_0000.cdf'
 

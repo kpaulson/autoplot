@@ -1,0 +1,11 @@
+def Butterworth_Bandpassify_zeroPhase( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject ):
+    Component_bandpass_coefficients = Butterworth( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject )
+    Component_bandpass = Component_bandpass_coefficients.filter()
+    Component_bandpass_reversed = copy(reverse(Component_bandpass))
+    Component_bandpass_reversed.putProperty(QDataSet.DEPEND_0,Component.property(QDataSet.DEPEND_0))
+    Component_bandpass_coefficients = Butterworth( Component_bandpass_reversed , polynomial_order , low_frequency , high_frequency , pass_or_reject )
+    Component_bandpass = copy(reverse(Component_bandpass_coefficients.filter()))
+    Component_bandpass.putProperty(QDataSet.DEPEND_0,Component.property(QDataSet.DEPEND_0))
+    
+    return ( Component_bandpass )
+      

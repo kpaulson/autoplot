@@ -5,7 +5,7 @@ cfa_sweap_spc_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y
 local_hourlyEphem_file = 'file:/G:/My Drive/Research/PSP/Ephemeris/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
 
 #PSP_ephem_directory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/Ephemeris/'
-PSP_ephem_directory = 'G:/My Drive/Research/PSP/Ephemeris/'
+PSP_ephem_directory = 'G:/My Drive/Research/PSP/Ephemeris/dailyFiles/'
 
 #inputEphemeris_txt_r_Sun = getDataSet(PSP_ephem_file_txt+'?r_Sun&depend0=time')
 #inputEphemeris_txt = getDataSet(PSP_ephem_file_txt+'?rank2=r_Sun-z_HCI&depend0=time')

@@ -18,7 +18,7 @@ def getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS):
     if OS == 'mac':
         UncertaintyMapFile = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
     elif OS == 'windows':
-        UncertaintyMapFile = 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        UncertaintyMapFile = 'file:///g:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
     
     anisotropy_deltaPlus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_PLUS')
     anisotropy_deltaMinus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_MINUS')

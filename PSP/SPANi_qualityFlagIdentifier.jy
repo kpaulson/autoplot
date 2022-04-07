@@ -1,0 +1,118 @@
+
+def getSPANiQualityFlags(tr, instrumentMode='sf00'):
+    '''
+    This script will collect the SPANi bitwise Quality Flag variable and 
+    return an array of flag variables named for their trigger (outlined below):
+    
+    As of v04, SPANi Quality Flags are:
+    Bit 0: Counter Overflow
+    Bit 1: Survey Snapshot ON (not applicable to archive products)
+    Bit 2: Alternate Energy Table
+    Bit 3: Spoiler Test
+    Bit 4: Attenuator Engaged
+    Bit 5: Highest Archive Rate
+    Bit 6: No Targeted Sweep
+    Bit 7: SPAN-Ion New Mass Table (not applicable to electrons)
+    Bit 8: Over-deflection
+    Bit 9: Archive Snapshot ON
+    Bits 10-15: Reserved.
+    Bit 10: Bad energy table
+    Bit 11: MCP Test
+    Bit 12: Survey available
+    Bit 13: Archive Available
+    
+    INPUT:
+        tr = timerange as string or autoplot timerange element
+        instrumentMode = string identifying the mode of the L3 data (['sf00', 'sf01', 'sf0a'])
+    OUTPUT:
+        allBits     = rank2 bundle of all SPANi flags with labels and descriptions
+        flaggedBits = rank2 bundle of only flagged SPANi flags with labels and descriptions
+    '''
+    
+    
+    SPANi_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(instrumentMode, instrumentMode)
+    
+    SPANi_qualityFlags = getDataSet(SPANi_file+'?QUALITY_FLAG', tr)
+   
+    bitLength = 16
+    qualityFlagArray = dblarr(len(SPANi_qualityFlags), bitLength)
+    qualityFlagArray.putProperty(QDataSet.DEPEND_0, SPANi_qualityFlags.property(QDataSet.DEPEND_0))
+    qualityFlagArray.putProperty(QDataSet.DEPEND_1, linspace(0+0.5,bitLength-0.5,bitLength))
+
+    for bitReverse in xrange(bitLength):
+        bit = bitLength - bitReverse - 1
+        
+        flagUp = where( ge(SPANi_qualityFlags[:]-(2**bit),0) )
+        SPANi_qualityFlags[flagUp] = SPANi_qualityFlags[flagUp]-(2**bit)
+        qualityFlagArray[flagUp, bit] = 1.
+
+    Bit_0  = qualityFlagArray[:,0]
+    Bit_1  = qualityFlagArray[:,1]
+    Bit_2  = qualityFlagArray[:,2]
+    Bit_3  = qualityFlagArray[:,3]
+    Bit_4  = qualityFlagArray[:,4]
+    Bit_5  = qualityFlagArray[:,5]
+    Bit_6  = qualityFlagArray[:,6]
+    Bit_7  = qualityFlagArray[:,7]
+    Bit_8  = qualityFlagArray[:,8]
+    Bit_9  = qualityFlagArray[:,9]
+    Bit_10 = qualityFlagArray[:,10]
+    Bit_11 = qualityFlagArray[:,11]
+    Bit_12 = qualityFlagArray[:,12]
+    Bit_13 = qualityFlagArray[:,13]
+
+    Bit_0.putProperty( QDataSet.TITLE, 'Counter Overflow')
+    Bit_1.putProperty( QDataSet.TITLE, 'Survey Snapshot ON (not applicable to archive products)')
+    Bit_2.putProperty( QDataSet.TITLE, 'Alternate Energy Table')
+    Bit_3.putProperty( QDataSet.TITLE, 'Spoiler Test')
+    Bit_4.putProperty( QDataSet.TITLE, 'Attenuator Engaged')
+    Bit_5.putProperty( QDataSet.TITLE, 'Highest Archive Rate')
+    Bit_6.putProperty( QDataSet.TITLE, 'No Targeted Sweep')
+    Bit_7.putProperty( QDataSet.TITLE, 'SPAN-Ion New Mass Table (not applicable to electrons)')
+    Bit_8.putProperty( QDataSet.TITLE, 'Over-deflection')
+    Bit_9.putProperty( QDataSet.TITLE, 'Archive Snapshot ON')
+    Bit_10.putProperty(QDataSet.TITLE, 'Bad energy table')
+    Bit_11.putProperty(QDataSet.TITLE, 'MCP Test')
+    Bit_12.putProperty(QDataSet.TITLE, 'Survey available')
+    Bit_13.putProperty(QDataSet.TITLE, 'Archive Available')
+
+    Bit_0.putProperty( QDataSet.LABEL, 'Counter Overflow')
+    Bit_1.putProperty( QDataSet.LABEL, 'Survey Snapshot ON')
+    Bit_2.putProperty( QDataSet.LABEL, 'Alternate Energy Table')
+    Bit_3.putProperty( QDataSet.LABEL, 'Spoiler Test')
+    Bit_4.putProperty( QDataSet.LABEL, 'Attenuator Engaged')
+    Bit_5.putProperty( QDataSet.LABEL, 'Highest Archive Rate')
+    Bit_6.putProperty( QDataSet.LABEL, 'NO Targeted Sweep')
+    Bit_7.putProperty( QDataSet.LABEL, 'SPANi New Mass Table')
+    Bit_8.putProperty( QDataSet.LABEL, 'Over-deflection')
+    Bit_9.putProperty( QDataSet.LABEL, 'Archive Snapshot ON')
+    Bit_10.putProperty(QDataSet.LABEL, 'Bad Energy Table')
+    Bit_11.putProperty(QDataSet.LABEL, 'MCP Test')
+    Bit_12.putProperty(QDataSet.LABEL, 'Survey Available')
+    Bit_13.putProperty(QDataSet.LABEL, 'Archive Available')
+
+    Bit_0.putProperty( QDataSet.NAME, 'CounterOverflow')
+    Bit_1.putProperty( QDataSet.NAME, 'SurveySnapshotON')
+    Bit_2.putProperty( QDataSet.NAME, 'AlternateEnergyTable')
+    Bit_3.putProperty( QDataSet.NAME, 'SpoilerTest')
+    Bit_4.putProperty( QDataSet.NAME, 'AttenuatorEngaged')
+    Bit_5.putProperty( QDataSet.NAME, 'HighestArchiveRate')
+    Bit_6.putProperty( QDataSet.NAME, 'NOTargetedSweep')
+    Bit_7.putProperty( QDataSet.NAME, 'SPANiNewMassTable')
+    Bit_8.putProperty( QDataSet.NAME, 'Over-deflection')
+    Bit_9.putProperty( QDataSet.NAME, 'ArchiveSnapshotON')
+    Bit_10.putProperty(QDataSet.NAME, 'BadEnergyTable')
+    Bit_11.putProperty(QDataSet.NAME, 'MCPTest')
+    Bit_12.putProperty(QDataSet.NAME, 'SurveyAvailable')
+    Bit_13.putProperty(QDataSet.NAME, 'ArchiveAvailable')
+
+    allBits     = None
+    flaggedBits = None
+    for b in [Bit_0, Bit_1, Bit_2, Bit_3, Bit_4, Bit_5, Bit_6, Bit_7, Bit_8, Bit_9, Bit_10, Bit_11, Bit_12, Bit_13]:
+        allBits = bundle(allBits, b)
+        if gt(total(b), 0):
+            flaggedBits = bundle(flaggedBits, b)
+
+    return(allBits, flaggedBits)
+
+

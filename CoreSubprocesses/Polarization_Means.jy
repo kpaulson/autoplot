@@ -6,7 +6,7 @@ def putProps( dss, name='DEPEND_0', value=None ):
 
 #############################################################################################  
         
-def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
+def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min, giveUsTheK = False ):
     '''Polarization analysis performed on spectral components based on [Means 1972].
     
     Parameters:
@@ -17,9 +17,11 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
         Ny = rank1 Y component of magnetic field direction in B_fft coordinate system.
         Nz = rank1 Z component of magnetic field direction in B_fft coordinate system.
         wave_power_min = minimum value of wave power at which to keep returned components (all lower values discarded).
+        giveUsTheK = True/False flag, if set to True will output the k-vector
     
     Returns:
-	    Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization'''
+	    Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization;
+        kx, ky, kz (spectral) in input Nx, Ny, Nz coordinate system for [giveUsTheK = True]'''
          
     ###
     ### RUN POLARIZATION ANALYSIS
@@ -116,7 +118,7 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min ):
     Ny_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
     Nz_fftarray = dblarr( len( kx[:,1] ) , len( kx[1,:] ) )
 
-    for j in xrange( len( kx[1,:] ) ): # magnetic field direction is same at all times, so turn vector into an array where DEPEND_1 is constant
+    for j in xrange( len( kx[1,:] ) ): # magnetic field direction is same at all frequencies, so turn vector into an array where DEPEND_1 is constant
           Nx_fftarray[:,j] = Nx_fftcadence
           Ny_fftarray[:,j] = Ny_fftcadence
           Nz_fftarray[:,j] = Nz_fftcadence

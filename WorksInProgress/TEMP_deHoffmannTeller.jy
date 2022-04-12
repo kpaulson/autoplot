@@ -9,12 +9,16 @@
 
 timerange          = '2020-01-30'
 timerange          = '2021-01-17'
-timeSubset_minutes = 30 #5
+timerange          = '2021-11-21 18:00 to 2021-11-22 12:00'
+timerange          = '2021-11-21 10:00 to 2021-11-22 19:00'
+timeSubset_minutes = 5 #5
 
 use_SPCorSPAN = 'span' #'spc' 'span'
+use_RTN_or_SC = 'SC'  #'RTN' 'SC'
 
 spc_L3_file_cfa =  'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 span_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
+span_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf'
 mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
 mag_L2_file_berkeley_team = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
     
@@ -155,12 +159,23 @@ def HoffmannTellerizer(v,B):
 if use_SPCorSPAN == 'spc':
     vp_moment_rtn = getDataSet(spc_L3_file_cfa+'?vp_moment_RTN',timerange)
 elif use_SPCorSPAN == 'span':
-    vp_moment_rtn = getDataSet(span_L3_file_cfa+'?VEL',timerange)
+    if use_RTN_or_SC == 'RTN':
+        vp_moment_rtn = getDataSet(span_L3_file_cfa+'?VEL_RTN_SUN',timerange)
+    elif use_RTN_or_SC == 'SC':
+        vp_moment_rtn = getDataSet(span_L3_file_cfa+'?VEL_SC',timerange)
     
 try:
-    bfield_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange)
+    if use_RTN_or_SC == 'RTN':
+        bfield_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange)
+    elif use_RTN_or_SC == 'SC':
+        mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+        bfield_rtn = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_SC',timerange)
 except:
-    bfield_rtn = getDataSet(mag_L2_file_berkeley_team+'?psp_fld_l2_mag_RTN',timerange)
+    if use_RTN_or_SC == 'RTN':
+        bfield_rtn = getDataSet(mag_L2_file_berkeley_team+'?psp_fld_l2_mag_RTN',timerange)
+    elif use_RTN_or_SC == 'SC':
+        mag_L2_file_berkeley_team = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+        bfield_rtn = getDataSet(mag_L2_file_berkeley_team+'?psp_fld_l2_mag_RTN',timerange)
 
 vp_moment_rtn = trim(vp_moment_rtn,timerange)
 bfield_rtn = synchronize(vp_moment_rtn,bfield_rtn)
@@ -180,7 +195,7 @@ plot(0,efield_rtn)
 plot(1,efield_mag,ytitle='-v &times; B')
 
 plot(0,bfield_rtn)
-plot(1,bfield_mag,ytitle='B!BRTN!N (nT)')
+plot(1,bfield_mag,ytitle='B!B%s!N (nT)'%(use_RTN_or_SC))
 #stop
 
 ###
@@ -234,8 +249,14 @@ for tr in trs:
     
     try:
         v_HT = HoffmannTellerizer(v_rtn,B_rtn)
-        #print '    deHoffmann-Teller velocity: (',v_HT[0],v_HT[1],v_HT[2],' )'
-        print '    deHoffmann-Teller velocity (RTN): (',round(v_HT[0],2),'km/s', round(v_HT[1],2),'km/s', round(v_HT[2],2),'km/s',' )'
+        print '    deHoffmann-Teller velocity (%s): ('%(use_RTN_or_SC),round(v_HT[0],2),'km/s', round(v_HT[1],2),'km/s', round(v_HT[2],2),'km/s',' )'
+        print '    dHT velocity Magnitude:', round(magnitude(v_HT), 2)
+#        if use_RTN_or_SC == 'RTN':
+#            #print '    deHoffmann-Teller velocity: (',v_HT[0],v_HT[1],v_HT[2],' )'
+#            print '    deHoffmann-Teller velocity (RTN): (',round(v_HT[0],2),'km/s', round(v_HT[1],2),'km/s', round(v_HT[2],2),'km/s',' )'
+#        elif use_RTN_or_SC == 'SC':
+#            #print '    deHoffmann-Teller velocity: (',v_HT[0],v_HT[1],v_HT[2],' )'
+#            print '    deHoffmann-Teller velocity (SC): (',round(v_HT[0],2),'km/s', round(v_HT[1],2),'km/s', round(v_HT[2],2),'km/s',' )'
         
         v_HT_long = bundle( ones(len(B_rtn))*v_HT[0] , ones(len(B_rtn))*v_HT[1] , ones(len(B_rtn))*v_HT[2] )
         D_v_HT = total( magnitude(crossProduct((v_rtn-v_HT_long),B_rtn))**2 ) / len(v_rtn)
@@ -264,13 +285,21 @@ v_HT_dataset.putProperty(QDataSet.DEPEND_0,time_dataset)
 v_HT_dataset.putProperty(QDataSet.VALID_MIN,-1E10)  
 v_HT_dataset.putProperty(QDataSet.VALID_MAX,1E10)  
 v_HT_dataset.putProperty(QDataSet.UNITS,Units.lookupUnits('km/s')) 
+if use_RTN_or_SC == 'SC':
+    v_HT_dataset.putProperty(QDataSet.LABEL, ['Vx (SC)', 'Vy (SC)', 'Vz (SC)']) 
+    #v_HT_dataset[:,0].putProperty(QDataSet.ELEMENT_LABEL, 'Vx (SC)') 
+elif use_RTN_or_SC == 'RTN':
+    v_HT_dataset.putProperty(QDataSet.LABEL, ['Vr', 'Vt', 'Vn']) 
  
-plot(2,v_HT_dataset,ytitle='v!BHT!N!C!C(%{UNITS})')
+plot(2, v_HT_dataset, ytitle='v!BHT!N!C!C(%{UNITS})', renderType='series')
 
 v_HT_upsample = synchronize(vp_moment_rtn,v_HT_dataset)
 
-plot(3,vp_moment_rtn - v_HT_upsample, ytitle='v!BRTN!N - v!BHT!N!C!C(%{UNITS})')
+plot(3,vp_moment_rtn - v_HT_upsample, ytitle='v!B'+use_RTN_or_SC+'!N - v!BHT!N!C!C(%{UNITS})')
+plot(4,magnitude(vp_moment_rtn - v_HT_upsample), legendLabel='V!Bdiff!N!C!Cmagnitude')
 
+plot(5, vp_moment_rtn,  ytitle='v!B'+use_RTN_or_SC+' (%{UNITS})')
+stop
 
 vp1_fit_rtn = getDataSet(spc_L3_file_cfa+'?vp1_fit_RTN',timerange)
 va_fit_rtn  = getDataSet(spc_L3_file_cfa+'?va_fit_RTN',timerange)
@@ -282,8 +311,8 @@ v3_fit_rtn  = trim(v3_fit_rtn,timerange)
 v_HT_upsample_spc = synchronize(vp1_fit_rtn,v_HT_dataset)
 
 
-#plot(3,vp_moment_rtn, ytitle='vp_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})', renderType='series')
-plot(4,vp1_fit_rtn - v_HT_upsample_spc, ytitle='vp_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
+#plot(3,vp_moment_rtn, ytitle='vp_fit!BRTN!N (%{UNITS})', renderType='series')
+plot(4,vp1_fit_rtn - v_HT_upsample_spc, ytitle='vp_fit!B'+use_RTN_or_SC+'!N - v!BHT!N!C!C(%{UNITS})')
 #plot(5,va_fit_rtn - v_HT_upsample_spc, ytitle='va_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
 #plot(6,v3_fit_rtn - v_HT_upsample_spc, ytitle='vbeam_fit!BRTN!N - v!BHT!N!C!C(%{UNITS})')
 

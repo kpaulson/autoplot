@@ -182,6 +182,7 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
         f                 = ParametricRealFunction satisfying fit
     '''
   
+    # Decide which of the above fitting routines to select based on the number of peaks expected
     if single_or_double == 'single':
         f = GaussFit()
     elif single_or_double == 'double':
@@ -189,10 +190,14 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
     elif single_or_double == 'triple':
         f = GaussTripleFit()
         
+    # Pick the optimization algorithm (this one is probably fine)
     ftr = CurveFitter(LevenbergMarquardtOptimizer())
     
-    validPoints = where(valid(ds))
+    # This throws out fill data but also sets a bottom cutoff at 200 km/s
+    validPoints = where(valid(ds).and(gt(ds.property(QDataSet.DEPEND_0),200)))
     ds = ds[validPoints]
+    
+    # NEED TO APPLY SINGLE PEAK FIT TO THE TOP 3-5 POINTS FIRST TO NAIL DOWN THE CORE BEFORE THAN APPLYING MULTIPEAK FIT
     
     ds_sigma = mean(ds[-5:-1])*sqrt(2)
     

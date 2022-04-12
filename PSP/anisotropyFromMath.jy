@@ -38,7 +38,7 @@ minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data
 fitSeconds           = getParam('fit_window' , 4 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
 smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of seconds over which to average spectra together before defining flow directions')
-minVoltage           = 150     # Throw out points in mv_lo channels below this voltage
+minVoltage           = getParam('minimumVoltage', 150, 'Throw out points in mv_lo channels below this voltage')
 
 
 angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')

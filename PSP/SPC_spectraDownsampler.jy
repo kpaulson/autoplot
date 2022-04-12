@@ -128,14 +128,22 @@ for tr in trs:
         #spc_list = [spc_a,spc_b,spc_c,spc_d]
         
         timeSorted = sort(spc_a.property(QDataSet.DEPEND_0))
-        
-        spc_a = trim(spc_a[timeSorted],tr)
-        spc_b = trim(spc_b[timeSorted],tr)
-        spc_c = trim(spc_c[timeSorted],tr)
-        spc_d = trim(spc_d[timeSorted],tr)
-        
-        mv_lo = trim(mv_lo[timeSorted],tr)
-        mv_hi = trim(mv_hi[timeSorted],tr)
+        plot(0,spc_a.property(QDataSet.DEPEND_0))
+        plot(1,spc_a.property(QDataSet.DEPEND_0)[timeSorted])
+        try:
+            spc_a = trim(spc_a[timeSorted],tr)
+            spc_b = trim(spc_b[timeSorted],tr)
+            spc_c = trim(spc_c[timeSorted],tr)
+            spc_d = trim(spc_d[timeSorted],tr)
+            mv_lo = trim(mv_lo[timeSorted],tr)
+            mv_hi = trim(mv_hi[timeSorted],tr)
+        except:
+            spc_a = trim(sortInTime(spc_a),tr)
+            spc_b = trim(sortInTime(spc_b),tr)
+            spc_c = trim(sortInTime(spc_c),tr)
+            spc_d = trim(sortInTime(spc_d),tr)  
+            mv_lo = trim(sortInTime(mv_lo),tr)
+            mv_hi = trim(sortInTime(mv_hi),tr)
         
         monitor.setLabel('Downsampling A') 
         (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)

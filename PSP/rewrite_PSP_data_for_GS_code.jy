@@ -192,7 +192,7 @@ if write_output=='T':
         # ###
         
         sc = 'PSP'
-        psp_data_directory = 'G:/My Drive/Research/GradShafranovReconstruction/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
+        psp_data_directory = 'G:/My Drive/Research/GradShafranovReconstruction/gs_code_kp/PSPDATA/merged_mag_plasma/'
         #'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/PSPDATA/merged_mag_plasma/'
         psp_data_file = '%s_%s_merged.txt'%(sc,dd)
         

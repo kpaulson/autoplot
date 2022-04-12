@@ -1,4 +1,5 @@
 
+
 tstart = dom.plots[0].xaxis.range.min()
 tstop = dom.plots[0].xaxis.range.max()
 starttime_input = getParam( 'Start Date and Time' , str(tstart) , 'Any format you want, really' )
@@ -23,13 +24,21 @@ T_exp.putProperty( QDataSet.LABEL , 'T!Bexp!N' )
 T_exp.putProperty( QDataSet.DEPEND_0, time )
 T_exp.putProperty( QDataSet.UNITS, Units.kelvin )
 
-for i in xrange( len(Vp) ):
-    if ( Vp[i] == -9999.90 ):
-        T_exp[i] = -1
-    elif ( Vp[i] <= 500 ):
-        T_exp[i] = ((0.031*Vp[i] - 5.1)**2)*1000
-    elif ( Vp[i] > 500 ):
-        T_exp[i] = (0.51*Vp[i] -142)*1000
+badData = where( eq(Vp, -9999.90) )
+slowWind = where( le(Vp, 500) )
+fastWind = where( gt(Vp, 500) )
+T_exp[badData] = -1
+T_exp[slowWind] = ((0.031*Vp[slowWind] - 5.1)**2)*1000
+T_exp[fastWind] = (0.51*Vp[fastWind] -142)*1000
+
+T_exp.putProperty( QDataSet.VALID_MIN , 1 )
+#for i in xrange( len(Vp) ):
+#    if ( Vp[i] == -9999.90 ):
+#        T_exp[i] = -1
+#    elif ( Vp[i] <= 500 ):
+#        T_exp[i] = ((0.031*Vp[i] - 5.1)**2)*1000
+#    elif ( Vp[i] > 500 ):
+#        T_exp[i] = (0.51*Vp[i] -142)*1000
         
 plotx(5,T_exp,color='red')
 

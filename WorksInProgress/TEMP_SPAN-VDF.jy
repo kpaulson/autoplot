@@ -2,16 +2,22 @@
 
 tr = '2019-04-04 18:55:06 to 18:55:26'
 #tr = '2019-04-04 19:09:05 to 19:10:08'
-#tr = '2019-04-06 16:41:20 to 16:43:47'  # See the whole peak
+tr = '2019-04-06 16:41:20 to 16:43:47'  # See the whole peak
 #tr = '2019-04-06 16:57:20 to 16:58:47'  # Not able to see the full distribution
-tr = '2019-04-06 17:49:00 to 17:49:30'  # 
-tr = '2020-01-30 12:18:15 to 12:18:25'  # 
+#tr = '2019-04-06 17:49:00 to 17:49:30'  # 
+#tr = '2020-01-30 12:18:15 to 12:18:25'  # 
 #tr = '2019-04-06 17:20 to 17:22'  # 
 #tr = '2019-04-06 15:00 to 19:30'  # 
-tr = '2021-04-29 07:40:00 to 07:40:30'
-tr = '2019-04-04 18:55:06 to 18:55:56'
-tr = '2021-04-25 05:00 to 05:10'
+#tr = '2021-04-29 07:40:00 to 07:40:30'
+#tr = '2019-04-04 18:55:06 to 18:55:56'
+tr = '2021-04-25 16:39:58 to 16:39:59'
+#tr = '2021-08-09 22:00 to 22:05'
+#tr = '2021-08-01 18:32 to 18:33'
+tr = '2020-01-29 18:10:02 to 18:10:03'
+tr = '2021-01-20 04:59:43 to 04:59:48'
 trend_seconds = 60
+
+averageOverTheta = True
 
 tr_outer = datumRange( str(datumRange(tr).min() - datum(str(trend_seconds)+' s'))+' to '+str(datumRange(tr).max() + datum(str(trend_seconds)+' s')) )
 
@@ -54,8 +60,16 @@ mag_sc = trim(mag_sc,tr_outer)
 print mag_sc
 
 mag_span = rotateSCToSPANi(mag_sc)
-#mag_span = trim(mag_span,tr)
-#print mag_span
+
+
+#L2B_file = 'file:///G:/My Drive/Research/PSP/SPAN/SPANi/L2B/psp_swp_spi_sf00_L2B_mom_INST_20210425_v03.cdf'
+#magf_inst = getDataSet(L2B_file+'?MAGF_INST')
+#
+#magf_inst = synchronize(mag_span, magf_inst)
+#
+##mag_span = trim(mag_span,tr)
+##print mag_span
+#plot(mag_span-magf_inst)
 #stop
 mag_magnitude = magnitude(mag_span)
 mag_time = mag_span.property(QDataSet.DEPEND_0)
@@ -75,11 +89,13 @@ try:
     theta  = getDataSet(L2_spani_w3sweap_file_public+'?THETA',tr)
     phi    = getDataSet(L2_spani_w3sweap_file_public+'?PHI'  ,tr)
     eflux  = getDataSet(L2_spani_w3sweap_file_public+'?EFLUX',tr)
+    data  = getDataSet(L2_spani_w3sweap_file_public+'?DATA',tr)
     time   = getDataSet(L2_spani_w3sweap_file_public+'?Epoch',tr)
 except(java.io.FileNotFoundException):
     theta  = getDataSet(L2_spani_w3sweap_file+'?THETA',tr)
     phi    = getDataSet(L2_spani_w3sweap_file+'?PHI'  ,tr)
     eflux  = getDataSet(L2_spani_w3sweap_file+'?EFLUX',tr)
+    data   = getDataSet(L2_spani_w3sweap_file+'?DATA',tr)
     time   = getDataSet(L2_spani_w3sweap_file+'?Epoch',tr)
 
 #theta  = trim(theta,minIndex,maxIndex)
@@ -91,24 +107,9 @@ theta  = trim(theta, tr)
 phi    = trim(phi  , tr)
 eflux  = trim(eflux, tr)
 time   = trim(time , tr)
+data   = trim(data , tr)
 
-#mag_span = synchronize(eflux,mag_span)
-#reset()
-
-numberFlux = eflux / eflux.property(QDataSet.DEPEND_1)
-vdf = numberFlux * (mp**2 )/((2E5)*eflux.property(QDataSet.DEPEND_1)) 
-v_star = sqrt( 2*electronCharge*eflux.property(QDataSet.DEPEND_1) / mp )
-
-# Create cartesian velocity components from SPAN phi/theta values
-vx = v_star*cos(toRadians(phi))*cos(toRadians(theta))
-vy = v_star*sin(toRadians(phi))*cos(toRadians(theta))
-vz = v_star*sin(toRadians(theta))
-
-r = where(eq(floor(theta),-70))
-
-#plot(1,time,v_star*cos(toRadians(phi)),vdf)
-#plot(1,time,vy,vdf)
-#stop
+energyValues = eflux.property(QDataSet.DEPEND_1)
 
 s = sort(phi[0,:])
 phiVals = uniqValues(phi[0,:],s)
@@ -116,6 +117,41 @@ phiVals.putProperty(QDataSet.NAME,None)
 s = sort(theta[0,:])
 thetaVals = uniqValues(theta[0,:],s)
 thetaVals.putProperty(QDataSet.NAME,None)
+
+theta        = reform(theta,        [len(time), 8, 32, 8])
+phi          = reform(phi,          [len(time), 8, 32, 8])
+eflux        = reform(eflux,        [len(time), 8, 32, 8])
+energyValues = reform(energyValues, [len(time), 8, 32, 8])
+data         = reform(data,         [len(time), 8, 32, 8])
+
+#mag_span = synchronize(eflux,mag_span)
+#reset()
+
+numberFlux = eflux / energyValues
+#numberFlux = data / energyValues
+vdf = numberFlux * (mp**2 )/((2E-5)*energyValues) 
+v_star = sqrt( 2*electronCharge*energyValues / mp )
+
+# Create cartesian velocity components from SPAN phi/theta values
+vx = v_star*cos(toRadians(phi))*cos(toRadians(theta))
+vy = v_star*sin(toRadians(phi))*cos(toRadians(theta))
+vz = v_star*sin(toRadians(theta))
+print vx
+if averageOverTheta == True:
+    vx          = reduceMean(vx,         1)
+    vy          = reduceMean(vy,         1)
+    vz          = reduceMean(vz,         1)
+    theta       = reduceMean(theta,      1)
+    phi         = reduceMean(phi,        1)
+    numberFlux  = reduceMean(numberFlux, 1)
+    vdf         = reduceMean(vdf,        1)
+
+r = where(eq(floor(theta),-70))
+
+#plot(1,time,v_star*cos(toRadians(phi)),vdf)
+#plot(1,time,vy,vdf)
+#stop
+
 
 #for thetaAngle in thetaVals:
 #    print thetaAngle
@@ -141,6 +177,8 @@ vdfCollapsed         = reduceMean(vdf,0)
 vx_Collapsed         = reduceMean(vx,0)
 vy_Collapsed         = reduceMean(vy,0)
 vz_Collapsed         = reduceMean(vz,0)
+
+#vx_reform = reform(vx, [8,8,32])
 
 thetaCollapsed.putProperty(QDataSet.DEPEND_0,None)
 phiCollapsed.putProperty(QDataSet.DEPEND_0,None)
@@ -169,17 +207,25 @@ timeWidth = str( round(datumRange(tr).width()/2E6, 1) )
 
 #stop
 
+#r = where(gt(vdf,5E-7))
+#vdf = vdf[r]
+#vx = vx[r]
+#vy = vy[r]
+#vz = vz[r]
 
-#plot(1,numberFlux)
 
-vx_bins = linspace(0,1000,40)
-vy_bins = linspace(0,700,22)
-vz_bins = linspace(-600,600,22)
+
+vx_bins = linspace(0,1000,70)
+vy_bins = linspace(-700,100,32)
+vz_bins = linspace(-600,600,32)
+
+rebinnedSPANBundle_vxvy = rebin( link(-vx_Collapsed,vy_Collapsed,vdfCollapsed) , vx_bins , vy_bins )
+rebinnedSPANBundle_vxvz = rebin( link(-vx_Collapsed,vz_Collapsed,vdfCollapsed) , vx_bins , vz_bins )
+#rebinnedSPANBundle_vxvy = rebin( link(-vx,-vy,vdf) , vx_bins , vy_bins )
+#rebinnedSPANBundle_vxvz = rebin( link(-vx,-vz,vdf) , vx_bins , vz_bins )
 
 #rebinnedSPANBundle_vxvy = rebin( link(-vx_Collapsed,vy_Collapsed,vdfCollapsed) , vx_bins , vy_bins )
 #rebinnedSPANBundle_vxvz = rebin( link(-vx_Collapsed,vz_Collapsed,vdfCollapsed) , vx_bins , vz_bins )
-rebinnedSPANBundle_vxvy = rebin( link(-vx,vy,vdf) , vx_bins , vy_bins )
-rebinnedSPANBundle_vxvz = rebin( link(-vx,vz,vdf) , vx_bins , vz_bins )
 
 #plot(0, rebinnedSPANBundle_vxvy)
 def fillHistogramGaps(rebinHistogram, sizeOfGap=1):
@@ -260,12 +306,17 @@ rebinnedSPANBundle_vxvz_interpolated.putProperty(QDataSet.DEPEND_1, vz_bins)
 #rebinnedSPANBundle_vxvy = rebinnedSPANBundle_vxvy[r]
 # Trying to switch to contour plots
 
-vv = dataset([1E-7, 1E-6, 1E-5, 1E-4, 1E-3, 1E-2])
-vv = logspace(1E-8,1E-2, 10)
+vv = dataset([1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7, 1E8])
+vv = logspace(1E1,1E7, 10)
 #contour_vxvz = contour( link(-vx,vz,vdf), vv )
 contour_vxvz = contour( rebinnedSPANBundle_vxvz_degapped, vv )
 contour_vxvy = contour( rebinnedSPANBundle_vxvy_degapped, vv )
 print contour_vxvz
+
+plot(0, rebinnedSPANBundle_vxvz_degapped,xtitle='v!Bx!N',ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(timestamp,timeWidth))
+plot(1, contour_vxvz)
+stop
+plot(0,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)', ztitle='vdf')
 
 #plot(0,link(-vx,vy,vdf), xtitle='v!Bx!N', ytitle='v!By!N', title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf', symbolSize=3, renderType='colorScatter')
 plot(0,rebinnedSPANBundle_vxvy,xtitle='v!Bx!N',ytitle='v!By!N',title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf')
@@ -275,7 +326,12 @@ plot(2,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)', ztitl
 #plot(2,link(-vx,vz,vdf), xtitle='v!Bx!N', ytitle='v!Bz!N   (v!BR!N)', ztitle='vdf', symbolSize=3, renderType='colorScatter')
 #plot(3,abs(mag_span[:,0]),mag_span[:,2],color='red')
 plot(3, contour_vxvz)
-#stop
+
+
+plot(0, rebinnedSPANBundle_vxvy_degapped,xtitle='v!Bx!N',ytitle='v!By!N',title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf')
+plot(2, rebinnedSPANBundle_vxvz_degapped,xtitle='v!Bx!N',ytitle='v!Bz!N', ztitle='vdf')
+
+stop
 
 
 #plot(4, contour_vxvz)
@@ -346,7 +402,7 @@ rebinnedSPANBundle_vpvq_mag = rebin( link(vSPAN_p,vSPAN_q,vdf) , vp_span_bins , 
 rebinnedSPANBundle_vpvq_mag_reflected = rebin( temp , vp_span_bins , vq_span_bins )
 
 plot(0,rebinnedSPANBundle_vpvn_mag,ytitle='v!B||!N',xtitle='v!B&perp;1!N',xrange=[vp_span_bins[0],vp_span_bins[-1]],title=str(timestamp)[:-1]+' ± '+timeWidth)
-plot(2,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
+plot(2,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N',title=str(timestamp)[:-1]+' ± '+timeWidth)
 #plot(1,rebinnedSPANBundle_vpvq_mag_reflected,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
 
 

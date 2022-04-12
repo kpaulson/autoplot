@@ -107,8 +107,8 @@ max_longitude              = -22
 number_of_segments         = 1000      # Integer number of slices of longitude space
 radial_separation_min      = 2E3       # Minimum radial separation between groups of observations
 
-sweap_L3 = 'http://sweap.cfa.harvard.edu/data/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?timerange=%s'%tr
-sweap_L2 = 'http://sweap.cfa.harvard.edu/data/spc/L2/2018/11/spp_swp_spc_l2_20181104_v10.cdf?timerange=%s'%tr
+sweap_L3 = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?timerange=%s'%tr
+sweap_L2 = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2018/11/spp_swp_spc_l2_20181104_v10.cdf?timerange=%s'%tr
 
 # Load data variables
 v_rtn         = getDataSet(sweap_L3+'&vp_moment_RTN')

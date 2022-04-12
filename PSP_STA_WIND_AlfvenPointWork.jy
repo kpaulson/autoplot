@@ -72,9 +72,9 @@ tr = '2019-09-17 09:00 to 2019-09-18 6:00' # Orbit 3 both fast and slow
 tr = nishuTime
 #tr = mikeEvent2
 #tr = '2018-11-02 to 2018-12-16'
-tr = orbit1
-tr = '2018-08-12 08:15 to 2019-06-18 20:15'
-tr = '2020-11-20 to 2020-11-25'
+#tr = orbit1
+#tr = '2018-08-12 08:15 to 2019-06-18 20:15'
+#tr = '2020-11-20 to 2020-11-25'
 
 tr_WIND = '2018-11-04 to 2018-11-07'#carringtonRotation_2220
 tr_WIND = carringtonRotation_2213
@@ -89,7 +89,7 @@ maxLon = 360#50#360
 filterRadius = False
 minRadAU = 0
 maxRadAU = 0.8
-filterVelocity = True
+filterVelocity = False
 minVelAU = 0.0
 maxVelAU = 1.
 
@@ -106,7 +106,8 @@ elif plotType == 'longitudeStack':
     tt_STA  = linspace(longitudeProjectionRadius,10.,2)[0]*ones(1)
 
 
-alfvenPointDirectory = '/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/'
+#alfvenPointDirectory = '/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/'
+alfvenPointDirectory = 'G:/My Drive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/'
 
 sta_fieldsFile    = alfvenPointDirectory+'mergedSTA_fields.txt'
 sta_positionFile  = alfvenPointDirectory+'mergedSTA_position.txt'
@@ -470,7 +471,7 @@ if plotType == 'dialPlot':
         v = v*AU_in_km/(60*60*24)
         vTot_PSP = vTot_PSP*AU_in_km/(60*60*24)
         vTot_WIND = vTot_WIND*AU_in_km/(60*60*24)
-        load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
+        load('G:/My Drive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
         plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2,title='Positive Polarity',ztitle='v!Br!N  (AU/day)')
         plot(4,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,renderType='scatter',xrange=[-0.1,1.],yrange=[-0.1,0.4])
         plot(2,(rTot_WIND*cos(toRadians(lonTot_WIND)))[posSector_WIND],(rTot_WIND*sin(toRadians(lonTot_WIND)))[posSector_WIND],(vTot_WIND)[posSector_WIND],symbolSize=2,xrange=[-1.1,1.1],yrange=[-1.1,1.1],zrange=[200,800])
@@ -487,7 +488,7 @@ if plotType == 'dialPlot':
         rTot_PSP = rTot_PSP*215.032
         rTot_WIND = rTot_WIND*215.032
         rTot_STA = rTot_STA*215.032
-        load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
+        load('G:/My Drive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots_sideways.vap')
         #load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/doubleDialPlots.vap')
         plot(0,(rTot_PSP*cos(toRadians(lonTot_PSP)))[posSector_PSP],(rTot_PSP*sin(toRadians(lonTot_PSP)))[posSector_PSP],vTot_PSP[posSector_PSP],symbolSize=2,title='Positive Polarity',ztitle='v!Br!N  (km/s)')
         plot(4,r0*cos(toRadians(lon0)),r0*sin(toRadians(lon0)),v,symbolSize=10,renderType='scatter',xrange=[-22,220],yrange=[-22,80])
@@ -509,7 +510,7 @@ elif plotType == 'longitudeStack':
     if tr == nishuTime:
         vTot_PSP = vTot_PSP*AU_in_km/(60*60*24)
         vTot_WIND = vTot_WIND*AU_in_km/(60*60*24)
-        load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
+        load('G:/My Drive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
         plot(0,lonTot_PSP[posSector_PSP],vTot_PSP[posSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP',title='V!Br!N Projected to %s r!Bs!N'%longitudeProjectionRadius_inRs)
         plot(1,lonTot_WIND[posSector_WIND],vTot_WIND[posSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (km/s)',symbolSize=5,legendLabel='WIND',yrange=[200,800],xrange=[230,330])
         #plot(2,lonTot_STA[posSector_STA],vTot_STA[posSector_STA],color='black',renderType='scatter',xlog=False,ytitle='positive magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')
@@ -518,7 +519,7 @@ elif plotType == 'longitudeStack':
        
     vTot_PSP = vTot_PSP*AU_in_km/(60*60*24)
     vTot_WIND = vTot_WIND*AU_in_km/(60*60*24) 
-    load('/Users/kpaulson/GoogleDrive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
+    load('G:/My Drive/Research/Papers-in-Progress/Stevens_-_Alfven_Point/longitudeStack.vap')
     plot(0,lonTot_PSP[posSector_PSP],vTot_PSP[posSector_PSP],color='red',renderType='scatter',symbolSize=5,legendLabel='PSP',title='V!Br!N Projected to %s r!Bs!N'%longitudeProjectionRadius_inRs)
     plot(1,lonTot_WIND[posSector_WIND],vTot_WIND[posSector_WIND],color='blue',renderType='scatter',xlog=False,ytitle='v!Br!N (AU/day)',symbolSize=5,legendLabel='WIND')
     plot(2,lonTot_STA[posSector_STA],vTot_STA[posSector_STA],color='black',renderType='scatter',xlog=False,ytitle='positive magSector!Cv!Br!N (AU/day)',symbolSize=5,legendLabel='STA')

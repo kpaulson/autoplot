@@ -10,6 +10,7 @@
 # this calculation is performed in SI units and assumes SI inputs
 
 # last revised: Mike Stevens 10/20/2011
+# revision: K. Paulson 2022-04-08 - Adapted for Autoplot 
 
 
 
@@ -129,9 +130,12 @@ def Fxy_abc( x, y, a, b, c, decimal):
     
     X1 = gamma(c)/(gamma(a)*gamma(c-a))
     #X2 = ((t##(1+0.*x))^(a-1.)) * ((1. - (t##(1+0.*x)))^(c-a-1.)) * (1. - t##x)^(0. - b)  # IDL version
-    X2 = ((outerProduct(t,ones(1)))**(a-1.)) * ((1. - (outerProduct(t,ones(1))))**(c-a-1.)) * (1. - t*x)**(0. - b)
+    #X2 = ((outerProduct(t,ones(1)))**(a-1.)) * ((1. - (outerProduct(t,ones(1))))**(c-a-1.)) * (1. - t*x)**(0. - b)
+    X2 = ((outerProduct(t,ones(1)))**(a-1.)) * ((1. - (outerProduct(t,ones(1))))**(c-a-1.)) * (1. - outerProduct(t,x*ones(1)))**(0. - b)
     #X3 = exp((t##y)/(1. - t##x))  # IDL version
-    X3 = exp((t*y)/(1. - t*x))
+    #X3 = exp((t*y)/(1. - t*x))
+    X3 = exp(outerProduct(t,y*ones(1))/(1. - outerProduct(t,x*ones(1))))
+    
     
     return( (X1*total(X2*X3*dt, 0))[0] )
     
@@ -188,7 +192,8 @@ T2_par = 2.8*T1_par
 v1 = 0.
 v2 = 10. * 1E3
 nu_12 = 0.
-(nu_v1, nu_T1_par, nu_T1_per) = bimax_transport(q1, q2, m1, m2, n1, n2, T1_per, T2_per, T1_par, T2_par, v1, v2, nu_12=nu_12)
+decimal = 4
+(nu_v1, nu_T1_par, nu_T1_per) = bimax_transport(q1, q2, m1, m2, n1, n2, T1_per, T2_per, T1_par, T2_par, v1, v2, nu_12=nu_12, decimal=decimal)
 
 #stop
 
@@ -197,25 +202,15 @@ u = 280. * 1E3
 texp = AU/u
 ncol = nu_T1_par * texp
 
-print (nu_T1_par * texp)
-print nu_T1_per * texp
-print nu_v1 * texp
+print '(nu_T1_par * texp):',(nu_T1_par * texp)
+print '(nu_T1_per * texp):',nu_T1_per * texp
+print '(nu_v1 * texp):',nu_v1 * texp
 
-#plot(0, (nu_T1_par * texp))
-#plot(1, (nu_T1_per * texp))
-#plot(2, (nu_v1 * texp))
+
 
 # let's see how these numbers compare to Arnaud's
-nu=0.
-calculate_coll_freqs( kbj, n1, T1_per, m1, q1, m2, q2, n2, T2_per, (v2-v1), nu_slow, nu_perp, nu_para, nu_ener, nu0=nu0)
-print nu_slow*texp
-
-#stop
-
-#end
-################
-################
-################
-################
+#nu=0.
+#calculate_coll_freqs( kbj, n1, T1_per, m1, q1, m2, q2, n2, T2_per, (v2-v1), nu_slow, nu_perp, nu_para, nu_ener, nu0=nu0)
+#print nu_slow*texp
 
 

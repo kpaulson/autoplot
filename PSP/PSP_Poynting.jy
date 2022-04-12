@@ -17,7 +17,7 @@ poynting_min  = getParam('poyntingMin',  1E-4, 'Minimum Poynting Flux value to b
 
 useLocalEfieldData = getParam('localEfieldData', 'T', 'Use local Efield files (in cases where callibrated data has been downloaded)', ['T','F'])
 if useLocalEfieldData == 'T':
-    efield_corrected_directory = getParam('efield_', 'file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/FIELDS/Efield_Phase-Corrected/', 'local directory for efield data')
+    efield_corrected_directory = getParam('efield_', 'file:///G:/My Drive/Research/PSP/FIELDS/Efield_Phase-Corrected/', 'local directory for efield data')
 
 writeStuff = getParam('writeStuff', 'F', 'Write the calculated Poynting Flux out to a file', ['T','F'])
 
@@ -88,7 +88,7 @@ OS = get_os_version().split()[0]
 if OS == 'mac':
     googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
 elif OS == 'windows':
-    googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
     
     
 if useLocalFiles == True:
@@ -238,7 +238,8 @@ plot(0, Smag, xrange=timerange, title='PSP Poynting Flux'+title_warning, colorTa
 plot(1, Sn, colorTable='blue_white_red', ztitle='Sn (along B)') 
 plot(2, Sp, colorTable='blue_white_red', ztitle='Sp (~RTN!BT!N)')    
 plot(3, Sq, colorTable='blue_white_red', ztitle='Sq (~RTN!BN!N)')    
-plot(3, smooth(Sq,7), colorTable='blue_white_red', ztitle='Sq (~RTN!BN!N)')    
+plot(3, smooth(Sq,7), colorTable='blue_white_red', ztitle='Sq (~RTN!BN!N)')   
+#plot(5, (Bp_fft[:,:,0]**2 + Bp_fft[:,:,1]**2)) 
     
 background_grey = java.awt.Color(180,180,180,255)
 dom.plots[1].controller.dasColorBar.setFillColor(background_grey)
@@ -250,6 +251,7 @@ dom.plots[3].controller.dasColorBar.setFillColor(background_grey)
 # ###
     
 if writeStuff == True:
+    tr_filename = '2021-11-22_0230-0330'
     poyntingFiles_directory = googleDrive_path+'Research/PSP/WaveAnalysis/PSP_Poynting/Poynting_Files/'
     outputFile = poyntingFiles_directory+'PSP_Poynting_%s.cdf'%(tr_filename)
     monitor.setProgressMessage('Writing to File')
@@ -257,6 +259,36 @@ if writeStuff == True:
     mag_time.putProperty(QDataSet.NAME,'Bfield_time')
     fft_time.putProperty(QDataSet.NAME,'FFT_time')
     frequency_axis.putProperty(QDataSet.NAME,'Frequencies')
+    Sn.putProperty(QDataSet.NAME,'Sn')
+    Sp.putProperty(QDataSet.NAME,'Sp')
+    Sq.putProperty(QDataSet.NAME,'Sq')
+    En_fft.putProperty(QDataSet.NAME,'En_fft')
+    Ep_fft.putProperty(QDataSet.NAME,'Ep_fft')
+    Eq_fft.putProperty(QDataSet.NAME,'Eq_fft')
+    Bn_fft.putProperty(QDataSet.NAME,'Bn_fft')
+    Bp_fft.putProperty(QDataSet.NAME,'Bp_fft')
+    Bq_fft.putProperty(QDataSet.NAME,'Bq_fft')
     
-    formatDataSet(mag_time,outputFile)
+    Sn.putProperty(QDataSet.LABEL,'Sn (along B)')
+    Sp.putProperty(QDataSet.LABEL,'Sp (~RTN!BT!N)')
+    Sq.putProperty(QDataSet.LABEL,'Sq (~RTN!BN!N)')
+    En_fft.putProperty(QDataSet.LABEL,'En_fft (along B)')
+    Ep_fft.putProperty(QDataSet.LABEL,'Ep_fft (~RTN!BT!N)')
+    Eq_fft.putProperty(QDataSet.LABEL,'Eq_fft (~RTN!BN!N)')
+    Bn_fft.putProperty(QDataSet.LABEL,'Bn_fft (along B)')
+    Bp_fft.putProperty(QDataSet.LABEL,'Bp_fft (~RTN!BT!N)')
+    Bq_fft.putProperty(QDataSet.LABEL,'Bq_fft (~RTN!BN!N)')
+    
+    formatDataSet(mag_time, outputFile)
+    formatDataSet(fft_time, outputFile+'?append=T')
+    formatDataSet(frequency_axis, outputFile+'?append=T')
+    formatDataSet(Sn, outputFile+'?append=T')
+    formatDataSet(Sp, outputFile+'?append=T')
+    formatDataSet(Sq, outputFile+'?append=T')
+    formatDataSet(En_fft, outputFile+'?append=T')
+    formatDataSet(Ep_fft, outputFile+'?append=T')
+    formatDataSet(Eq_fft, outputFile+'?append=T')
+    formatDataSet(Bn_fft, outputFile+'?append=T')
+    formatDataSet(Bp_fft, outputFile+'?append=T')
+    formatDataSet(Bq_fft, outputFile+'?append=T')
         

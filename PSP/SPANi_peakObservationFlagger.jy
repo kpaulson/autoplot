@@ -3,7 +3,7 @@ timerange = getParam('timerange','2020-01-30','timerange of flags to generate (t
 tr = timerange
 writeStuff = True
 
-w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
+w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf'
 
 eflux_vs_phi = getDataSet(w3sweap_SPAN_L3_file+'?EFLUX_VS_PHI',tr)
 phi_vals = getDataSet(w3sweap_SPAN_L3_file+'?PHI_VALS',tr)
@@ -36,6 +36,6 @@ peakObservationFlag.putProperty(QDataSet.DESCRIPTION,'Flag dataset on whether th
 
 
 if writeStuff == True:
-    spaniPeakObservation_directory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/'
+    spaniPeakObservation_directory = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/'
 
     formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s.txt?header=rich'%tr)

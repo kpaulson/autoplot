@@ -12,13 +12,13 @@
 timerange = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Poynting Flux')
 
 freq_min       = getParam('minFrequency', 0.1,  'Lower frequency bound of analysis (Hz)')
-freq_max       = getParam('maxFrequency', 9.,   'Upper frequency bound of analysis (Hz)')
+freq_max       = getParam('maxFrequency', 256.,   'Upper frequency bound of analysis (Hz)')
 window         = getParam('windowWidth',  1024, 'Number of points in fft window', [256, 512, 1024, 2048, 4096, 8192, 16384])
 slide          = getParam('slideFactor',  8,    'Reciprocal of fraction of non-overlap between neighboring windows')
 trend_seconds  = getParam('trendSeconds', 60,   'Number of seconds used to identify the background magnetic field')
 poynting_min   = getParam('poyntingMin',  1E-6, 'Minimum Poynting Flux value to be plotted (filters out noise)')
 wave_power_min = getParam('wavePowerMin', 1E-4, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
-wave_power_min_E = getParam('wavePowerMin_E', 1E-9, 'Minimum electric field Wave Power value in Bfield to be plotted (filters out noise)')
+wave_power_min_E = getParam('wavePowerMin_E', 1E-10, 'Minimum electric field Wave Power value in Bfield to be plotted (filters out noise)')
 
 version = '1.2'
 filterOutIncoherent = False
@@ -410,8 +410,49 @@ for tr in trs:
         # ###]:
     
         monitor.setProgressMessage('Polarization')
-        ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization, Power_compressional, Power_perp, Wave_Power ) = Polarize( Bn_fft_pol , Bp_fft_pol , Bq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min )
-        ( Handedness_E , Ellipticity_E , Angle_Normal_E , Deg_Polarization_E , Coherency_E , Angle_polarization_E, Power_compressional_E, Power_perp_E, Wave_Power_E ) = Polarize( En_fft_pol , Ep_fft_pol , Eq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min_E )
+        giveUsTheK = True
+        if giveUsTheK == False:
+            ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization, Power_compressional, Power_perp, Wave_Power ) = Polarize( Bn_fft_pol , Bp_fft_pol , Bq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min )
+            ( Handedness_E , Ellipticity_E , Angle_Normal_E , Deg_Polarization_E , Coherency_E , Angle_polarization_E, Power_compressional_E, Power_perp_E, Wave_Power_E ) = Polarize( En_fft_pol , Ep_fft_pol , Eq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min_E )
+        elif giveUsTheK == True:
+            ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization, Power_compressional, Power_perp, Wave_Power, kx, ky, kz ) = Polarize( Bn_fft_pol , Bp_fft_pol , Bq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min, giveUsTheK = True )
+            ( Handedness_E , Ellipticity_E , Angle_Normal_E , Deg_Polarization_E , Coherency_E , Angle_polarization_E, Power_compressional_E, Power_perp_E, Wave_Power_E, kx_E, ky_E, kz_E ) = Polarize( En_fft_pol , Ep_fft_pol , Eq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min_E, giveUsTheK = True )
+            
+            kx.putProperty(  QDataSet.NAME, 'kx_B')
+            ky.putProperty(  QDataSet.NAME, 'ky_B')
+            kz.putProperty(  QDataSet.NAME, 'kz_B')
+            kx_E.putProperty(QDataSet.NAME, 'kx_E')
+            ky_E.putProperty(QDataSet.NAME, 'ky_E')
+            kz_E.putProperty(QDataSet.NAME, 'kz_E')
+            
+            kx.putProperty(  QDataSet.LABEL, 'kx (Bfield)')
+            ky.putProperty(  QDataSet.LABEL, 'ky (Bfield)')
+            kz.putProperty(  QDataSet.LABEL, 'kz (Bfield)')
+            kx_E.putProperty(QDataSet.LABEL, 'kx (Efield)')
+            ky_E.putProperty(QDataSet.LABEL, 'ky (Efield)')
+            kz_E.putProperty(QDataSet.LABEL, 'kz (Efield)')
+
+            kx.putProperty(  QDataSet.TITLE, 'Wave Vector kx (Bfield)')
+            ky.putProperty(  QDataSet.TITLE, 'Wave Vector ky (Bfield)')
+            kz.putProperty(  QDataSet.TITLE, 'Wave Vector kz (Bfield)')
+            kx_E.putProperty(QDataSet.TITLE, 'Wave Vector kx (Efield)')
+            ky_E.putProperty(QDataSet.TITLE, 'Wave Vector ky (Efield)')
+            kz_E.putProperty(QDataSet.TITLE, 'Wave Vector kz (Efield)')
+
+            kx.putProperty(  QDataSet.DEPEND_0, fft_time)
+            ky.putProperty(  QDataSet.DEPEND_0, fft_time)
+            kz.putProperty(  QDataSet.DEPEND_0, fft_time)
+            kx_E.putProperty(QDataSet.DEPEND_0, fft_time)
+            ky_E.putProperty(QDataSet.DEPEND_0, fft_time)
+            kz_E.putProperty(QDataSet.DEPEND_0, fft_time)
+
+            kx.putProperty(  QDataSet.DEPEND_1, frequency_axis)
+            ky.putProperty(  QDataSet.DEPEND_1, frequency_axis)
+            kz.putProperty(  QDataSet.DEPEND_1, frequency_axis)
+            kx_E.putProperty(QDataSet.DEPEND_1, frequency_axis)
+            ky_E.putProperty(QDataSet.DEPEND_1, frequency_axis)
+            kz_E.putProperty(QDataSet.DEPEND_1, frequency_axis)
+            
     
         Ellipticity.putProperty(QDataSet.VALID_MIN,-1)
         Ellipticity.putProperty(QDataSet.VALID_MAX, 1)
@@ -587,9 +628,16 @@ for tr in trs:
                         formatDataSet(Power_compressional_E,outputFile+'?append=T')
                         formatDataSet(Power_perp_E         ,outputFile+'?append=T')
                         formatDataSet(Wave_Power_E         ,outputFile+'?append=T')
-                        formatDataSet(En_fft_pol         ,outputFile+'?append=T')
-                        formatDataSet(Ep_fft_pol         ,outputFile+'?append=T')
-                        formatDataSet(Eq_fft_pol         ,outputFile+'?append=T')
+                        formatDataSet(En_fft_pol           ,outputFile+'?append=T')
+                        formatDataSet(Ep_fft_pol           ,outputFile+'?append=T')
+                        formatDataSet(Eq_fft_pol           ,outputFile+'?append=T')
+                        if giveUsTheK == True:
+                            formatDataSet(kx               ,outputFile+'?append=T')
+                            formatDataSet(ky               ,outputFile+'?append=T')
+                            formatDataSet(kz               ,outputFile+'?append=T')
+                            formatDataSet(kx_E             ,outputFile+'?append=T')
+                            formatDataSet(ky_E             ,outputFile+'?append=T')
+                            formatDataSet(kz_E             ,outputFile+'?append=T')
                         
                         print 'writeAttempt:',i+1
                         fileAlreadyExists = False
@@ -635,6 +683,13 @@ for tr in trs:
                 formatDataSet(En_fft_pol             ,outputFile+'?append=T')
                 formatDataSet(Ep_fft_pol             ,outputFile+'?append=T')
                 formatDataSet(Eq_fft_pol             ,outputFile+'?append=T')
+                if giveUsTheK == True:
+                    formatDataSet(kx               ,outputFile+'?append=T')
+                    formatDataSet(ky               ,outputFile+'?append=T')
+                    formatDataSet(kz               ,outputFile+'?append=T')
+                    formatDataSet(kx_E             ,outputFile+'?append=T')
+                    formatDataSet(ky_E             ,outputFile+'?append=T')
+                    formatDataSet(kz_E             ,outputFile+'?append=T')
             
         
         # ###

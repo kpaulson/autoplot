@@ -33,10 +33,10 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
     
     smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
     
-    Bx_smooth = smooth(Bx,smooth_points)
-    By_smooth = smooth(By,smooth_points)
-    Bz_smooth = smooth(Bz,smooth_points)
-    Btotal_smooth = smooth(Btotal,smooth_points)
+    Bx_smooth     = smoothFit(mag_time, Bx,     smooth_points)
+    By_smooth     = smoothFit(mag_time, By,     smooth_points)
+    Bz_smooth     = smoothFit(mag_time, Bz,     smooth_points)
+    Btotal_smooth = smoothFit(mag_time, Btotal, smooth_points)
     
     Nx = Bx_smooth / Btotal_smooth
     Ny = By_smooth / Btotal_smooth
@@ -53,10 +53,13 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
     ephem_time = TEMP_Rx.property(QDataSet.DEPEND_0)
     ephem_to_mag_ratio = findex(ephem_time,mag_time)
     
-    TEMP_Rx = interpolate( (TEMP_Rx/TEMP_Rmag) , ephem_to_mag_ratio )
-    TEMP_Ry = interpolate( (TEMP_Ry/TEMP_Rmag) , ephem_to_mag_ratio )
-    TEMP_Rz = interpolate( (TEMP_Rz/TEMP_Rmag) , ephem_to_mag_ratio )
-    
+    #TEMP_Rx = interpolate( (TEMP_Rx/TEMP_Rmag) , ephem_to_mag_ratio )
+    #TEMP_Ry = interpolate( (TEMP_Ry/TEMP_Rmag) , ephem_to_mag_ratio )
+    #TEMP_Rz = interpolate( (TEMP_Rz/TEMP_Rmag) , ephem_to_mag_ratio )
+    TEMP_Rx = synchronize( Btotal_smooth, (TEMP_Rx/TEMP_Rmag) )
+    TEMP_Ry = synchronize( Btotal_smooth, (TEMP_Ry/TEMP_Rmag) )
+    TEMP_Rz = synchronize( Btotal_smooth, (TEMP_Rz/TEMP_Rmag) )
+	
     # This version divides by Rmag again, which I should not be doing.... how long has this been in here??
     #Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
     #Ry = -(TEMP_Ry/TEMP_Rmag) 
@@ -70,7 +73,7 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
     TEMP_Pz = ( Nx * Ry ) - ( Ny * Rx )
     
     Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
-        
+      
     Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction (for earth coords)
     Py = TEMP_Py / Pmag
     Pz = TEMP_Pz / Pmag

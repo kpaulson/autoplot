@@ -9,8 +9,10 @@ from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairM
 #bx= fftPower( ds[:,0], 512, None ) 
 #bz= fftPower( ds[:,2], 512, None ) 
 
-span_vdf = getDataSet('G:/My Drive/tmp/PSP_SPAN_vdf_collapsed_vr_2022-02-24_survey.cdf?SPAN_vdf_collapsed_vr')
-spc_vdf  = getDataSet('G:/My Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_2022-02-24.cdf?x=Epoch&y=v_z&where=modeFlag.eq(0)&vdf')
+#span_vdf = getDataSet('G:/My Drive/tmp/PSP_SPAN_vdf_collapsed_vr_2022-02-24_survey.cdf?SPAN_vdf_collapsed_vr')
+#spc_vdf  = getDataSet('G:/My Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_2022-02-24.cdf?x=Epoch&y=v_z&where=modeFlag.eq(0)&vdf')
+span_vdf = getDataSet('https://github.com/kpaulson/autoplot/blob/master/PSP/SPC-SPAN_radialVDFSliceComparison/PSP_SPAN_vdf_collapsed_vr_2022-02-24_survey.cdf?SPAN_vdf_collapsed_vr')
+spc_vdf  = getDataSet('https://github.com/kpaulson/autoplot/blob/master/PSP/SPC-SPAN_radialVDFSliceComparison/SPC_VDF_2022-02-24_subset.cdf?x=Epoch&y=v_z&where=modeFlag.eq(0)&vdf')
 
 reset()
 plot( 0, span_vdf, ytitle='span_vdf' )

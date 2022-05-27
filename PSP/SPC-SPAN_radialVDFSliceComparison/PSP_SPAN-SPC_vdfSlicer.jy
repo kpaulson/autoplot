@@ -1,0 +1,57 @@
+setScriptDescription('''Demonstrate how slice actions can be added which slice two plots at
+once.  Note the copies in doSlice are there to quiet annoying and unhelpful mutability messages.
+It's also hard to know which MouseModule to extend to get the functionality.''')
+
+from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairMouseModule
+
+#ds= getDataSet( 'https://lasp.colorado.edu/mms/sdc/public/data/mms1/fgm/srvy/l2/2021/01/mms1_fgm_srvy_l2_20210102_v5.278.0.cdf?mms1_fgm_b_gse_srvy_l2' )
+
+#bx= fftPower( ds[:,0], 512, None ) 
+#bz= fftPower( ds[:,2], 512, None ) 
+
+span_vdf = getDataSet('G:/My Drive/tmp/PSP_SPAN_vdf_collapsed_vr_2022-02-24_survey.cdf?SPAN_vdf_collapsed_vr')
+spc_vdf  = getDataSet('G:/My Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_2022-02-24.cdf?x=Epoch&y=v_z&where=modeFlag.eq(0)&vdf')
+
+reset()
+plot( 0, span_vdf, ytitle='span_vdf' )
+plot( 1, spc_vdf, ytitle='spc_vdf' )
+
+sl= None  # reference to the slice window
+
+def doSlice(x):
+    'Do the slice action off of the event thread'
+    global sl
+    d0= getApplication()
+    setApplication(sl)
+    sl0= copy( slice0( copy(span_vdf),x ) )  # extra copies are to avoid strange error about mutability
+    sl1= copy( slice0( copy(spc_vdf),x ) )
+    #for i in xrange(len(sl0)):
+    #    print sl0[i].value()
+    #print 'max spc:',max(sl1[valid(sl1)]).value()
+    #print 'max span:',max(sl0[where(gt(sl0,0))]).value()
+    #peakRatio = max(sl1[valid(sl1)]).value()/max(sl0[where(gt(sl0,0))]).value()
+    #print peakRatio
+    #sl0 = sl0*peakRatio
+    #print 'max spc:',max(sl1[valid(sl1)]).value()
+    #print 'max span:',max(sl0[where(gt(sl0,0))]).value()
+    plot(0, normalize(copy(sl0)), color='black', yrange=[1E-2,2.], ylog=True, legendLabel='span_vdf' )
+    plot(1, normalize(copy(sl1)), color='red', legendLabel='spc_vdf' )
+    setApplication(d0)
+        
+def mouseAction(evt):
+    global sl
+    if (sl==None):
+       sl= newApplication('slice')
+       setApplication(sl)
+       setLayoutOverplot(2)
+       dom.canvases[0].setFont('Dialog-18')
+       print 'new window'
+    invokeLater( doSlice, dataset(evt.x) )
+    
+
+for p in [ dom.plots[0].controller.dasPlot, dom.plots[1].controller.dasPlot ]:
+   mm= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
+   mm.dataPointSelected= mouseAction
+   mm.label= 'slices'    
+   mm.dragRenderer= VerticalSliceSelectionRenderer(p)
+   p.dasMouseInputAdapter.primaryModule= mm

@@ -32,16 +32,23 @@ def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_
     
     fft_time = Bn_fft.property( QDataSet.DEPEND_0 )       
     frequency_axis = Bn_fft.property( QDataSet.DEPEND_1 ) 
-        
 
-    #TEMP_Sn = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
-    #TEMP_Sp = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
-    #TEMP_Sq = dblarr( len(Bn_fft[:,1,0]) , len(Bn_fft[1,:,0]) )
+    ### How has this (below) been wrong for so damn long?! It's a simple cross-product, when I do it on paper n is the wrong direction.
+    #TEMP_Sp = ( ( (En_fft[:,:,0]*Bq_fft[:,:,0]) + (En_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bn_fft[:,:,0]) + (Eq_fft[:,:,1]*Bn_fft[:,:,1]) ) ) / 2
+    #TEMP_Sq = ( ( (Ep_fft[:,:,0]*Bn_fft[:,:,0]) + (Ep_fft[:,:,1]*Bn_fft[:,:,1]) ) - ( (En_fft[:,:,0]*Bp_fft[:,:,0]) + (En_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2
+    #TEMP_Sn = ( ( (Ep_fft[:,:,0]*Bq_fft[:,:,0]) + (Ep_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bp_fft[:,:,0]) + (Eq_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2
 
-    TEMP_Sp = ( ( (En_fft[:,:,0]*Bq_fft[:,:,0]) + (En_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bn_fft[:,:,0]) + (Eq_fft[:,:,1]*Bn_fft[:,:,1]) ) ) / 2
-    TEMP_Sq = ( ( (Ep_fft[:,:,0]*Bn_fft[:,:,0]) + (Ep_fft[:,:,1]*Bn_fft[:,:,1]) ) - ( (En_fft[:,:,0]*Bp_fft[:,:,0]) + (En_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2
+    ### This should be correct as of 2022-05-26 (but who knows what is truth anymore)
+    TEMP_Sp = ( ( (Eq_fft[:,:,0]*Bn_fft[:,:,0]) + (Eq_fft[:,:,1]*Bn_fft[:,:,1]) ) - ( (En_fft[:,:,0]*Bq_fft[:,:,0]) + (En_fft[:,:,1]*Bq_fft[:,:,1]) ) ) / 2
+    TEMP_Sq = ( ( (En_fft[:,:,0]*Bp_fft[:,:,0]) + (En_fft[:,:,1]*Bp_fft[:,:,1]) ) - ( (Ep_fft[:,:,0]*Bn_fft[:,:,0]) + (Ep_fft[:,:,1]*Bn_fft[:,:,1]) ) ) / 2
     TEMP_Sn = ( ( (Ep_fft[:,:,0]*Bq_fft[:,:,0]) + (Ep_fft[:,:,1]*Bq_fft[:,:,1]) ) - ( (Eq_fft[:,:,0]*Bp_fft[:,:,0]) + (Eq_fft[:,:,1]*Bp_fft[:,:,1]) ) ) / 2
 	
+    TEMP_Sp_imag = ( ( (Eq_fft[:,:,1]*Bn_fft[:,:,0]) + (En_fft[:,:,0]*Bq_fft[:,:,1]) ) - ( (En_fft[:,:,1]*Bq_fft[:,:,0]) + (Eq_fft[:,:,0]*Bn_fft[:,:,1]) ) ) / 2
+    TEMP_Sq_imag = ( ( (En_fft[:,:,1]*Bp_fft[:,:,0]) + (Ep_fft[:,:,0]*Bn_fft[:,:,1]) ) - ( (Ep_fft[:,:,1]*Bn_fft[:,:,0]) + (En_fft[:,:,0]*Bp_fft[:,:,1]) ) ) / 2
+    TEMP_Sn_imag = ( ( (Ep_fft[:,:,1]*Bq_fft[:,:,0]) + (Eq_fft[:,:,0]*Bp_fft[:,:,1]) ) - ( (Eq_fft[:,:,1]*Bp_fft[:,:,0]) + (Ep_fft[:,:,0]*Bq_fft[:,:,1]) ) ) / 2
+	
+	
+	### This (below) is long since deprecated
     # if( poynting_flux_relative_to_equator == 'T' ):
         # for i in xrange( len(Bn_fft[:,1,0]) ):
             # if ( MLat_fftcadence[i] < 0 ):
@@ -58,15 +65,15 @@ def Poyntingify( Bn_fft , Bp_fft , Bq_fft , En_fft , Ep_fft , Eq_fft , poynting_
 
     Smag = sqrt(TEMP_Sn**2 + TEMP_Sp**2 + TEMP_Sq**2)
 
-    putProps( [ Smag ], QDataSet.DEPEND_0, fft_time )
-    putProps( [ Smag ], QDataSet.DEPEND_1, frequency_axis )
+    putProps( [ Smag, TEMP_Sn, TEMP_Sp, TEMP_Sq ], QDataSet.DEPEND_0, fft_time )
+    putProps( [ Smag, TEMP_Sn, TEMP_Sp, TEMP_Sq ], QDataSet.DEPEND_1, frequency_axis )
     
-    putProps( [ TEMP_Sn ], QDataSet.DEPEND_0, fft_time )
-    putProps( [ TEMP_Sn ], QDataSet.DEPEND_1, frequency_axis )
-    putProps( [ TEMP_Sp ], QDataSet.DEPEND_0, fft_time )
-    putProps( [ TEMP_Sp ], QDataSet.DEPEND_1, frequency_axis )
-    putProps( [ TEMP_Sq ], QDataSet.DEPEND_0, fft_time )
-    putProps( [ TEMP_Sq ], QDataSet.DEPEND_1, frequency_axis )
+    #putProps( [ TEMP_Sn ], QDataSet.DEPEND_0, fft_time )
+    #putProps( [ TEMP_Sn ], QDataSet.DEPEND_1, frequency_axis )
+    #putProps( [ TEMP_Sp ], QDataSet.DEPEND_0, fft_time )
+    #putProps( [ TEMP_Sp ], QDataSet.DEPEND_1, frequency_axis )
+    #putProps( [ TEMP_Sq ], QDataSet.DEPEND_0, fft_time )
+    #putProps( [ TEMP_Sq ], QDataSet.DEPEND_1, frequency_axis )
     
     Smag.putProperty( QDataSet.UNITS , Units.wpm2 )
 

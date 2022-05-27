@@ -42,7 +42,7 @@ elif plotStuff == 'F':
     
 if writeStuff == 'T':
     writeStuff = True
-    outputDirectory = getParam('outputDirectory','Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version),'Where to write file')
+    outputDirectory = getParam('outputDirectory','Research/PSP/WaveAnalysis/PSP_Polarization/Polarization_Files/','Where to write file')
 elif writeStuff == 'F':
     writeStuff = False
     outputDirectory = '/tmp/'
@@ -435,7 +435,9 @@ elif scrollingPlots == False:
     
     mag_time = mag.property(QDataSet.DEPEND_0)
     
-    pos = getDataSet(cfa_sweap_file+'?sc_pos_HCI',tr)
+    #pos = getDataSet(cfa_sweap_file+'?sc_pos_HCI',tr)
+    ephemFile = 'G:/My Drive/Research/PSP/Ephemeris/dailyFiles/PSP_ephemeris_$Y-$m-$d.cdf'
+    pos = getDataSet(ephemFile+'?sc_pos_HCI',tr)
     pos_time = pos.property(QDataSet.DEPEND_0)
     
     Bx = mag[:,0]
@@ -454,12 +456,12 @@ elif scrollingPlots == False:
     TEMP_Ry = pos[:,1]
     TEMP_Rz = pos[:,2]
     
-    TEMP_Rx = zeros(len(pos))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
-    TEMP_Ry = ones(len(pos))
-    TEMP_Rz = zeros(len(pos))
-    TEMP_Rx.putProperty(QDataSet.DEPEND_0,pos_time)
-    TEMP_Ry.putProperty(QDataSet.DEPEND_0,pos_time)
-    TEMP_Rz.putProperty(QDataSet.DEPEND_0,pos_time)
+    #TEMP_Rx = zeros(len(pos))   # Instead of position vector, I am just using a vector pointing in the positive X direction. For PSP and SC frame mag data, this would mean the ram direction, right?
+    #TEMP_Ry = ones(len(pos))
+    #TEMP_Rz = zeros(len(pos))
+    #TEMP_Rx.putProperty(QDataSet.DEPEND_0,pos_time)
+    #TEMP_Ry.putProperty(QDataSet.DEPEND_0,pos_time)
+    #TEMP_Rz.putProperty(QDataSet.DEPEND_0,pos_time)
     
     try:
         ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
@@ -490,7 +492,7 @@ elif scrollingPlots == False:
     
     monitor.setProgressMessage('Running Polarization')
 
-    ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp, Wave_Power ) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min )
+    ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_Polarization, Power_compressional, Power_perp, Wave_Power ) = Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min, giveUsTheK = False )
     Wave_Power = Power_perp
     
     # ###

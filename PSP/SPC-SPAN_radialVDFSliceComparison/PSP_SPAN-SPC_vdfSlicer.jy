@@ -3,28 +3,55 @@ once.  Note the copies in doSlice are there to quiet annoying and unhelpful muta
 It's also hard to know which MouseModule to extend to get the functionality.''')
 
 from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairMouseModule
+import java
 
 #span_vdf = getDataSet('G:/My Drive/tmp/PSP_SPAN_vdf_collapsed_vr_2022-02-24_survey.cdf?SPAN_vdf_collapsed_vr')
 #spc_vdf  = getDataSet('G:/My Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_2022-02-24.cdf?x=Epoch&y=v_z&where=modeFlag.eq(0)&vdf')
 span_vdf = getDataSet('https://github.com/kpaulson/autoplot/blob/master/PSP/SPC-SPAN_radialVDFSliceComparison/PSP_SPAN_vdf_collapsed_vr_2022-02-24_survey.cdf?SPAN_vdf_collapsed_vr')
 spc_vdf  = getDataSet('https://github.com/kpaulson/autoplot/blob/master/PSP/SPC-SPAN_radialVDFSliceComparison/SPC_VDF_2022-02-24_subset.cdf?x=Epoch&y=v_z&where=modeFlag.eq(0)&vdf')
+span_efluxVsPhi = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/2022/02/psp_swp_spi_sf00_L3_mom_20220224_v04.cdf?EFLUX_VS_PHI')
+phi_vals = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/2022/02/psp_swp_spi_sf00_L3_mom_20220224_v04.cdf?PHI_VALS')
+span_efluxVsPhi = putProperty(divide(span_efluxVsPhi,reduceMax(span_efluxVsPhi,1)),QDataSet.DEPEND_1,phi_vals)
+
+spanTime = span_vdf.property(QDataSet.DEPEND_0)
+spcTime  = spc_vdf.property( QDataSet.DEPEND_0)
 
 reset()
-plot( 0, span_vdf, ytitle='span_vdf' )
-plot( 1, spc_vdf, ytitle='spc_vdf' )
+plot( 0, span_efluxVsPhi, ytitle='SPANi!CEflux vs Phi!C(<160 = Good)', yrange=[90,170], zlog=True, zrange=[0.07, 2.0], xrange=[datum('2022-02-24 8:57:50'), datum('2022-02-24  9:05:10')])
+plot( 1, span_vdf, ytitle='span_vdf', yrange=[100, 700], xrange=[datum('2022-02-24 8:57:50'), datum('2022-02-24  9:05:10')])
+plot( 2, spc_vdf, ytitle='spc_vdf', yrange=[100, 700], zlog=True, xrange=[datum('2022-02-24 8:57:50'), datum('2022-02-24  9:05:10')])
+
+dom.plots[1].displayTitle = False
+dom.plots[2].displayTitle = False
+
+dom.plots[0].xaxis.drawTickLabels = False
+dom.plots[1].xaxis.drawTickLabels = False
+waitUntilIdle()
+fixLayout()
 
 sl= None  # reference to the slice window
 
 def doSlice(x):
+    print x
     'Do the slice action off of the event thread'
     global sl
     d0= getApplication()
     setApplication(sl)
-    sl0= copy( slice0( copy(span_vdf),x ) )  # extra copies are to avoid strange error about mutability
-    sl1= copy( slice0( copy(spc_vdf),x ) )
+    try:
+        sl0= copy( slice0( copy(span_vdf),x ) )  # extra copies are to avoid strange error about mutability
+        spanTime_title = str(spanTime[imin(abs(spanTime - x))])
+    except(java.lang.IndexOutOfBoundsException):
+        sl0 = zeros(10)
+        spanTime_title = 'N/A'
+    try:
+        sl1= copy( slice0( copy(spc_vdf),x ) )
+        spcTime_title = str(spcTime[imin(abs(spcTime - x))])
+    except(java.lang.IndexOutOfBoundsException):
+        sl1 = zeros(10)
+        spcTime_title = 'N/A'
 
-    plot(0, normalize(copy(sl0)), color='black', yrange=[1E-3,2.], ylog=True, legendLabel='span_vdf' )
-    plot(1, normalize(copy(sl1)), color='red', legendLabel='spc_vdf' )
+    plot(0, normalize(copy(sl0)), color='black', yrange=[1E-3,2.], ylog=True, legendLabel='span_vdf', xrange=[100, 700])
+    plot(1, normalize(copy(sl1)), color='red', legendLabel='spc_vdf', xrange=[100, 700], title='SPAN Time: %s!CSPC Time: %s'%(spanTime_title, spcTime_title))
     setApplication(d0)
     #dom.canvases[0].setFont('Dialog-18')
         
@@ -39,7 +66,7 @@ def mouseAction(evt):
     invokeLater( doSlice, dataset(evt.x) )
     
 
-for p in [ dom.plots[0].controller.dasPlot, dom.plots[1].controller.dasPlot ]:
+for p in [ dom.plots[0].controller.dasPlot, dom.plots[1].controller.dasPlot, dom.plots[2].controller.dasPlot ]:
    mm= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
    mm.dataPointSelected= mouseAction
    mm.label= 'slices'    

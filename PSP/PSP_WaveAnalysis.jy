@@ -11,13 +11,13 @@
 #timerange = getParam('timerange','2021-04-28 09:00 to 12:00','Timerange over which to calculate Poynting Flux')
 timerange = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Poynting Flux')
 
-freq_min       = getParam('minFrequency', 0.1,  'Lower frequency bound of analysis (Hz)')
-freq_max       = getParam('maxFrequency', 256.,   'Upper frequency bound of analysis (Hz)')
-window         = getParam('windowWidth',  1024, 'Number of points in fft window', [256, 512, 1024, 2048, 4096, 8192, 16384])
-slide          = getParam('slideFactor',  8,    'Reciprocal of fraction of non-overlap between neighboring windows')
-trend_seconds  = getParam('trendSeconds', 60,   'Number of seconds used to identify the background magnetic field')
-poynting_min   = getParam('poyntingMin',  1E-6, 'Minimum Poynting Flux value to be plotted (filters out noise)')
-wave_power_min = getParam('wavePowerMin', 1E-4, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
+freq_min         = getParam('minFrequency',   0.1,  'Lower frequency bound of analysis (Hz)')
+freq_max         = getParam('maxFrequency',   256.,   'Upper frequency bound of analysis (Hz)')
+window           = getParam('windowWidth',    1024, 'Number of points in fft window', [256, 512, 1024, 2048, 4096, 8192, 16384])
+slide            = getParam('slideFactor',    8,    'Reciprocal of fraction of non-overlap between neighboring windows')
+trend_seconds    = getParam('trendSeconds',   60,   'Number of seconds used to identify the background magnetic field')
+poynting_min     = getParam('poyntingMin',    1E-6, 'Minimum Poynting Flux value to be plotted (filters out noise)')
+wave_power_min   = getParam('wavePowerMin',   1E-4, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
 wave_power_min_E = getParam('wavePowerMin_E', 1E-10, 'Minimum electric field Wave Power value in Bfield to be plotted (filters out noise)')
 
 version = '1.2'
@@ -91,6 +91,8 @@ elif generateEfieldFreeVersion == 'F':
 ############################################################################
 
 monitor.started()
+localCodeDirectory  = 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/'
+remoteCodeDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 
 import sys
 try:
@@ -98,45 +100,47 @@ try:
         raise stopLookingOnlineException
         
     ### IMPORT SUBPROCESSES
-    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    get_OS_version = getFile( remoteCodeDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
     
-    Poynting_Flux = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    Poynting_Flux = getFile( remoteCodeDirectory+'CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
     execfile( Poynting_Flux.toString() )
     
-    Polarization_Means = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
+    Polarization_Means = getFile( remoteCodeDirectory+'CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
     execfile( Polarization_Means.toString() )
     
-    Hanningfft = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    Hanningfft = getFile( remoteCodeDirectory+'CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
     execfile( Hanningfft.toString() )
     
-    Butterworth_Bandpassify_zeroPhase = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Butterworth_Bandpassify_zeroPhase.jy',monitor.getSubtaskMonitor('import Butterworth_Bandpassify_zeroPhase()'))
+    Butterworth_Bandpassify_zeroPhase = getFile( remoteCodeDirectory+'CoreSubprocesses/Butterworth_Bandpassify_zeroPhase.jy',monitor.getSubtaskMonitor('import Butterworth_Bandpassify_zeroPhase()'))
     execfile( Butterworth_Bandpassify_zeroPhase.toString() )
     
-    field_aligner = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    field_aligner = getFile( remoteCodeDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
     
     
 except:
-    if useLocalSubprocesses == False:
+    if useLocalSubprocesses == True:
+        print 'Using local subProcesses'
+    elif useLocalSubprocesses == False:
         print 'Unable to grab subprocess from github'
     
-    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    get_OS_version = getFile( localCodeDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
     
-    Poynting_Flux = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
+    Poynting_Flux = getFile( localCodeDirectory+'CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
     execfile( Poynting_Flux.toString() )
     
-    Polarization_Means = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
+    Polarization_Means = getFile( localCodeDirectory+'CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
     execfile( Polarization_Means.toString() )
     
-    Hanningfft = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
+    Hanningfft = getFile( localCodeDirectory+'CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
     execfile( Hanningfft.toString() )
     
-    Butterworth_Bandpassify_zeroPhase = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Butterworth_Bandpassify_zeroPhase.jy',monitor.getSubtaskMonitor('import Butterworth_Bandpassify_zeroPhase()'))
+    Butterworth_Bandpassify_zeroPhase = getFile( localCodeDirectory+'CoreSubprocesses/Butterworth_Bandpassify_zeroPhase.jy',monitor.getSubtaskMonitor('import Butterworth_Bandpassify_zeroPhase()'))
     execfile( Butterworth_Bandpassify_zeroPhase.toString() )
     
-    field_aligner = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+    field_aligner = getFile( localCodeDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
     
     
@@ -150,7 +154,8 @@ except:
     
 OS = get_os_version().split()[0]
 if OS == 'mac':
-    googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+    #googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+    googleDrive_path = '/home/kpaulson/'
 elif OS == 'windows':
     #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
     googleDrive_path = 'G:/My Drive/'
@@ -244,6 +249,10 @@ for tr in trs:
             
         mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/%s/%s/psp_fld_l2_mag_SC_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
         efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/%s/%s/psp_fld_l2_dfb_wf_dvdc_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
+        if tr == timerange:
+            mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+            efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+        
     
         mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
         print 'mag_data: '+mag_datafile+'?psp_fld_l2_mag_SC'

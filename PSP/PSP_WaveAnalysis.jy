@@ -213,6 +213,7 @@ for tr in trs:
     fileAlreadyExists = False
     if checkForPreviousFiles == True:
         try:
+            print 'Checking existence of:',outputFile
             TEMP_epoch = getDataSet(outputFile+'?Epoch')
             if ne( long(mode(copy(TEMP_epoch))), 0):
                 fileAlreadyExists = True

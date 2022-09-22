@@ -9,10 +9,11 @@
 #timerange = getParam('timerange','2019-04-01 08:10 to 08:20','Timerange over which to calculate Poynting Flux')
 #timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
 #timerange = getParam('timerange','2021-04-28 09:00 to 12:00','Timerange over which to calculate Poynting Flux')
-timerange = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Poynting Flux')
+timerange = getParam('timerange','2022-02-25 11:50 to 12:30','Timerange over which to calculate Wave Parameters')
+#timerange = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Wave Parameters')
 
 freq_min         = getParam('minFrequency',   0.1,  'Lower frequency bound of analysis (Hz)')
-freq_max         = getParam('maxFrequency',   256.,   'Upper frequency bound of analysis (Hz)')
+freq_max         = getParam('maxFrequency',   32.,   'Upper frequency bound of analysis (Hz)')
 window           = getParam('windowWidth',    1024, 'Number of points in fft window', [256, 512, 1024, 2048, 4096, 8192, 16384])
 slide            = getParam('slideFactor',    8,    'Reciprocal of fraction of non-overlap between neighboring windows')
 trend_seconds    = getParam('trendSeconds',   60,   'Number of seconds used to identify the background magnetic field')
@@ -33,7 +34,7 @@ checkForPreviousFiles     = getParam('checkPrevious','T','If previous copies of 
 removeReactionWheelTone   = getParam('removeReactionWheelTone','F','Attempt to remove signal from reaction wheels',['T','F'])
 writeAttempts             = getParam('writeAttempts',  1, 'How many times try to write file before moving on (set to 0 to turn this off)')
 generateEfieldFreeVersion = getParam('generateEfieldFreeVersion','F','If no Efield data available, drop to v0 and generate Bfield analysis file',['T','F'])
-
+sunOrientedPoyntingFlux   = getParam('sunwardPoyntingFlux','F','Flip the Efield and Bfield vectors relative to sign of Br to get sunward-oriented poyting flux?',['T','F'])
 
 if useLocalSubprocesses == 'T':
     useLocalSubprocesses = True
@@ -83,6 +84,11 @@ if generateEfieldFreeVersion == 'T':
     generateEfieldFreeVersion = True
 elif generateEfieldFreeVersion == 'F':
     generateEfieldFreeVersion = False
+    
+if sunOrientedPoyntingFlux == 'T':
+    sunOrientedPoyntingFlux = True
+elif sunOrientedPoyntingFlux == 'F':
+    sunOrientedPoyntingFlux = False
 
 
 ############################################################################
@@ -94,27 +100,44 @@ monitor.started()
 localCodeDirectory  = 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/'
 remoteCodeDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 
+def importSubprocesses(codeRootDirectory, subprocessList):
+    for subprocessFilename in subprocessList:
+        subprocessText = getFile( codeRootDirectory + subprocessFilename, monitor.getSubtaskMonitor('import %s()'%subprocessFilename))
+        execfile( subprocessText.toString() )
+        print 'imported %s()'%subprocessFilename
+
+subprocessList = []
+subprocessList.append('CoreSubprocesses/get_os_version.jy')
+subprocessList.append('CoreSubprocesses/Poynting_Flux.jy')
+subprocessList.append('CoreSubprocesses/Polarization_Means.jy')
+subprocessList.append('CoreSubprocesses/Hanningfft.jy')
+subprocessList.append('CoreSubprocesses/Butterworth_Bandpassify_zeroPhase.jy')
+subprocessList.append('CoreSubprocesses/Field_Aligner.jy')
+
 import sys
 try:
     if useLocalSubprocesses == True:
         raise stopLookingOnlineException
         
+#    ### IMPORT SUBPROCESSES
+#    importSubprocesses(remoteCodeDirectory, subprocessList)
+    
     ### IMPORT SUBPROCESSES
     get_OS_version = getFile( remoteCodeDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
-    
+
     Poynting_Flux = getFile( remoteCodeDirectory+'CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
     execfile( Poynting_Flux.toString() )
-    
+
     Polarization_Means = getFile( remoteCodeDirectory+'CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
     execfile( Polarization_Means.toString() )
-    
+
     Hanningfft = getFile( remoteCodeDirectory+'CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
     execfile( Hanningfft.toString() )
-    
+
     Butterworth_Bandpassify_zeroPhase = getFile( remoteCodeDirectory+'CoreSubprocesses/Butterworth_Bandpassify_zeroPhase.jy',monitor.getSubtaskMonitor('import Butterworth_Bandpassify_zeroPhase()'))
     execfile( Butterworth_Bandpassify_zeroPhase.toString() )
-    
+
     field_aligner = getFile( remoteCodeDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
     
@@ -125,21 +148,25 @@ except:
     elif useLocalSubprocesses == False:
         print 'Unable to grab subprocess from github'
     
+#    ### IMPORT SUBPROCESSES
+#    importSubprocesses(localCodeDirectory, subprocessList)
+    
+    ### IMPORT SUBPROCESSES
     get_OS_version = getFile( localCodeDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
-    
+
     Poynting_Flux = getFile( localCodeDirectory+'CoreSubprocesses/Poynting_Flux.jy',monitor.getSubtaskMonitor('import Poyntingify()'))
     execfile( Poynting_Flux.toString() )
-    
+
     Polarization_Means = getFile( localCodeDirectory+'CoreSubprocesses/Polarization_Means.jy',monitor.getSubtaskMonitor('import Polarize()'))
     execfile( Polarization_Means.toString() )
-    
+
     Hanningfft = getFile( localCodeDirectory+'CoreSubprocesses/Hanningfft.jy',monitor.getSubtaskMonitor('import Hanningfft()'))
     execfile( Hanningfft.toString() )
-    
+
     Butterworth_Bandpassify_zeroPhase = getFile( localCodeDirectory+'CoreSubprocesses/Butterworth_Bandpassify_zeroPhase.jy',monitor.getSubtaskMonitor('import Butterworth_Bandpassify_zeroPhase()'))
     execfile( Butterworth_Bandpassify_zeroPhase.toString() )
-    
+
     field_aligner = getFile( localCodeDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
     execfile( field_aligner.toString() )
     
@@ -201,13 +228,17 @@ tr_titles= generateTimeRanges('$Y-$m-$d_$(H,span=6)00 ',timerange)
 #monitor.finished()
 #monitor.started()
 monitor.setLabel('PSP Wave Analysis')
-monitor.setTaskSize(len(trs))
 
+if lt(datumRange(timerange).width(), datum('6 hr') ):
+    trs = [str(trs[0])]  # [str(generateTimeRanges('$Y-$m-$d $(H,span=6):00 ',timerange)[0])]
+
+monitor.setTaskSize(len(trs))
 index = 0
 for tr in trs:
     tr = str(tr)+' to '+str(tr+datum('6 hr'))
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
+        
     outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
             
     fileAlreadyExists = False
@@ -368,36 +399,55 @@ for tr in trs:
     
     
         # Reverse direction for positive Bz periods so that we are always looking at wave propagation relative to sun->sc direction 
-        posBz = where(gt(Bz,0))
-        Bn[posBz] = -Bn[posBz]
-        Bp[posBz] = -Bp[posBz]
-        Bq[posBz] = -Bq[posBz]
-        Nx[posBz] = -Nx[posBz]
-        Ny[posBz] = -Ny[posBz]
-        Nz[posBz] = -Nz[posBz]
-        Px[posBz] = -Px[posBz]
-        Py[posBz] = -Py[posBz]
-        Pz[posBz] = -Pz[posBz]
-        Qx[posBz] = -Qx[posBz]
-        Qy[posBz] = -Qy[posBz]
-        Qz[posBz] = -Qz[posBz]
-    
-        En = Ex*Nx + Ey*Ny + Ez*Nz
-        Ep = Ex*Px + Ey*Py + Ez*Pz
-        Eq = Ex*Qx + Ey*Qy + Ez*Qz
         
-    
-        # ###
-        # ### GENERATE FFTS FOR POYNTING
-        # ###
+        if sunOrientedPoyntingFlux == True:
+            # THIS SEEMS TO BE MAKING MORE TROUBLE THAN IT IS WORTH (DOUBLE THE FFTs)
+            # I WILL SHELVE IT FOR NOW, ESPECIALLY BECAUSE I MIGHT BE SCREWING SOMETHING UP
+            # IT WILL BE TURNED ON WITH A FLAG FOR NOW SO I CAN TEST IT.
+            posBz = where(gt(Bz,0))
+            Bn[posBz] = -Bn[posBz]
+            Bp[posBz] = -Bp[posBz]
+            Bq[posBz] = -Bq[posBz]
+            Nx[posBz] = -Nx[posBz]
+            Ny[posBz] = -Ny[posBz]
+            Nz[posBz] = -Nz[posBz]
+            Px[posBz] = -Px[posBz]
+            Py[posBz] = -Py[posBz]
+            Pz[posBz] = -Pz[posBz]
+            Qx[posBz] = -Qx[posBz]
+            Qy[posBz] = -Qy[posBz]
+            Qz[posBz] = -Qz[posBz]
+        
+            En = Ex*Nx + Ey*Ny + Ez*Nz
+            Ep = Ex*Px + Ey*Py + Ez*Pz
+            Eq = Ex*Qx + Ey*Qy + Ez*Qz
             
-        Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
-        Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
-        Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
-    
-        En_fft = Hanningfft( En , freq_min , freq_max , window , slide )
-        Ep_fft = Hanningfft( Ep , freq_min , freq_max , window , slide )
-        Eq_fft = Hanningfft( Eq , freq_min , freq_max , window , slide )
+        
+            # ###
+            # ### GENERATE FFTS FOR POYNTING
+            # ###
+                
+            Bn_fft = Hanningfft( Bn , freq_min , freq_max , window , slide )
+            Bp_fft = Hanningfft( Bp , freq_min , freq_max , window , slide )
+            Bq_fft = Hanningfft( Bq , freq_min , freq_max , window , slide )
+        
+            En_fft = Hanningfft( En , freq_min , freq_max , window , slide )
+            Ep_fft = Hanningfft( Ep , freq_min , freq_max , window , slide )
+            Eq_fft = Hanningfft( Eq , freq_min , freq_max , window , slide )
+            
+          
+        elif sunOrientedPoyntingFlux == False:      
+            # ###
+            # ### RENAME ABOVE FFTS FOR POYNTING 
+            # ###
+                
+            Bn_fft = Bn_fft_pol
+            Bp_fft = Bp_fft_pol
+            Bq_fft = Bq_fft_pol
+        
+            En_fft = En_fft_pol
+            Ep_fft = Ep_fft_pol
+            Eq_fft = Eq_fft_pol
     
         fft_time = Bn_fft.property(QDataSet.DEPEND_0)
         frequency_axis = Bn_fft.property(QDataSet.DEPEND_1)
@@ -658,7 +708,10 @@ for tr in trs:
         Smag.putProperty(                 QDataSet.TITLE,'Poynting Flux Magnitude')
         Poynting_theta.putProperty(       QDataSet.TITLE,'Poynting Theta (S dot B)')
         Poynting_phi.putProperty(         QDataSet.TITLE,'Poynting Phi (clock angle where 0=RTN_T and 90=RTN_N)')
-        Sn.putProperty(                   QDataSet.TITLE,'Poynting Flux Parallel (away from Sun)')
+        if sunOrientedPoyntingFlux == True:
+            Sn.putProperty(                   QDataSet.TITLE,'Poynting Flux Parallel (away from Sun)')
+        elif sunOrientedPoyntingFlux == False:
+            Sn.putProperty(                   QDataSet.TITLE,'Poynting Flux Parallel (Field-oriented)')
         Sp.putProperty(                   QDataSet.TITLE,'Poynting Flux Perpendicular (approximately in RTN_T direction)')
         Sq.putProperty(                   QDataSet.TITLE,'Poynting Flux Perpendicular (approximately in RTN_N direction)')
         Bn_pol.putProperty(               QDataSet.TITLE,'Parallel Magnetic Field Component (B!B||!N)')
@@ -684,7 +737,8 @@ for tr in trs:
                 if gt(len(variableList),1):
                     for variable in variableList[1:]:
                         formatDataSet(variable ,outputFile+'?append=T')
-                
+            
+            mkdir(waveAnalysisFiles_directory)           
             monitor.setProgressMessage('Writing to File')
             
             variableList = [fft_time, Ellipticity, Angle_Normal, Coherency, 
@@ -826,7 +880,13 @@ for tr in trs:
             plot(3, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
-            plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo          From!CSun          Sun', zlog=False, zrange=[0,180]) 
+            #plot(4, Power_perp_E, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD E!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
+            
+            if sunOrientedPoyntingFlux == True:
+                plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CAgainst          Along!CB          B', zlog=False, zrange=[0,180]) 
+            elif sunOrientedPoyntingFlux == False:
+                plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo          From!CSun          Sun', zlog=False, zrange=[0,180]) 
+            
             #plot(4, Poynting_phi, colorTable='apl_rainbow_black0')   
             #plot(4, Ellipticity_E, colorTable='blue_white_red', ztitle='Ellipticity_E!C!CRH            LH')
             plot(5, Ellipticity, colorTable='blue_white_red', ztitle='Ellipticity!C!CRH            LH')

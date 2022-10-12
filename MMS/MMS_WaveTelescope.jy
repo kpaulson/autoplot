@@ -16,7 +16,8 @@ def putProps( dss, name='DEPEND_0', value=None ):
 # ############################################################################################
 
 def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
-    """Integral part of Hanningfft subroutine, makes the slide function possible by trimming off the beginning of the data set and reapplying the Hanning windowing function, then resorting the result back into the dataset. 
+    '''
+    Integral part of Hanningfft subroutine, makes the slide function possible by trimming off the beginning of the data set and reapplying the Hanning windowing function, then resorting the result back into the dataset. 
     
     Parameters:
         ds = The rank1 dataset upon which to perform trimming and windowing.
@@ -26,7 +27,8 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
         leading_points = The number of points to be trimmed from beginning of ds (typically iterated over window*(i+1)/slide)
         
     Outputs:
-        result = merged processed rank2 version of ds."""
+        result = merged processed rank2 version of ds.
+    '''
     
     ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
     
@@ -46,7 +48,8 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
 # ############################################################################################
 
 def Hanningfft( ds , freq_min , freq_max , window , slide ):
-    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    '''
+    FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
     
     Parameters:
         ds = The rank1 time-series input data.
@@ -56,7 +59,8 @@ def Hanningfft( ds , freq_min , freq_max , window , slide ):
         slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
         
     Returns:
-        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range.
+    '''
     
     ds_time = ds.property(QDataSet.DEPEND_0)
     
@@ -98,6 +102,9 @@ def Hanningfft( ds , freq_min , freq_max , window , slide ):
 # ############################################################################################ 
 
 def fft_power( ds_fft , fft_time , frequency_axis ):
+    '''
+    Simple combination of real and imaginary components of fft into power spectra
+    '''
     ds_fft_power = ds_fft[:,:,0]**2 + ds_fft[:,:,1]**2
     ds_fft_power.putProperty(QDataSet.DEPEND_0,fft_time)
     ds_fft_power.putProperty(QDataSet.DEPEND_1,frequency_axis)
@@ -107,6 +114,24 @@ def fft_power( ds_fft , fft_time , frequency_axis ):
 # ############################################################################################          
     
 def field_aligner( Bx_GSE , By_GSE, Bz_GSE , Btotal , TEMP_Rx_GSE , TEMP_Ry_GSE , TEMP_Rz_GSE , smoothData_yn , trend_seconds ):
+    '''Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
+	
+	Parameters:
+	    Bx = rank1 X component of magnetic field
+		By = rank1 Y component of magnetic field
+		Bz = rank1 Z component of magnetic field
+		TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
+		TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
+		TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
+		trend_seconds = rank0 number of seconds over which to average B to define as background
+		
+    Returns:
+	    (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
+		(Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
+		(Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
+		(Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
+	
+	'''
     
     
     # ###
@@ -222,6 +247,19 @@ def field_aligner( Bx_GSE , By_GSE, Bz_GSE , Btotal , TEMP_Rx_GSE , TEMP_Ry_GSE 
 # #########################################################################################################     
 
 def rotate( Ax , Ay , Az , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ):
+    '''
+    Simple rotation of some vector A using the matrix composed of unit vectrs N, P, Q
+        (unit vectors most often given by field_aligner() above)
+        Description here assumes rotation into field-aligned coordinates, but the math
+            is just dot products valid for any rotation.
+    INPUT:
+        (Ax, Ay, Az) = rank1 vector components in same coordinate system as N, P, Q.
+        (Nx, Ny, Nz) = rank1 unit vector components parallel to magnetic field.
+		(Px, Py, Pz) = rank1 unit vector components perpendicular to magnetic field in Quasi-Radial direction.
+		(Qx, Qy, Qz) = rank1 unit vector components perpendicular to magnetic field in Quasi-Azimuthal direction.
+    OUTPUT:
+        (An, Ap, Aq) = rank1 vector components in field-aligned coordinate system defined above
+    '''
     
     Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz = synchronize(Ax ,[Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz])
     

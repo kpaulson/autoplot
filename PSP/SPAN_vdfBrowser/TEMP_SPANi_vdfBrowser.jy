@@ -1,0 +1,363 @@
+
+from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairMouseModule
+import java
+
+
+tr = '2021-01-20 04:59:43 to 04:59:48'
+tr = '2020-01-29'
+trend_seconds = 60
+downsampleFactor = 1000 #100 #1
+
+averageOverTheta = False
+rotateDataIntoFieldDirection = False
+collapseTheta = False
+sliceTheta = True
+collapseOnAngles = False
+
+
+
+vx_bins = linspace(0,800,70)
+vy_bins = linspace(-200,400,32)
+vz_bins = linspace(-400,400,32)
+vv = dataset([1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7, 1E8])
+vv = logspace(1E1,1E7, 20)
+
+tr_outer = datumRange( str(datumRange(tr).min() - datum(str(trend_seconds)+' s'))+' to '+str(datumRange(tr).max() + datum(str(trend_seconds)+' s')) )
+
+
+
+### CONSTANTS
+
+mp              = 0.0104389 #[ev/c2] where c = 299792 [km/s]
+electronCharge  = 1 # in eV, obviously
+
+
+
+### FILE LOCATIONS
+
+#L2_spani_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spi/L2/$Y/$m/spi_sf00/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+#L2_spani_w3sweap_file        = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+L2_spani_w3sweap_file_public = 'http://w3sweap.cfa.harvard.edu/pub/data/sci/sweap/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+L2_spani_local_file = 'C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/spi/L2/spi_sf00/$Y/$m/psp_swp_spi_sf00_L2_8Dx32Ex8A_$Y$m$d_v$(v,sep).cdf'
+#L2_spani_w3sweap_file = L2_spani_local_file
+
+L2draft_mag_w3sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+L2_mag_1min_file          = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+#L2_mag_1min_file_teamSite = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+
+### IMPORTS
+rotateSPANiToSC= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/rotateSPANiToSC.jy',monitor.getSubtaskMonitor('import Rotation to SC'))
+execfile( rotateSPANiToSC.toString() )
+rotateSCToSPANi= getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSP/PSPSubProcesses/rotateSCToSPANi.jy',monitor.getSubtaskMonitor('import Rotation to SPANi'))
+execfile( rotateSCToSPANi.toString() )
+fieldAligner= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import Field Aligner'))
+execfile( fieldAligner.toString() )
+#######################################################################
+#######################################################################
+
+import java
+
+# Download and trim down magnetic field data
+#mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
+try:
+    mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
+except:
+    mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
+mag_sc = trim(mag_sc,tr_outer)
+
+mag_span = rotateSCToSPANi(mag_sc)
+mag_magnitude = magnitude(mag_span)
+mag_time = mag_span.property(QDataSet.DEPEND_0)
+
+
+try:
+    theta  = getDataSet(L2_spani_w3sweap_file_public+'?THETA',tr)[::downsampleFactor]
+    phi    = getDataSet(L2_spani_w3sweap_file_public+'?PHI'  ,tr)[::downsampleFactor]
+    eflux  = getDataSet(L2_spani_w3sweap_file_public+'?EFLUX',tr)[::downsampleFactor]
+    #data   = getDataSet(L2_spani_w3sweap_file_public+'?DATA' ,tr)[::downsampleFactor]
+    #time   = getDataSet(L2_spani_w3sweap_file_public+'?Epoch',tr)[::downsampleFactor]
+except(java.io.FileNotFoundException):
+    theta  = getDataSet(L2_spani_w3sweap_file+'?THETA',tr)[::downsampleFactor]
+    phi    = getDataSet(L2_spani_w3sweap_file+'?PHI'  ,tr)[::downsampleFactor]
+    eflux  = getDataSet(L2_spani_w3sweap_file+'?EFLUX',tr)[::downsampleFactor]
+    #data   = getDataSet(L2_spani_w3sweap_file+'?DATA' ,tr)[::downsampleFactor]
+    #time   = getDataSet(L2_spani_w3sweap_file+'?Epoch',tr)[::downsampleFactor]
+
+time = eflux.property(QDataSet.DEPEND_0)
+energyValues = eflux.property(QDataSet.DEPEND_1)[::downsampleFactor]
+eflux.putProperty(QDataSet.DEPEND_1, energyValues)
+
+s = sort(phi[0,:])
+phiVals = uniqValues(phi[0,:],s)
+phiVals.putProperty(QDataSet.NAME,None)
+s = sort(theta[0,:])
+thetaVals = uniqValues(theta[0,:],s)
+thetaVals.putProperty(QDataSet.NAME,None)
+
+theta        = reform(theta,        [len(time), 8, 32, 8])
+phi          = reform(phi,          [len(time), 8, 32, 8])
+eflux        = reform(eflux,        [len(time), 8, 32, 8])
+energyValues = reform(energyValues, [len(time), 8, 32, 8])
+#data         = reform(data,         [len(time), 8, 32, 8])
+
+energyValues.putProperty(QDataSet.UNITS, None)
+numberFlux = eflux / energyValues
+#numberFlux = data / energyValues
+vdf = numberFlux * (mp**2 )/((2E-5)*energyValues) 
+v_star = sqrt( 2*electronCharge*energyValues / mp )
+
+vdf.putProperty(QDataSet.DEPEND_0, time)
+
+vdfPlot = reduceSum(vdf, 3)
+vdfPlot = reduceSum(vdfPlot, 1)
+vdfPlot.putProperty(QDataSet.DEPEND_0, time)
+vdfPlot.putProperty(QDataSet.DEPEND_1, v_star[0,:,0])
+
+# To properly collapse theta, do we just slice the instrument settings and sum over vdf?
+if sliceTheta == True:
+    
+    thetaSlice = 1
+    theta         = theta[       :, thetaSlice, :, :]
+    phi           = phi[         :, thetaSlice, :, :]
+    v_star        = v_star[      :, thetaSlice, :, :]
+    energyValues  = energyValues[:, thetaSlice, :, :]
+    vdf           = vdf[         :, thetaSlice, :, :]
+
+if collapseOnAngles == True:
+    
+    for thetaSlice in xrange(len(vdf[0,:,0,0])):
+        if 'vdfAllTheta' not in locals():
+            thetaAllTheta         = theta[       :, thetaSlice, :, :]
+            phiAllTheta           = phi[         :, thetaSlice, :, :]
+            v_starAllTheta        = v_star[      :, thetaSlice, :, :]
+            energyValuesAllTheta  = energyValues[:, thetaSlice, :, :]
+            vdfAllTheta           = vdf[         :, thetaSlice, :, :]
+        else:
+            thetaAllTheta         = concatenate(thetaAllTheta, theta[              :, thetaSlice, :, :])
+            phiAllTheta           = concatenate(phiAllTheta, phi[                  :, thetaSlice, :, :])
+            v_starAllTheta        = concatenate(v_starAllTheta, v_star[            :, thetaSlice, :, :])
+            energyValuesAllTheta  = concatenate(energyValuesAllTheta, energyValues[:, thetaSlice, :, :])
+            vdfAllTheta           = concatenate(vdfAllTheta, vdf[                  :, thetaSlice, :, :])
+    for phiSlice in xrange(len(vdf[0,0,0,:])):
+        if 'vdfAllPhi' not in locals():
+            thetaAllPhi         = theta[       :, :, :, phiSlice]
+            phiAllPhi           = phi[         :, :, :, phiSlice]
+            v_starAllPhi        = v_star[      :, :, :, phiSlice]
+            energyValuesAllPhi  = energyValues[:, :, :, phiSlice]
+            vdfAllPhi           = vdf[         :, :, :, phiSlice]
+        else:
+            thetaAllPhi         = concatenate(thetaAllPhi, theta[              :, :, :, phiSlice])
+            phiAllPhi           = concatenate(phiAllPhi, phi[                  :, :, :, phiSlice])
+            v_starAllPhi        = concatenate(v_starAllPhi, v_star[            :, :, :, phiSlice])
+            energyValuesAllPhi  = concatenate(energyValuesAllPhi, energyValues[:, :, :, phiSlice])
+            vdfAllPhi           = concatenate(vdfAllPhi, vdf[                  :, :, :, phiSlice])
+
+# Create cartesian velocity components from SPAN phi/theta values
+vx = v_star*cos(toRadians(phi))*cos(toRadians(theta))
+vy = v_star*sin(toRadians(phi))*cos(toRadians(theta))
+vz = v_star*sin(toRadians(theta))
+
+vx.putProperty(QDataSet.DEPEND_0, time)
+vy.putProperty(QDataSet.DEPEND_0, time)
+vz.putProperty(QDataSet.DEPEND_0, time)
+
+# To properly collapse theta, do we just
+#if collapseTheta == True:
+#    if rotateDataIntoFieldDirection == True:
+#        vn = 0
+#        vp = 0
+#        vq = 0
+#
+#    thetaSlice = 4
+#
+#    vx          = vx[        :, thetaSlice, :, :]
+#    vy          = vy[        :, thetaSlice, :, :]
+#    vz          = vz[        :, thetaSlice, :, :]
+#    theta       = theta[     :, thetaSlice, :, :]
+#    phi         = phi[       :, thetaSlice, :, :]
+#    numberFlux  = numberFlux[:, thetaSlice, :, :]
+#    vdf         = vdf[       :, thetaSlice, :, :]
+
+# collapse variables in time by taking mean value
+#thetaCollapsed       = reduceMean(theta,0)
+#phiCollapsed         = reduceMean(phi,0)
+#numberFluxCollapsed  = reduceMean(numberFlux,0)
+
+reset()
+vdfPlot = link(time, v_star[:,:,0], vdfPlot)
+#plot(0, time, v_star[:,:,0], vdfPlot, zlog=True, yrange=[0, 800])
+plot(0, vdfPlot, zlog=True, yrange=[0, 800], colorTable='apl_rainbow_black0')
+waitUntilIdle()
+fixLayout()
+
+sl= None  # reference to the slice window
+
+#############################################
+#############################################
+#############################################
+
+## THis is a garbage time slice thing, we need to have it grab the relevant slice
+#
+#timeIndex = 123
+#
+##vdfCollapsed         = reduceMean(vdf,0)
+##vx_Collapsed         = reduceMean(vx,0)
+##vy_Collapsed         = reduceMean(vy,0)
+##vz_Collapsed         = reduceMean(vz,0)
+#
+#vdfCollapsed = vdf[timeIndex, :, :]
+#vx_Collapsed = vx[timeIndex, :, :]
+#vy_Collapsed = vy[timeIndex, :, :]
+#vz_Collapsed = vz[timeIndex, :, :]
+
+#############################################
+#############################################
+#############################################
+
+def doSlice(x):
+    'Do the slice action off of the event thread'
+    global sl
+    d0= getApplication()
+    setApplication(sl)
+    print 'line 186'
+    try:
+        vdfCollapsed= copy( slice0( copy(vdf),x ) )  # extra copies are to avoid strange error about mutability
+        vx_Collapsed= copy( slice0( copy(vx), x ) )  
+        vy_Collapsed= copy( slice0( copy(vy), x ) )  
+        vz_Collapsed= copy( slice0( copy(vz), x ) )  
+        spanTime_title = time[imin(abs(time - x))]
+        spanTime_title.putProperty(QDataSet.NAME, None)
+    except(java.lang.IndexOutOfBoundsException):
+        sl0 = zeros(10)
+        spanTime_title = 'N/A'
+    
+    timeWidth = '0'
+    
+    print 'time:',spanTime_title
+    
+    vdfCollapsed.putProperty(QDataSet.DEPEND_0,None)
+    vx_Collapsed.putProperty(QDataSet.DEPEND_0,None)
+    vy_Collapsed.putProperty(QDataSet.DEPEND_0,None)
+    vz_Collapsed.putProperty(QDataSet.DEPEND_0,None)
+    
+    print 'line 209'
+    print vx_Collapsed
+    vx_Collapsed = reform(vx_Collapsed, [32*8])
+    vy_Collapsed = reform(vy_Collapsed, [32*8])
+    vz_Collapsed = reform(vz_Collapsed, [32*8])
+    vdfCollapsed = reform(vdfCollapsed, [32*8])
+    
+    #vx_Collapsed = reform(vx_Collapsed, [len(time), 32*8])
+    #vy_Collapsed = reform(vy_Collapsed, [len(time), 32*8])
+    #vdfCollapsed = reform(vdfCollapsed, [len(time), 32*8])
+    print 'line218'
+    #vdfCollapsed = link(-vx_Collapsed, vz_Collapsed, vdfCollapsed)
+    
+    #plot(0, vdfCollapsed)
+    
+    #vdfCollapsed.putProperty(QDataSet.DEPEND_0, vx_Collapsed)
+    #vdfCollapsed.putProperty(QDataSet.DEPEND_1, vz_Collapsed)
+    #plot(1, vdfCollapsed)
+    #stop
+    rebinnedSPANBundle_vxvy = rebin( link(-vx_Collapsed,vy_Collapsed,vdfCollapsed) , vx_bins , vy_bins )
+    rebinnedSPANBundle_vxvz = rebin( link(-vx_Collapsed,vz_Collapsed,vdfCollapsed) , vx_bins , vz_bins )
+    print 'line 229'
+    
+    
+    #plot(0, rebinnedSPANBundle_vxvz, xtitle='v!Bx!N', ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(spanTime_title,timeWidth), zlog=True, zrange=[1E4, 1E7])
+    #plot(1, rebinnedSPANBundle_vxvy, xtitle='v!Bx!N', ytitle='v!By!N', zlog=True, zrange=[1E4, 1E7])
+    
+    (rebinnedSPANBundle_vxvy_degapped, rebinnedSPANBundle_vxvy_interpolated) = fillHistogramGaps(rebinnedSPANBundle_vxvy)
+    rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.VALID_MIN, 1E-38)
+    rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+    rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_1, vy_bins)
+    (rebinnedSPANBundle_vxvy_degapped, rebinnedSPANBundle_vxvy_interpolated) = fillHistogramGaps(rebinnedSPANBundle_vxvy_degapped)
+    rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.VALID_MIN, 1E-38)
+    rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+    rebinnedSPANBundle_vxvy_degapped.putProperty(QDataSet.DEPEND_1, vy_bins)
+    rebinnedSPANBundle_vxvy_interpolated.putProperty(QDataSet.VALID_MIN, 1E-38)
+    rebinnedSPANBundle_vxvy_interpolated.putProperty(QDataSet.DEPEND_0, vx_bins)
+    rebinnedSPANBundle_vxvy_interpolated.putProperty(QDataSet.DEPEND_1, vy_bins)
+    
+    (rebinnedSPANBundle_vxvz_degapped, rebinnedSPANBundle_vxvz_interpolated) = fillHistogramGaps(rebinnedSPANBundle_vxvz)
+    rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.VALID_MIN, 1E-38)
+    rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+    rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_1, vz_bins)
+    (rebinnedSPANBundle_vxvz_degapped, rebinnedSPANBundle_vxvz_interpolated) = fillHistogramGaps(rebinnedSPANBundle_vxvz_degapped)
+    rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.VALID_MIN, 1E-38)
+    rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_0, vx_bins)
+    rebinnedSPANBundle_vxvz_degapped.putProperty(QDataSet.DEPEND_1, vz_bins)
+    rebinnedSPANBundle_vxvz_interpolated.putProperty(QDataSet.VALID_MIN, 1E-38)
+    rebinnedSPANBundle_vxvz_interpolated.putProperty(QDataSet.DEPEND_0, vx_bins)
+    rebinnedSPANBundle_vxvz_interpolated.putProperty(QDataSet.DEPEND_1, vz_bins)
+    
+    
+    contour_vxvz = contour( rebinnedSPANBundle_vxvz_degapped, vv )
+    contour_vxvy = contour( rebinnedSPANBundle_vxvy_degapped, vv )
+    
+    #setLayoutOverplot(2)
+    plot(0, rebinnedSPANBundle_vxvz, xtitle='v!Bx!N', ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(spanTime_title,timeWidth), zlog=True, zrange=[1E4, 1E7], colorTable='apl_rainbow_black0')
+    plot(1, contour_vxvz, color='magenta')
+    plot(2, rebinnedSPANBundle_vxvy, xtitle='v!Bx!N', ytitle='v!By!N', zlog=True, zrange=[1E4, 1E7], colorTable='apl_rainbow_black0')
+
+    setApplication(d0)
+    #dom.canvases[0].setFont('Dialog-18')
+        
+        
+def mouseAction(evt):
+    global sl
+    print 'sl:',sl
+    if (sl==None):
+        print 'line 242'
+        sl= newApplication('slice')
+        setApplication(sl)
+        print 'line 245'
+        #dom.canvases[0].setFont('Dialog-18')
+    invokeLater( doSlice, dataset(evt.x) )
+    
+
+#for p in [ dom.plots[0].controller.dasPlot, dom.plots[1].controller.dasPlot, dom.plots[2].controller.dasPlot ]:
+for p in [ dom.plots[0].controller.dasPlot ]:
+   mm= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
+   mm.dataPointSelected= mouseAction
+   mm.label= 'slices'    
+   mm.dragRenderer= VerticalSliceSelectionRenderer(p)
+   p.dasMouseInputAdapter.primaryModule= mm
+
+def fillHistogramGaps(rebinHistogram, sizeOfGap=1):
+    rebinHistogram_interpolated = dblarr(len(rebinHistogram[:,0]), len(rebinHistogram[0,:]))
+    rebinHistogram_output = ones(len(rebinHistogram[:,0]), len(rebinHistogram[0,:]))*-1E38
+    for i in xrange(len(rebinHistogram[:,0])):
+        #print rebinHistogram.property(QDataSet.DEPEND_1)[where(valid(rebinHistogram[i,:]))]
+        if len(rebinHistogram.property(QDataSet.DEPEND_1)[where(valid(rebinHistogram[i,:]))]) > 1:
+            tempRatio = findex(rebinHistogram.property(QDataSet.DEPEND_1)[where(valid(rebinHistogram[i,:]))], rebinHistogram.property(QDataSet.DEPEND_1))
+        
+            rebinHistogram_interpolated[i,:] = interpolate(rebinHistogram[i,:][where(valid(rebinHistogram[i,:]))], tempRatio)
+            tempDiff = diff(valid(rebinHistogram[i,:]))
+            for j in xrange(len(rebinHistogram[0,:])-1):
+                if valid(rebinHistogram[i,j]) == 0 and tempDiff[j] == 1:
+                    #print i,j,' ',rebinHistogram_interpolated[i,j]
+                    rebinHistogram[i,j] = rebinHistogram_interpolated[i,j]
+                    rebinHistogram_output[i,j] = rebinHistogram_interpolated[i,j]
+                if valid(rebinHistogram[i,j]) == 1:
+                    rebinHistogram_output[i,j] = rebinHistogram[i,j]
+        #stop
+    for j in xrange(len(rebinHistogram[0,:])):
+        if len(rebinHistogram.property(QDataSet.DEPEND_0)[where(valid(rebinHistogram[:,j]))]) > 1:
+            tempRatio = findex(rebinHistogram.property(QDataSet.DEPEND_0)[where(valid(rebinHistogram[:,j]))], rebinHistogram.property(QDataSet.DEPEND_0))
+        
+            rebinHistogram_interpolated[:,j] = interpolate(rebinHistogram[:,j][where(valid(rebinHistogram[:,j]))], tempRatio)
+            tempDiff = diff(valid(rebinHistogram[:,j]))
+            for i in xrange(len(rebinHistogram[:,0])-1):
+                if valid(rebinHistogram[i,j]) == 0 and tempDiff[i] == 1:
+                    #print i,j,' ',rebinHistogram_interpolated[i,j]
+                    rebinHistogram[i,j] = rebinHistogram_interpolated[i,j]
+                    rebinHistogram_output[i,j] = rebinHistogram_interpolated[i,j]
+                if valid(rebinHistogram[i,j]) == 1:
+                    rebinHistogram_output[i,j] = rebinHistogram[i,j]
+        
+    return( rebinHistogram_output, rebinHistogram_interpolated )
+
+
+
+

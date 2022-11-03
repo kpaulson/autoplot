@@ -311,6 +311,7 @@ def mouseAction(evt):
         print 'line 242'
         sl= newApplication('slice')
         setApplication(sl)
+        load( PWD + 'SPAN_vdfSlice.vap' )
         print 'line 245'
         #dom.canvases[0].setFont('Dialog-18')
     invokeLater( doSlice, dataset(evt.x) )

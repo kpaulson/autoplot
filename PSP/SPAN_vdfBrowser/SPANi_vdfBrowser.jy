@@ -1,7 +1,11 @@
+setScriptTitle('SPAN VDF Browser')
+setScriptDescription('''
+Initial attempt at interactive SPAN vdf plotter
+''')
+
 
 from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairMouseModule
 import java
-
 
 tr = '2021-01-20 04:59:43 to 04:59:48'
 tr = '2020-01-29'
@@ -191,6 +195,7 @@ waitUntilIdle()
 fixLayout()
 
 sl= None  # reference to the slice window
+newLoad = None
 
 #############################################
 #############################################
@@ -219,7 +224,11 @@ def doSlice(x):
     global sl
     d0= getApplication()
     setApplication(sl)
-    print 'line 186'
+    global newLoad
+    if newLoad == None:
+        load( PWD + 'SPAN_vdfSlice.vap' )
+        newLoad = 'loaded'
+        
     try:
         vdfCollapsed= copy( slice0( copy(vdf),x ) )  # extra copies are to avoid strange error about mutability
         vx_Collapsed= copy( slice0( copy(vx), x ) )  
@@ -240,8 +249,6 @@ def doSlice(x):
     vy_Collapsed.putProperty(QDataSet.DEPEND_0,None)
     vz_Collapsed.putProperty(QDataSet.DEPEND_0,None)
     
-    print 'line 209'
-    print vx_Collapsed
     vx_Collapsed = reform(vx_Collapsed, [32*8])
     vy_Collapsed = reform(vy_Collapsed, [32*8])
     vz_Collapsed = reform(vz_Collapsed, [32*8])
@@ -250,7 +257,7 @@ def doSlice(x):
     #vx_Collapsed = reform(vx_Collapsed, [len(time), 32*8])
     #vy_Collapsed = reform(vy_Collapsed, [len(time), 32*8])
     #vdfCollapsed = reform(vdfCollapsed, [len(time), 32*8])
-    print 'line218'
+
     #vdfCollapsed = link(-vx_Collapsed, vz_Collapsed, vdfCollapsed)
     
     #plot(0, vdfCollapsed)
@@ -261,7 +268,7 @@ def doSlice(x):
     #stop
     rebinnedSPANBundle_vxvy = rebin( link(-vx_Collapsed,vy_Collapsed,vdfCollapsed) , vx_bins , vy_bins )
     rebinnedSPANBundle_vxvz = rebin( link(-vx_Collapsed,vz_Collapsed,vdfCollapsed) , vx_bins , vz_bins )
-    print 'line 229'
+
     
     
     #plot(0, rebinnedSPANBundle_vxvz, xtitle='v!Bx!N', ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(spanTime_title,timeWidth), zlog=True, zrange=[1E4, 1E7])
@@ -308,11 +315,8 @@ def mouseAction(evt):
     global sl
     print 'sl:',sl
     if (sl==None):
-        print 'line 242'
         sl= newApplication('slice')
         setApplication(sl)
-        load( PWD + 'SPAN_vdfSlice.vap' )
-        print 'line 245'
         #dom.canvases[0].setFont('Dialog-18')
     invokeLater( doSlice, dataset(evt.x) )
     

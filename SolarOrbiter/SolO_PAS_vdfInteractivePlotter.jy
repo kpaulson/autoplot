@@ -1,0 +1,63 @@
+setScriptTitle('SolO VDF Browser')
+setScriptDescription('''
+Initial attempt at interactive SolO vdf plotter
+''')
+
+
+tr = getParam('timerange', '2022-02-27', 'Overview timerange that VDF slices will be taken from')
+
+
+from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairMouseModule
+import java
+
+
+ds = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-VDF&filter=PAS&id=vdf', tr)
+dsTime = ds.property(QDataSet.DEPEND_0)
+dsTime.putProperty(QDataSet.NAME, None)
+
+print ds
+#ds_collapsedInAzimuth   = reduceSum(ds,1)
+#ds_collapsedInElevation = reduceSum(ds,2)
+#ds_collapsedInAllAngles = reduceSum(ds_collapsedInElevation,1)
+
+plot(ds[:,4,4,:], colorTable='apl_rainbow_black0', zlog=True)
+#plot(1, ds, colorTable='apl_rainbow_black0')
+
+#plot(1,ds[500,:,:])
+
+sl= None  # reference to the slice window
+
+def doSlice(x):
+    'Do the slice action off of the event thread'
+    global sl
+    d0= getApplication()
+    setApplication(sl)
+    
+    #print x
+    timeTitle = str(x)[:-1]
+    
+    dsSlice = slice0(ds, x)
+    dsSlice_collapsedInAzimuth   = reduceSum(dsSlice,0)
+    dsSlice_collapsedInElevation = reduceSum(dsSlice,1)
+    
+    plot(0, dsSlice_collapsedInAzimuth, renderType='polar', zlog=True, xrange=[-500, 6500], yrange=[-2000, 2000], colorTable='apl_rainbow_black0', title='%s!CVDF All Azimuth'%timeTitle, xtitle='phase space?')
+    plot(1, dsSlice_collapsedInElevation, renderType='polar', zlog=True, xrange=[-500, 6500], yrange=[-2000, 2000], colorTable='apl_rainbow_black0', title='VDF All Elevation', xtitle='phase space?')
+    setApplication(d0)
+
+
+        
+def mouseAction(evt):
+    global sl
+    print 'sl:',sl
+    if (sl==None):
+        sl= newApplication('slice')
+        setApplication(sl)
+        #dom.canvases[0].setFont('Dialog-18')
+    invokeLater( doSlice, dataset(evt.x) )
+
+for p in [ dom.plots[0].controller.dasPlot ]:
+   mm= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
+   mm.dataPointSelected= mouseAction
+   mm.label= 'slices'    
+   mm.dragRenderer= VerticalSliceSelectionRenderer(p)
+   p.dasMouseInputAdapter.primaryModule= mm

@@ -5,13 +5,14 @@ Initial attempt at interactive SolO vdf plotter
 
 
 tr = getParam('timerange', '2022-02-27', 'Overview timerange that VDF slices will be taken from')
-
+decimationRate = getParam('downsample', 5, 'pick a value for how much to downsample the data 1 may cause program to hang)')
 
 from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairMouseModule
+from org.das2.graph.SpectrogramRenderer import RebinnerEnum
 import java
 
 
-ds = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-VDF&filter=PAS&id=vdf', tr)
+ds = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-VDF&filter=PAS&id=vdf[::%s]'%decimationRate, tr)
 dsTime = ds.property(QDataSet.DEPEND_0)
 dsTime.putProperty(QDataSet.NAME, None)
 
@@ -42,6 +43,10 @@ def doSlice(x):
     
     plot(0, dsSlice_collapsedInAzimuth, renderType='polar', zlog=True, xrange=[-500, 6500], yrange=[-2000, 2000], colorTable='apl_rainbow_black0', title='%s!CVDF All Azimuth'%timeTitle, xtitle='phase space?')
     plot(1, dsSlice_collapsedInElevation, renderType='polar', zlog=True, xrange=[-500, 6500], yrange=[-2000, 2000], colorTable='apl_rainbow_black0', title='VDF All Elevation', xtitle='phase space?')
+    
+    #dom.plotElements[0].controller.renderer.rebinner= RebinnerEnum.triScat
+    #dom.plotElements[0].controller.renderer.rebinner= RebinnerEnum.triScat
+    
     setApplication(d0)
 
 
@@ -56,7 +61,8 @@ def mouseAction(evt):
     invokeLater( doSlice, dataset(evt.x) )
 
 for p in [ dom.plots[0].controller.dasPlot ]:
-   mm= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
+#   mm= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
+   mm= CrossHairMouseModule(p,p.getXRange(),p.getYAxis())
    mm.dataPointSelected= mouseAction
    mm.label= 'slices'    
    mm.dragRenderer= VerticalSliceSelectionRenderer(p)

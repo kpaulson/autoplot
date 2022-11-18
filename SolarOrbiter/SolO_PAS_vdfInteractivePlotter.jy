@@ -8,6 +8,7 @@ tr = getParam('timerange', '2022-02-27', 'Overview timerange that VDF slices wil
 decimationRate = getParam('downsample', 5, 'pick a value for how much to downsample the data 1 may cause program to hang)')
 
 from org.das2.event import VerticalSliceSelectionRenderer,MouseModule,CrossHairMouseModule
+from org.das2.event import HorizontalDragRangeRenderer, HorizontalRangeSelectorMouseModule
 from org.das2.graph.SpectrogramRenderer import RebinnerEnum
 import java
 
@@ -21,8 +22,8 @@ print ds
 #ds_collapsedInElevation = reduceSum(ds,2)
 #ds_collapsedInAllAngles = reduceSum(ds_collapsedInElevation,1)
 
-plot(ds[:,4,4,:], colorTable='apl_rainbow_black0', zlog=True)
-#plot(1, ds, colorTable='apl_rainbow_black0')
+#plot(ds[:,4,4,:], colorTable='apl_rainbow_black0', zlog=True)
+plot(ds, colorTable='apl_rainbow_black0', zlog=True)
 
 #plot(1,ds[500,:,:])
 
@@ -34,7 +35,7 @@ def doSlice(x):
     d0= getApplication()
     setApplication(sl)
     
-    #print x
+    print x
     timeTitle = str(x)[:-1]
     
     dsSlice = slice0(ds, x)
@@ -49,21 +50,27 @@ def doSlice(x):
     
     setApplication(d0)
 
-
         
 def mouseAction(evt):
     global sl
     print 'sl:',sl
     if (sl==None):
-        sl= newApplication('slice')
+        sl= newApplication('VDF')
         setApplication(sl)
         #dom.canvases[0].setFont('Dialog-18')
     invokeLater( doSlice, dataset(evt.x) )
 
 for p in [ dom.plots[0].controller.dasPlot ]:
-#   mm= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
-   mm= CrossHairMouseModule(p,p.getXRange(),p.getYAxis())
-   mm.dataPointSelected= mouseAction
-   mm.label= 'slices'    
-   mm.dragRenderer= VerticalSliceSelectionRenderer(p)
-   p.dasMouseInputAdapter.primaryModule= mm
+   mmSlice= CrossHairMouseModule(p,p.getXAxis(),p.getYAxis())
+   #mm= CrossHairMouseModule(p,p.getXRange().width(),p.getYAxis())
+   mmSlice.dataPointSelected= mouseAction
+   mmSlice.label= 'instantaneousVDF'    
+   mmSlice.dragRenderer= VerticalSliceSelectionRenderer(p)
+   p.dasMouseInputAdapter.primaryModule= mmSlice
+   
+   mmRange= HorizontalRangeSelectorMouseModule(p, p.getXAxis())
+   #mm= CrossHairMouseModule(p,p.getXRange().width(),p.getYAxis())
+   mmRange.dataRangeSelected= mouseAction
+   mmRange.label= 'averageVDF'    
+   mmRange.dragRenderer= HorizontalDragRangeRenderer(p)
+   p.dasMouseInputAdapter.secondaryModule= mmRange

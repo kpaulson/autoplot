@@ -25,6 +25,8 @@ useVDFFluxForWeights           = getParam('useVDFFluxForWeights','T','Weight lin
 useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
 conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
 usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
+if usePreviouslyDownsampledData == 'F':
+    spc_mode                       = getParam('spcInstrumentMode', 'fullScan', 'Use data from Peak Tracking (default) or Full Scan mode?', ['peakTrack', 'fullScan'])
 analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
 
 
@@ -366,18 +368,34 @@ for tr in trs:
                 
         elif usePreviouslyDownsampledData == False:
             monitor.setLabel('Downloading SPC') 
-            try:
-                print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
-                spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
-                spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
-                spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
-                spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
-                
-                mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
-                mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
-            except:
-                noSPCData = None
-                raise java.io.FileNotFoundException
+            if spc_mode == 'peakTrack':
+                try:
+                    print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
+                    spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+                    spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+                    spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+                    spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+                    
+                    mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+                    mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+                except:
+                    noSPCData = None
+                    raise java.io.FileNotFoundException
+            elif spc_mode == 'fullScan':
+                output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/fullScan/L0/v%s/'%(version)
+                monitor.setLabel('Downloading SPC FullScan Data') 
+                try:
+                    print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(1)'
+                    spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(1)',tr)
+                    spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(1)',tr)
+                    spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(1)',tr)
+                    spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(1)',tr)
+                    
+                    mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(1)',tr)
+                    mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(1)',tr)
+                except:
+                    noSPCData = None
+                    raise java.io.FileNotFoundException
             
                 
             print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
@@ -606,14 +624,18 @@ for tr in trs:
         
         #U is supposed to be v_sc so that we keep the spacecraft motion out of this (duh...)
         #HOWEVER, it has little to no effect on the results
-        psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
-        psp_ephem_file = psp_ephem_file_local #Some day I need to figure out how to grab a nonlocal copy of these files
-        v_scz = getDataSet(psp_ephem_file+'?SC_VR_kms',tr)
-        v_scx = getDataSet(psp_ephem_file+'?SC_VORB_kms',tr)
-        v_scy = getDataSet(psp_ephem_file+'?SC_VZ_kms',tr)
-        u_x = synchronize(v_z,v_scx)
-        u_y = synchronize(v_z,v_scy)
-        u_z = synchronize(v_z,v_scz)
+        try:
+            psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+            psp_ephem_file = psp_ephem_file_local #Some day I need to figure out how to grab a nonlocal copy of these files
+            v_scz = getDataSet(psp_ephem_file+'?SC_VR_kms',tr)
+            v_scx = getDataSet(psp_ephem_file+'?SC_VORB_kms',tr)
+            v_scy = getDataSet(psp_ephem_file+'?SC_VZ_kms',tr)
+            u_x = synchronize(v_z,v_scx)
+            u_y = synchronize(v_z,v_scy)
+            u_z = synchronize(v_z,v_scz)
+        except(java.io.FileNotFoundException):
+            print 'PSP ephemeris file not found at', psp_ephem_file
+            break
         
         
         #if 'alreadyPlottedOnce' not in globals():

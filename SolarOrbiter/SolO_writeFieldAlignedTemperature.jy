@@ -1,0 +1,310 @@
+
+tr = getParam('timerange', '2021-05-05', 'date of analysis')
+outputDirectory = 'G:/My Drive/Research/SolarOrbiter/SWA-PAS/fieldAlignedTemperature_Files/'
+#tr = '2022-03-25'
+
+
+# IMPORT FIELDALIGNER
+def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
+    '''Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
+
+    Parameters:
+        Bx = rank1 X component of magnetic field
+        By = rank1 Y component of magnetic field
+        Bz = rank1 Z component of magnetic field
+        TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
+        TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
+        TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
+        trend_seconds = rank0 number of seconds over which to average B to define as background
+        
+    Returns:
+        (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
+        (Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
+        (Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
+        (Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
+    
+    '''
+    
+    import java
+    
+    #monitor.setLabel('Field Aligner')    
+    # ###
+    # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR
+    # ###    
+    
+    mag_time = Btotal.property(QDataSet.DEPEND_0)
+            #mag_time.putProperty(QDataSet.NAME,'B-field Time')
+            
+            #print mag_time[1]-mag_time[0]
+            #for i in xrange(len(mag_time)):
+            #    if( mag_time[i]-mag_time[0] > detrend_time ):
+            #        raise getmeouttahere
+            #print mag_time.property(QDataSet.UNITS)
+    
+    smooth_points = int(round(trend_seconds*1./convertUnitsTo(mag_time[1]-mag_time[0],Units.seconds),0))
+    
+    Bx_smooth     = smoothFit(mag_time, Bx,     smooth_points)
+    By_smooth     = smoothFit(mag_time, By,     smooth_points)
+    Bz_smooth     = smoothFit(mag_time, Bz,     smooth_points)
+    Btotal_smooth = smoothFit(mag_time, Btotal, smooth_points)
+    
+    Nx = Bx_smooth / Btotal_smooth
+    Ny = By_smooth / Btotal_smooth
+    Nz = Bz_smooth / Btotal_smooth
+    
+    
+    # ###
+    # ### PULL RADIAL VECTOR DATA AND DEFINE PERPENDICULAR VECTOR DIRECTIONS
+    # ###
+    
+
+    TEMP_Rmag = sqrt(TEMP_Rx**2 + TEMP_Ry**2 + TEMP_Rz**2)
+    
+    ephem_time = TEMP_Rx.property(QDataSet.DEPEND_0)
+    try:
+        ephem_to_mag_ratio = findex(ephem_time,mag_time)
+    except(java.lang.IllegalArgumentException):
+        if(eq(len(TEMP_Rx), len(mag_time))):
+            ephem_time = mag_time
+            ephem_to_mag_ratio = findex(ephem_time,mag_time)
+            TEMP_Rx.putProperty(QDataSet.DEPEND_0, ephem_time)
+            TEMP_Ry.putProperty(QDataSet.DEPEND_0, ephem_time)
+            TEMP_Rz.putProperty(QDataSet.DEPEND_0, ephem_time)
+            TEMP_Rmag.putProperty(QDataSet.DEPEND_0, ephem_time)
+            print 'TEMP_Rx has no associated timestamps. Proceeding with assumption that they are of same time cadence as \'Btotal\''
+        else:
+            raise noTimeForGamesException
+        
+        
+    
+    #TEMP_Rx = interpolate( (TEMP_Rx/TEMP_Rmag) , ephem_to_mag_ratio )
+    #TEMP_Ry = interpolate( (TEMP_Ry/TEMP_Rmag) , ephem_to_mag_ratio )
+    #TEMP_Rz = interpolate( (TEMP_Rz/TEMP_Rmag) , ephem_to_mag_ratio )
+    TEMP_Rx = synchronize( Btotal_smooth, (TEMP_Rx/TEMP_Rmag) )
+    TEMP_Ry = synchronize( Btotal_smooth, (TEMP_Ry/TEMP_Rmag) )
+    TEMP_Rz = synchronize( Btotal_smooth, (TEMP_Rz/TEMP_Rmag) )
+
+    # This version divides by Rmag again, which I should not be doing.... how long has this been in here??
+    #Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
+    #Ry = -(TEMP_Ry/TEMP_Rmag) 
+    #Rz = -(TEMP_Rz/TEMP_Rmag)
+    Rx = -(TEMP_Rx) #Negate R so that NxR is westwards (need this for right-handedness)
+    Ry = -(TEMP_Ry) 
+    Rz = -(TEMP_Rz) 
+    
+    TEMP_Px = ( Ny * Rz ) - ( Nz * Ry )
+    TEMP_Py = ( Nz * Rx ) - ( Nx * Rz )
+    TEMP_Pz = ( Nx * Ry ) - ( Ny * Rx )
+    
+    Pmag = sqrt( TEMP_Px**2 + TEMP_Py**2 + TEMP_Pz**2 ) #Have to normalize, since previous definition does not imply unitarity, just orthogonality
+      
+    Px = TEMP_Px / Pmag # ~azimuthal - positive is in Westward direction (for earth coords)
+    Py = TEMP_Py / Pmag
+    Pz = TEMP_Pz / Pmag
+    
+    del( [ TEMP_Px , TEMP_Py , TEMP_Pz , Pmag ] )
+        
+    Qx = -( Py * Nz ) + ( Pz * Ny ) # N x P ~radial - positive is outward
+    Qy = -( Pz * Nx ) + ( Px * Nz )
+    Qz = -( Px * Ny ) + ( Py * Nx )
+    
+    
+    # ###
+    # ### TRANSFORM MAG DATA INTO FIELD-ALIGNED COORDINATES
+    # ###
+    
+    Bn = (Bx * Nx) + (By * Ny) + (Bz * Nz)
+    Bp = (Bx * Px) + (By * Py) + (Bz * Pz)
+    Bq = (Bx * Qx) + (By * Qy) + (Bz * Qz)
+   
+    Nx = round(Nx,3)
+    Ny = round(Ny,3)
+    Nz = round(Nz,3)     
+    
+    Px = round(Px,3)
+    Py = round(Py,3)
+    Pz = round(Pz,3) 
+    
+    Qx = round(Qx,3)
+    Qy = round(Qy,3)
+    Qz = round(Qz,3)           
+                    
+    ###
+    ### ADD LABELS AND UNITS AND STUFF, RETURN RESULTS
+    ###
+    
+    Bn.putProperty(QDataSet.LABEL,'B!B||!N')
+    Bn.putProperty(QDataSet.NAME,'B!B||!N')
+    Bp.putProperty(QDataSet.LABEL,'B!B&perp;east!N')
+    Bp.putProperty(QDataSet.NAME,'B!B&perp;east!N')
+    Bq.putProperty(QDataSet.LABEL,'B!B&perp;rad!N')
+    Bq.putProperty(QDataSet.NAME,'B!B&perp;rad!N')
+    Btotal.putProperty(QDataSet.LABEL,'|B|')
+    Btotal.putProperty(QDataSet.NAME,'|B|')
+    
+    
+    return( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+    
+
+
+# IMPORT ROTATOR
+
+
+def rotateVector( Ax , Ay , Az , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ):
+    '''
+    Simple rotation of some vector A using the matrix composed of unit vectrs N, P, Q
+        (unit vectors most often given by field_aligner())
+        Description here assumes rotation into field-aligned coordinates, but the math
+            is just dot products valid for any rotation.
+    INPUT:
+        (Ax, Ay, Az) = rank1 vector components in same coordinate system as N, P, Q
+        (Nx, Ny, Nz) = rank1 unit vector components parallel to magnetic field
+    OUTPUT:
+        (An, Ap, Aq) = rank1 vector components in field-aligned coordinate system
+    '''
+    
+    Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz = synchronize(Ax ,[Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz])
+    
+    An = (Ax * Nx) + (Ay * Ny) + (Az * Nz)
+    Ap = (Ax * Px) + (Ay * Py) + (Az * Pz)
+    Aq = (Ax * Qx) + (Ay * Qy) + (Az * Qz)
+    
+    return( An , Ap , Aq )
+
+
+# GET BFIELD DATA
+b_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_MAG-RTN-NORMAL-1-MINUTE&filter=solo&id=B_RTN', tr)
+
+
+
+# FIELD ALIGN
+Btotal = magnitude(b_rtn)
+TEMP_Rx = ones(len(b_rtn))
+TEMP_Ry = ones( len(b_rtn))
+TEMP_Rz = ones(len(b_rtn))
+trend_seconds = 60
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( b_rtn[:,0] , b_rtn[:,1] , b_rtn[:,2] , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+#b_npq = bundle(Bn, Bp, Bq)
+#b_npq.putProperty(QDataSet.DEPEND_0, b_rtn.property(QDataSet.DEPEND_0))
+#b_npq.putProperty(QDataSet.NAME, None)
+
+#plot(0, b_rtn)
+#plot(1, Bn)
+#plot(2, Bp)
+#plot(3, Bq)
+#stop
+
+# GET TEMP DATA
+T_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&filter=solo&id=TxTyTz_RTN', tr)
+time = T_rtn.property(QDataSet.DEPEND_0)
+
+( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = synchronize(T_rtn, ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ))
+# BUILD ROTATION MATRIX
+
+from org.apache.commons.math.linear import Array2DRowRealMatrix 
+from org.apache.commons.math.linear import LUDecompositionImpl
+from org.apache.commons.math.linear import DecompositionSolver
+from org.apache.commons.math.linear import RealMatrix
+from org.apache.commons.math.linear import RealVector
+
+realMatrix = RealMatrix
+rotate_rtnT_to_magT = Array2DRowRealMatrix(3,3)
+T_tensor_rtn = Array2DRowRealMatrix(3,3)
+
+Tperp1 = dblarr(len(time))
+Tperp2 = dblarr(len(time))
+Tpara = dblarr(len(time))
+
+for i in xrange(len(time)):
+#    rotate_rtnT_to_magT.setEntry(0,0,N_hat_spani[i,0].value()*N_hat_spani[i,0].value())
+#    rotate_rtnT_to_magT.setEntry(0,1,P_hat_spani[i,0].value()*P_hat_spani[i,0].value())
+#    rotate_rtnT_to_magT.setEntry(0,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,0].value())
+#    rotate_rtnT_to_magT.setEntry(1,0,N_hat_spani[i,0].value()*N_hat_spani[i,2].value())
+#    rotate_rtnT_to_magT.setEntry(1,1,P_hat_spani[i,0].value()*P_hat_spani[i,2].value())
+#    rotate_rtnT_to_magT.setEntry(1,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,2].value())
+#    rotate_rtnT_to_magT.setEntry(2,0,N_hat_spani[i,2].value()*N_hat_spani[i,2].value())
+#    rotate_rtnT_to_magT.setEntry(2,1,P_hat_spani[i,2].value()*P_hat_spani[i,2].value())
+#    rotate_rtnT_to_magT.setEntry(2,2,Q_hat_spani[i,2].value()*Q_hat_spani[i,2].value())
+    rotate_rtnT_to_magT.setEntry(0,0,Nx[i].value())
+    rotate_rtnT_to_magT.setEntry(0,1,Px[i].value())
+    rotate_rtnT_to_magT.setEntry(0,2,Qx[i].value())
+    rotate_rtnT_to_magT.setEntry(1,0,Ny[i].value())
+    rotate_rtnT_to_magT.setEntry(1,1,Py[i].value())
+    rotate_rtnT_to_magT.setEntry(1,2,Qy[i].value())
+    rotate_rtnT_to_magT.setEntry(2,0,Nz[i].value())
+    rotate_rtnT_to_magT.setEntry(2,1,Pz[i].value())
+    rotate_rtnT_to_magT.setEntry(2,2,Qz[i].value())
+    
+    #rotate_rtnT_to_magT = rotate_rtnT_to_magT.transpose()
+    
+    
+    T_tensor_rtn.setEntry(0,0,T_rtn[i,0].value())
+    T_tensor_rtn.setEntry(1,1,T_rtn[i,1].value())
+    T_tensor_rtn.setEntry(2,2,T_rtn[i,2].value())
+    
+    try:
+        solver = LUDecompositionImpl(rotate_rtnT_to_magT).getSolver()
+        rotate_rtnT_to_magT_inverse = solver.getInverse()
+        
+        T_tensor_mag = rotate_rtnT_to_magT.multiply(T_tensor_rtn.multiply(rotate_rtnT_to_magT_inverse))
+        
+        Tpara[i] = T_tensor_mag.getEntry(0,0)
+        Tperp1[i] = T_tensor_mag.getEntry(1,1)
+        Tperp2[i]  = T_tensor_mag.getEntry(2,2)
+    except:
+        Tperp1[i] = -1E38
+        Tperp2[i] = -1E38
+        Tpara[i]  = -1E38
+        
+
+plot(0, time, Tperp1, yrange=[-100, 100])
+plot(1, time, Tperp2, yrange=[-100, 100])
+plot(2, time, Tpara, yrange=[-100, 100])
+#plot(2, time, (Tperp1+Tperp2)/2., yrange=[-100, 100])
+#stop
+
+Tn = putProperty(Tpara, QDataSet.DEPEND_0, time)
+Tp = putProperty(Tperp1, QDataSet.DEPEND_0, time)
+Tq = putProperty(Tperp2, QDataSet.DEPEND_0, time)
+
+Tn.putProperty(QDataSet.VALID_MIN, 0)
+Tp.putProperty(QDataSet.VALID_MIN, 0)
+Tq.putProperty(QDataSet.VALID_MIN, 0)
+
+## ROTATE TEMP DATA
+#( Tn , Tp , Tq ) = rotateVector( T_rtn[:,0] , T_rtn[:,1] , T_rtn[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+#
+#Tn = abs(Tn)
+#Tp = abs(Tp)
+#Tq = abs(Tq)
+
+#plot(0, (Tn + Tp + Tq)/3., legendLabel='T')
+#plot(4, Tn, legendLabel='Tpar')
+#plot(1, Tp)
+#plot(2, Tq)
+#plot(3, (Tp+Tq)/2., legendLabel='Tperp')
+#stop
+# WRITE OUT TEMP FILE
+Tn.putProperty(QDataSet.NAME, 'T_parallel')
+Tp.putProperty(QDataSet.NAME, 'T_perp1')
+Tq.putProperty(QDataSet.NAME, 'T_perp2')
+
+Tn.putProperty(QDataSet.LABEL, 'T_||')
+Tp.putProperty(QDataSet.LABEL, 'T_&perp;1')
+Tq.putProperty(QDataSet.LABEL, 'T_&perp;2')
+
+Tn.putProperty(QDataSet.UNITS, Units.eV)
+Tp.putProperty(QDataSet.UNITS, Units.eV)
+Tq.putProperty(QDataSet.UNITS, Units.eV)
+
+bindle = bundle(Tn, Tp, Tq)
+bindle.putProperty(QDataSet.DEPEND_0, Tn.property(QDataSet.DEPEND_0))
+
+plot(0, (Tn))
+plot(1, (Tp))
+plot(2, bindle)
+
+outputFile = 'SolO_%s_fieldAlignedTemperature.cdf'%tr
+mkdir(outputDirectory)
+
+formatDataSet(bindle, outputDirectory+outputFile+'?bundle=T')

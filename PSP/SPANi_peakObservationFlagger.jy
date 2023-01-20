@@ -1,9 +1,10 @@
 timerange = getParam('timerange','2020-01-30','timerange of flags to generate (typically daily files)')
+fileType  = getParam('file type', 'sf00', 'Which type of span file do you want to generate peak files for?', ['sf00', 'sf0a', 'af00', 'af0a'])
 #tr = generateTimeRanges('$Y-$m-$d',timerange)
 tr = timerange
 writeStuff = True
 
-w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf'
+w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(fileType, fileType)
 
 eflux_vs_phi = getDataSet(w3sweap_SPAN_L3_file+'?EFLUX_VS_PHI',tr)
 phi_vals = getDataSet(w3sweap_SPAN_L3_file+'?PHI_VALS',tr)
@@ -36,6 +37,7 @@ peakObservationFlag.putProperty(QDataSet.DESCRIPTION,'Flag dataset on whether th
 
 
 if writeStuff == True:
-    spaniPeakObservation_directory = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/'
+    spaniPeakObservation_directory = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/%s/'%(fileType)
+    mkdir(spaniPeakObservation_directory)
 
-    formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s.txt?header=rich'%tr)
+    formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s_%s.txt?header=rich'%(fileType,tr))

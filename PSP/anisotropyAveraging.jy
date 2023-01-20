@@ -66,6 +66,13 @@ anisotropyBinNumber = getParam('anisotropyBins',40,'Number of bins in anisotropy
 analyzingTimeWidthComparisons = False   
 fitSeconds = getParam('fitSeconds',1,'Width of time used to fit data for anisotropy (this should only be used in the time comparison results)')
 
+normal_or_fullScan = getParam('normal or full Scan?', 'normal', 'Use the normal data product or the experimental full scan version?', ['normal', 'fullScan'])
+if normal_or_fullScan == 'normal':
+    fullScanDirectory = ''
+elif normal_or_fullScan == 'fullScan':
+    fullScanDirectory = 'fullScan/'
+    
+
 # SI
 k    = 1.3807E-23
 mu_0 = PI*4E-7
@@ -99,7 +106,7 @@ elif OS == 'windows':
     #googleDrive_directory = 'file:/C:/Users/kpaulson/GoogleDrive/'
     googleDrive_directory = 'file:/G:/My Drive/'
 
-filename = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(version_L0,version_L0)
+filename = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/%sL0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(fullScanDirectory, version_L0,version_L0)
     
 if separatePeaksWithL3Values == 'T':
     separatePeaksWithL3Values = True
@@ -154,10 +161,10 @@ if eq(len(vdfList),0):
 
 for vdf in vdfList:
     if separatePeaksWithL3Values == False:
-        anitostropyL0_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version_L0)
+        anitostropyL0_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/%sL0/v%s/'%(fullScanDirectory, version_L0)
         filename = anitostropyL0_directory+'SPC_Anisotropy_%s_v%s.cdf'%(tr,version_L0)
     elif separatePeaksWithL3Values == True:
-        anitostropyL0_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version_L0)
+        anitostropyL0_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/%sL0/v%s/'%(fullScanDirectory, version_L0)
         filename = anitostropyL0_directory+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],tr,version_L0)
             
     chi = getDataSet(filename+'?Anisotropy_chi',tr)
@@ -604,6 +611,10 @@ for vdf in vdfList:
         elif separatePeaksWithL3Values == True:
             output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/'%(version_L1)
             output_anitostropyL1_file = 'SPC_Anisotropy_L1_%s_%s_v%s.cdf'%(vdf.split('_')[1],tr,version_L1)
+        
+        if normal_or_fullScan == 'fullScan':
+                output_anitostropyL1_directory = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/fullScan/L1/v%s/'%(version_L1)
+                output_anitostropyL1_file = 'SPC_Anisotropy_fullScan_L1_%s_v%s.cdf'%(tr,version_L1)
         
         if 'B_hat' in locals():
             formatDataSet(B_hat,                                     output_anitostropyL1_directory + output_anitostropyL1_file)

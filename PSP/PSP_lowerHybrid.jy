@@ -1,0 +1,52 @@
+# PSP Characteristic Frequency Calculator
+def gimmeLowerHybrid(density, Bmag):
+    '''
+    This script will calculate characteristic plasma frequencies with PSP data. 
+    Who knows, maybe someday it will be fleshed out to be called with any data
+    source and plot frequencies.
+    INPUT:
+        density  = rank1 array of density values in cm^-3
+        Bmag     = rank1 array of magnitude of magnetic field values in nT
+    OUTPUT:
+        f_lh     = rank1 array of lower-hybrid frequency
+    '''
+    
+    # values are given in f instead of w, keep in mind f = w/(2*PI)
+    
+    # Ion Gyrofrequency - 0.0152*|B| (in nT)
+    f_ci = 0.0152*Bmag
+    w_ci = f_ci*2*PI
+    
+    # Electron Gyrofrequency - 28.*|B| (in nT)
+    f_ce = 28.1*Bmag
+    w_ce = f_ce*2*PI
+    
+    # Ion Plasma Frequency - sqrt(4*PI*n_i*(Z**2)*(e**2)/m_i)
+    Z = 1.
+    mu = 1.  # should this be ~1.2 or so to account for alphas?
+    n_i = density
+    f_pi = 210.*Z*(mu**(-1./2.))*(n_i**(1./2.)) #Hz
+    w_pi = f_pi*2*PI
+    
+    # Electron plasma frequency?
+    
+    
+    # Lower Hybrid Frequency
+    
+    w_lh = 1./sqrt( ((w_ci*w_ce)**-1.) + (w_pi**-2) )
+    f_lh = w_lh/(2*PI)
+    
+    return(f_lh)
+
+
+tr = '2021-11-22'
+density = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?DENS', tr)
+Bfield = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf?psp_fld_l2_mag_SC_4_Sa_per_Cyc', tr)
+Bmag = magnitude(Bfield)
+
+Bmag = synchronize(density, Bmag)
+
+f_lh = gimmeLowerHybrid(density, Bmag)
+
+plot(1, f_lh, color='white', linewidth=3.)
+plot(2, f_lh, color='black', linewidth=2.)

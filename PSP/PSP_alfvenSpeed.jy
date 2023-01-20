@@ -1,0 +1,146 @@
+
+au = 149597870.700  # 1AU in km
+
+
+#lfr_density_file = 'G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.idl'
+#
+#
+#lfr_density = getDataSet('vap+idlsav:file:///'+lfr_density_file+'?LFR.N_E.DAT')
+#lfr_epoch   = getDataSet('vap+idlsav:file:///'+lfr_density_file+'?LFR.EPOCH.DAT')
+
+#lfr_density_file = 'file:///G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.csv'
+#psp_ephemeris_file = 'file:/G:/My Drive/Research/PSP/Ephemeris/dailyFiles/PSP_ephemeris_$Y-$m-$d.cdf'
+#
+#
+#
+#lfr_epoch   = getDataSet(lfr_density_file+'?column=field0')
+#lfr_density = getDataSet(lfr_density_file+'?column=field1')
+#lfr_density_lowerBound = getDataSet(lfr_density_file+'?column=field2')
+#lfr_density_upperBound = getDataSet(lfr_density_file+'?column=field3')
+#
+#lfr_epoch.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+#
+#lfr_density.putProperty(QDataSet.DEPEND_0, lfr_epoch)
+#
+#### Rename everything to match Mike's variables so that I can just copy his script.
+#
+#ep = lfr_epoch
+#n = lfr_density
+#nlow = lfr_density_lowerBound
+#nhigh = lfr_density_upperBound
+
+
+#plot(n)
+
+
+
+#####################################
+
+#####################################
+
+#####################################
+
+# From NRL Formulary:
+#     v_alfven = 2.18e11 * mu^-(1/2) * ni^-(1/2) * B   in cm/sec
+# where
+#     B is in Gauss
+#     mu is the reduced particle mass normalized to mp
+
+lfr_density_file = 'file:///G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.csv'
+
+lfr_epoch   = getDataSet(lfr_density_file+'?column=field0')
+lfr_density = getDataSet(lfr_density_file+'?column=field1')
+
+lfr_epoch.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+lfr_density.putProperty(QDataSet.DEPEND_0, lfr_epoch)
+
+#plot(lfr_density)
+#stop
+
+perihelion_07 = '2021-01-15 through 2021-01-21'
+perihelion_08 = '2021-04-24 through 2021-05-04'
+perihelion_09 = '2021-08-04 through 2021-08-14'
+perihelion_10 = '2021-11-19 through 2021-11-25'
+perihelion_11 = '2022-02-22 to 2022-03-02' # Perihelion
+perihelion_12 = '2022-05-25 to 2022-06-06'
+perihelion_13 = '2022-09-01 to 2022-09-11'
+perihelion_14 = '2022-12-06 to 2022-12-16'
+#tr = '2022-02-22 to 2022-02-28'
+#tr = '2022-02-22 to 2022-02-28'
+#tr = '2022-02-22 to 2022-02-28'
+
+#perihelionList1 = [perihelion01]
+#perihelionList2 = [perihelion02, perihelion03]
+
+perihelionList_4 = [perihelion_07, perihelion_08, perihelion_09, perihelion_10]
+perihelionList_5 = [perihelion_11]
+
+tr = perihelion_09
+
+if tr in perihelionList_4:
+    lfr_density = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l3/rfs_lfr_qtn/psp_fld_l3_rfs_lfr_qtn_20210109_20211201_v01.cdf?N_elec')
+
+Bfield = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf?psp_fld_l2_mag_SC_4_Sa_per_Cyc', tr)
+Bmag = magnitude(Bfield)*1e-5  # magnitude of B in Gauss
+lfr_density = synchronize(Bmag, lfr_density)
+
+span_density = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?DENS', tr)
+span_density = synchronize(Bmag, span_density)
+
+
+mu = 1.1
+ni = span_density
+#ni = lfr_density
+#plot(0, ni)
+#stop
+
+
+v_alfven = 2.18e11 * mu**(-1./2.) * ni**(-1./2.) * Bmag * 1e-5    # in km/sec
+
+plot(2, smooth(v_alfven, 25), color='blue', legendLabel='v!BA!N')
+#plot(1, smooth(-v_alfven, 25), color='blue')
+
+v_r_span = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?VEL_RTN_SUN[:,0]', tr)
+
+v_r_span = synchronize(v_alfven, v_r_span)
+v_alfven.putProperty(QDataSet.UNITS, v_r_span.property(QDataSet.UNITS))
+plot(1, v_r_span, color='black', ytitle='(%{UNITS})', legendLabel='v!Br!N')
+plot(0, (abs(v_r_span) - v_alfven)[::20], renderType='series', fillColor='mms_red', ytitle='v - v!BA!N (%{UNITS})')
+
+#####################################
+
+#####################################
+
+#####################################
+
+
+
+
+
+
+
+#R_AU = getDataSet(psp_ephemeris_file+'?r_Sun',tr) / au
+#carrlon = toRadians(getDataSet(psp_ephemeris_file+'?longitude',tr))
+#carrlat = toRadians(getDataSet(psp_ephemeris_file+'?latitude',tr))
+#SCPOS_carrpol = [r_AU, carrlon, carrlat] # SC position in carrington polar coordinates\
+#
+#SC_vr_kms = state[3,*]\
+#SC_vorb_kms = sqrt(stateHGI[3, *]^2 + stateHGI[4, *]^2 - state[3,*]^2)\
+#SC_vz_kms = stateHGI[5, *]\
+#
+#sc_pos_HCI = getDataSet(psp_ephemeris_file+'?sc_pos_HCI',tr)
+#xhgi = sc_pos_HCI[:,0] / au
+#yhgi = sc_pos_HCI[:,1] / au
+#zhgi = sc_pos_HCI[:,2] / au
+#
+#vr_spi = -spi.v_sc[2,*] + sc_vr_kms\
+#ab_angle = atan(reform(sc_vorb_kms), reform(spi.v_sc[2,*]))\
+#spi_fov = ab_angle lt 165.*!dtor\
+
+
+
+
+
+
+
+

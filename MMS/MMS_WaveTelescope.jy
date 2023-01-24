@@ -5,6 +5,91 @@
 #                       #
 #########################
 
+'''
+Script which downloads relevant MMS data products and calculates k-vector quantities and
+wave phase speed in spectral domain
+'''
+
+#########
+
+
+brst_or_srvy = getParam('brst or srvy', 'srvy' , 'Perform analysis with brst- or srvy-mode data?', ['brst', 'srvy'])
+
+if brst_or_srvy == 'srvy':
+    #timerange = '2015-08-15 08:54 to 09:12' # Rising tone
+    #timerange = '2015-06-25 11:50 to 12:07' # Pearl elements
+    timerange = '2018-09-22 22:29 to 22:34' # Conjunction study
+    #timerange = '2016-05-20 19:00 to 20:45' # Usanova's EMIC harmonics event
+    timerange = '2016-11-05 20:00 to 23:45' # Mark Engebretson's event for talk
+    timerange = '2016-11-05 22:42 to 23:18' # Closeup of Mark Engebretson's event for talk
+    #timerange = '2016-11-16' # Mark event1
+    #timerange = '2015-12-18 12:00 to 15:00' # Mark event2
+    #timerange = '2021-04-06 12:15 to 15:30' # Mark event3
+    #timerange = '2016-04-20 13:00 to 17:00' # Mark event4
+    #timerange = '2021-04-03 07:30 to 09:00' # Mark event5
+    #timerange = '2015-09-10 05:30 to 09:30' # Mark event6
+    
+    timerange = getParam('timerange', '2016-11-05 22:42 to 23:18', 'timerange of event for analysis')
+    sc_list = ['mms1','mms2','mms3','mms4']
+    
+    freq_min = getParam('minFrequency', 0.3, 'minimum frequency for the bandpass filter')
+    freq_max = getParam('maxFrequency', 5.5, 'maximum frequency for the bandpass filter')
+    window   = getParam('windowSize', 2048, 'width of the window size (in points) used for fft')
+    slide    = getParam('windowOverlap', 8, 'amount of overlap with sliding windows for fft', [1, 2, 4, 8])
+    minPower = getParam('minPower', 0.001, 'minimum wave power threshold (nT^2/Hz) above which to perform calculations')
+    
+    trend_seconds = getParam('trendSeconds', 30, 'number of seconds to use as background magnetic field measurement')
+    
+    b_or_e = getParam('field', 'bfield', 'use electric (e) or magnetic (b) field measurements for analysis', ['bfield', 'efield'])
+    
+elif brst_or_srvy == 'brst':
+    #timerange = '2015-09-18 13:15:30 to 13:17:00'   # Large overview of chorus events
+    #timerange = '2015-09-18 13:15:55 to 13:16:04'   # The single wave burst with spectral characteristics
+    #timerange = '2015-09-18 13:16:15 to 13:16:21'
+    #timerange = '2016-04-07 01:25:30 to 01:25:50' # The event Drew looked at in Turner2017 paper
+    #timerange = '2015-11-04 3:11:39 to 3:12:03' # Looking at better events now
+    timerange = '2016-10-17 16:33:45 to 16:37:13'
+    #timerange = '2018-09-22 22:26 to 22:38'  # The chorus activity for the 20180922 conjunction event
+    ##timerange = '2018-09-22 22:28 to 22:34'  # The chorus activity for the 20180922 conjunction event
+    #timerange = '2015-08-04 15:49 to 15:50'  # 20150804 Olivier Confirmation event
+    sc_list = ['mms1','mms2','mms3','mms4']
+    
+    freq_min = getParam('minFrequency', 20, 'minimum frequency for the bandpass filter')
+    freq_max = getParam('maxFrequency', 500, 'maximum frequency for the bandpass filter')
+    window   = getParam('windowSize', 1024, 'width of the window size (in points) used for fft')
+    slide    = getParam('windowOverlap', 8, 'amount of overlap with sliding windows for fft', [1, 2, 4, 8])
+    #minPower = 1E-5
+    minPower = getParam('minPower', 5E-9, 'minimum wave power threshold (nT^2/Hz) above which to perform calculations')
+    
+    trend_seconds = getParam('trendSeconds', 30, 'number of seconds to use as background magnetic field measurement')
+    
+    b_or_e = getParam('field', 'bfield', 'use electric (e) or magnetic (b) field measurements for analysis', ['bfield', 'efield'])
+
+
+
+calculatePhaseVelocity = getParam('Calculate phase velocity', 'F', 'Do you want to calculate the wave phase velocity?', ['T', 'F'])
+writeStuff = getParam('Write File', 'T','Write the calculated parameters out to cdf' , ['T', 'F'])
+if writeStuff == 'T':
+    outputDirectory = getParam('Output Directory', '/tmp/mms_waveTelescope/', 'Files will be written to this directory')
+    mkdir(outputDirectory)
+
+if calculatePhaseVelocity == 'T':
+    calculatePhaseVelocity = True
+elif calculatePhaseVelocity == 'F':
+    calculatePhaseVelocity = False
+
+if writeStuff == 'T':
+    writeStuff = True
+elif writeStuff == 'F':
+    writeStuff = False
+    
+smoothData_yn = False    # True if you want the fieldAligner to smooth data for you, False if not. Leave at false and smooth before trimming data to save processing time when plotting nan event shorter than smooth time.
+
+#########################################################
+#########################################################
+#########################################################
+
+
 import java
 
 # ############################################################################################
@@ -292,72 +377,6 @@ def synchroterpolate(ds1,ds2):
 # ######################################################################################################### 
 # #########################################################################################################     
 
-brst_or_srvy = 'srvy' #'brst' 'srvy'
-
-#timerange = '2015-09-18 13:16:15 to 13:16:21'
-## timerange = '2015-08-15 14:42:30 to 14:43:45' # This is the one I am working on
-#timerange = '2015-08-04 16:24:00 to 16:25:00'
-#timerange = '2016-04-07 01:25:30 to 01:25:40'
-
-calculatePhaseVelocity = False
-writeMarksEvents = True
-
-if brst_or_srvy == 'srvy':
-    #timerange = '2015-08-15 08:54 to 09:12' # Rising tone
-    #timerange = '2015-06-25 11:50 to 12:07' # Pearl elements
-    timerange = '2018-09-22 22:29 to 22:34' # Conjunction study
-    #timerange = '2016-05-20 19:00 to 20:45' # Usanova's EMIC harmonics event
-    timerange = '2016-11-05 20:00 to 23:45' # Mark Engebretson's event for talk
-    #timerange = '2016-11-05 22:42 to 23:18' # Closeup of Mark Engebretson's event for talk
-    timerange = '2016-11-16' # Mark event1
-    #timerange = '2015-12-18 12:00 to 15:00' # Mark event2
-    #timerange = '2021-04-06 12:15 to 15:30' # Mark event3
-    #timerange = '2016-04-20 13:00 to 17:00' # Mark event4
-    #timerange = '2021-04-03 07:30 to 09:00' # Mark event5
-    #timerange = '2015-09-10 05:30 to 09:30' # Mark event6
-    sc_list = ['mms1','mms2','mms3','mms4']
-    
-    freq_min = 0.3
-    freq_max = 5.5
-    window = 2048
-    slide = 8
-    minPower = 0.001
-    
-    trend_seconds = 30
-    
-    b_or_e = 'bfield'
-    
-elif brst_or_srvy == 'brst':
-    #timerange = '2015-09-18 13:15:30 to 13:17:00'   # Large overview of chorus events
-    #timerange = '2015-09-18 13:15:55 to 13:16:04'   # The single wave burst with spectral characteristics
-    #timerange = '2015-09-18 13:16:15 to 13:16:21'
-    #timerange = '2016-04-07 01:25:30 to 01:25:50' # The event Drew looked at in Turner2017 paper
-    #timerange = '2015-11-04 3:11:39 to 3:12:03' # Looking at better events now
-    timerange = '2016-10-17 16:33:45 to 16:37:13'
-    #timerange = '2018-09-22 22:26 to 22:38'  # The chorus activity for the 20180922 conjunction event
-    ##timerange = '2018-09-22 22:28 to 22:34'  # The chorus activity for the 20180922 conjunction event
-    #timerange = '2015-08-04 15:49 to 15:50'  # 20150804 Olivier Confirmation event
-    sc_list = ['mms1','mms2','mms3','mms4']
-    
-    freq_min = 20
-    freq_max = 500
-    window = 1024
-#    freq_min = 100
-#    freq_max = 500
-#    window = 1024
-    slide = 8
-    minPower = 1E-5
-    minPower = 5E-9
-    
-    trend_seconds = 30
-    
-    b_or_e = 'bfield'
-    
-smoothData_yn = False    # True if you want the fieldAligner to smooth data for you, False if not. Leave at falser and smooth before trimming data to save processing time when plotting nan event shorter than smooth time.
-
-#########################################################
-#########################################################
-#########################################################
 
 
 # ###
@@ -593,7 +612,7 @@ wavePower.putProperty(QDataSet.VALID_MAX,1E10)
 #     NOO!! This can't be right, the results show coherent k-vector spectral information if we use +ve
 #     in the real components. There is obvious statistical noise with -ve
 #  - The answer  must lie in making the imaginary parts negative. This reverses the phi2-ph1 sign, so must be where the
-#    probelm came from. I thought I had it correct on paper, but obviously it disagreed with the direction/sign of relative locations
+#    problem came from. I thought I had it correct on paper, but obviously it disagreed with the direction/sign of relative locations
 G_12_real =  waveform_fft_mms1[:,:,0]*waveform_fft_mms2[:,:,0] + waveform_fft_mms1[:,:,1]*waveform_fft_mms2[:,:,1]
 G_12_imag = -(waveform_fft_mms1[:,:,0]*waveform_fft_mms2[:,:,1] - waveform_fft_mms1[:,:,1]*waveform_fft_mms2[:,:,0])
 G_12_mag = sqrt(G_12_real*G_12_real+G_12_imag*G_12_imag)
@@ -852,22 +871,6 @@ for i in xrange(len(fft_time)):
     #D6_inverse.getColumnDimension()
 
 
-#V_ph.putProperty(QDataSet.VALID_MIN,-1E4)
-#V_ph.putProperty(QDataSet.VALID_MAX, 1E4)
-#V_ph.putProperty(QDataSet.DEPEND_0,fft_time)
-#V_ph.putProperty(QDataSet.DEPEND_1,fft_frequency)
-##plot(1,V_ph[:,:,0])
-##plot(2,V_ph[:,:,1])
-##plot(3,V_ph[:,:,2])
-##stop
-#V_ph6.putProperty(QDataSet.VALID_MIN,-1E10)
-#V_ph6.putProperty(QDataSet.VALID_MAX, 1E10)
-#V_ph6.putProperty(QDataSet.DEPEND_0,fft_time)
-#V_ph6.putProperty(QDataSet.DEPEND_1,fft_frequency)
-##plot(4,V_ph[:,:,0]/V_ph6[:,:,0])
-##plot(5,V_ph[:,:,1]/V_ph6[:,:,1])
-##plot(6,V_ph[:,:,2]/V_ph6[:,:,2])
-##stop
 
 rad_km = Units.lookupUnits('rad/km')
 
@@ -970,7 +973,7 @@ elif plot_kvec_or_kunit == 'kangles':
 #plot(1,sin(k[:,:,0]/kmag),ytitle='(%{UNITS})',ztitle='Wave Normal')
 #plot(1,V_phase_analytical)
 
-if writeMarksEvents == True:
+if writeStuff == True:
     # Trim down Mark's event and average across kvec values for plot
     tr_trim = timerange # '2015-12-18'
     kparTrim = trim(k[:,:,0], tr_trim)
@@ -992,7 +995,8 @@ if writeMarksEvents == True:
     kbindle = bundle(kparTrim, kazTrim, kradTrim)
     kbindle.putProperty(QDataSet.DEPEND_0, kparTrim.property(QDataSet.DEPEND_0) )
     
-    formatDataSet(kbindle, 'G:/My Drive/Research/Papers-in-Progress/Engebretson_-_ConstantFrequencyWaves/%s_MMSWaveTelescope_meanKVector.txt?header=rich&format=2.6f'%(timerange[0:10]))
+    mkdir(outputDirectory)
+    formatDataSet(kbindle, outputDirectory+'%s_MMSWaveTelescope_meanKVector.txt?header=rich&format=2.6f'%(timerange[0:10]))
 
 
 # For plotting scatter of w vs k

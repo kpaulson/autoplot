@@ -33,11 +33,11 @@ if brst_or_srvy == 'srvy':
     #timerange = '2021-04-03 07:30 to 09:00' # Mark event5
     #timerange = '2015-09-10 05:30 to 09:30' # Mark event6
     
-    timerange = getParam('timerange', '2016-11-05 22:42 to 23:18', 'timerange of event for analysis')
+    timerange = getParam('timerange', '2016-11-05 20:00 to 23:45', 'timerange of event for analysis')
     sc_list = ['mms1','mms2','mms3','mms4']
     
-    freq_min = getParam('minFrequency', 0.3, 'minimum frequency for the bandpass filter')
-    freq_max = getParam('maxFrequency', 5.5, 'maximum frequency for the bandpass filter')
+    freq_min = getParam('minFrequency', 0.2, 'minimum frequency for the bandpass filter')
+    freq_max = getParam('maxFrequency', 1., 'maximum frequency for the bandpass filter')
     window   = getParam('windowSize', 2048, 'width of the window size (in points) used for fft')
     slide    = getParam('windowOverlap', 8, 'amount of overlap with sliding windows for fft', [1, 2, 4, 8])
     minPower = getParam('minPower', 0.001, 'minimum wave power threshold (nT^2/Hz) above which to perform calculations')
@@ -70,6 +70,7 @@ elif brst_or_srvy == 'brst':
     b_or_e = getParam('field', 'bfield', 'use electric (e) or magnetic (b) field measurements for analysis', ['bfield', 'efield'])
 
 
+plot_kvec_or_kunit = getParam('kvec_property', 'kvec', 'What property of the k vector do you want to plot (unit vector, full vector, or angular direction)?', ['kunit', 'kvec', 'kangles'])
 calculatePhaseVelocity = getParam('Calculate phase velocity', 'F', 'Do you want to calculate the wave phase velocity?', ['T', 'F'])
 writeStuff = getParam('Write File', 'T','Write the calculated parameters out to cdf' , ['T', 'F'])
 
@@ -957,7 +958,6 @@ if brst_or_srvy == 'brst':
 elif brst_or_srvy == 'srvy':
     plot(0 , crossSpectralPower , zlog=True , ytitle='CSD!CFGM B!Bp!N (%{UNITS})' , ztitle='PSD (nT!U2!N/Hz)' , title='Wave Telescope results in MFA coords   V!Ba!N = %s km/s'%(round(V_a,2)), xrange=timerange )
 
-plot_kvec_or_kunit = 'kvec' # 'kunit' 'kvec' 'kangles'
 if plot_kvec_or_kunit == 'kunit':  
     plot(1,k[:,:,0]/kmag,ytitle='(%{UNITS})',ztitle='k!D||!N / |k|')
     plot(2,k[:,:,1]/kmag,ytitle='(%{UNITS})',ztitle='k!B&perp;az!N / |k|')
@@ -976,6 +976,13 @@ elif plot_kvec_or_kunit == 'kangles':
     #plot(1,toDegrees(acos(k[:,:,0])),ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
     #plot(2,toDegrees(acos(k[:,:,1])),ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')
     #plot(3,acos(k[:,:,2]),ytitle='(%{UNITS})',ztitle='k!B&perp;rad!N (%{UNITS})')
+
+dom.controller.bind( dom.plots[0].yaxis, dom.plots[0].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+dom.controller.bind( dom.plots[2].yaxis, dom.plots[2].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+dom.controller.bind( dom.plots[3].yaxis, dom.plots[3].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+
+dom.controller.bind( dom.plots[2].zaxis, dom.plots[2].zaxis.PROP_RANGE,  dom.plots[1].zaxis, dom.plots[1].zaxis.PROP_RANGE )
+dom.controller.bind( dom.plots[3].zaxis, dom.plots[3].zaxis.PROP_RANGE,  dom.plots[1].zaxis, dom.plots[1].zaxis.PROP_RANGE )
 
 #plot(4,k[:,:,0]/k6[:,:,0],ytitle='(%{UNITS})',ztitle='k!D||!N (%{UNITS})')
 #plot(5,k[:,:,1]/k6[:,:,1],ytitle='(%{UNITS})',ztitle='k!B&perp;az!N (%{UNITS})')

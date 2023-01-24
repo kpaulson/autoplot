@@ -10,7 +10,11 @@ Script which downloads relevant MMS data products and calculates k-vector quanti
 wave phase speed in spectral domain
 '''
 
-#########
+
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
 
 
 brst_or_srvy = getParam('brst or srvy', 'srvy' , 'Perform analysis with brst- or srvy-mode data?', ['brst', 'srvy'])
@@ -66,12 +70,13 @@ elif brst_or_srvy == 'brst':
     b_or_e = getParam('field', 'bfield', 'use electric (e) or magnetic (b) field measurements for analysis', ['bfield', 'efield'])
 
 
-
 calculatePhaseVelocity = getParam('Calculate phase velocity', 'F', 'Do you want to calculate the wave phase velocity?', ['T', 'F'])
 writeStuff = getParam('Write File', 'T','Write the calculated parameters out to cdf' , ['T', 'F'])
+
 if writeStuff == 'T':
     outputDirectory = getParam('Output Directory', '/tmp/mms_waveTelescope/', 'Files will be written to this directory')
     mkdir(outputDirectory)
+
 
 if calculatePhaseVelocity == 'T':
     calculatePhaseVelocity = True
@@ -85,10 +90,13 @@ elif writeStuff == 'F':
     
 smoothData_yn = False    # True if you want the fieldAligner to smooth data for you, False if not. Leave at false and smooth before trimming data to save processing time when plotting nan event shorter than smooth time.
 
-#########################################################
-#########################################################
-#########################################################
 
+
+############################################################################
+##################            DEFINITIONS        ###########################
+############################################################################
+############################################################################
+    
 
 import java
 
@@ -374,8 +382,14 @@ def synchroterpolate(ds1,ds2):
     return( ds2_synch )
               
 # ######################################################################################################### 
-# ######################################################################################################### 
-# #########################################################################################################     
+
+
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
 
 
 

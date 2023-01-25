@@ -180,7 +180,7 @@ except:
 ############################################################################
     
 OS = get_os_version().split()[0]
-if OS == 'mac':
+if OS == 'mac' or OS == 'linux':
     #googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
     googleDrive_path = '/home/kpaulson/'
 elif OS == 'windows':

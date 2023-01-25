@@ -1,22 +1,25 @@
 def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds ):
     '''Routine used to define field-aligned coordinate system by smoothing over given magnetic field data.
-	
-	Parameters:
-	    Bx = rank1 X component of magnetic field
-		By = rank1 Y component of magnetic field
-		Bz = rank1 Z component of magnetic field
-		TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
-		TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
-		TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
-		trend_seconds = rank0 number of seconds over which to average B to define as background
-		
+
+    Parameters:
+        Bx = rank1 X component of magnetic field
+        By = rank1 Y component of magnetic field
+        Bz = rank1 Z component of magnetic field
+        TEMP_Rx = rank1 X component of radial s/c position (in same coord system as B)
+        TEMP_Ry = rank1 Y component of radial s/c position (in same coord system as B)
+        TEMP_Rz = rank1 Z component of radial s/c position (in same coord system as B)
+        trend_seconds = rank0 number of seconds over which to average B to define as background
+        
     Returns:
-	    (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
-		(Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
-		(Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
-		(Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
-	
-	'''
+        (Bn , Bp , Bq) = rank1 collection of Magnetic Field components in field-aligned system.
+        (Nx , Ny , Nz) = rank1 collection of Magnetic Field direction components in original coord system.
+        (Px , Py , Pz) = rank1 collection of Quasi-Radial direction components in original coord system.
+        (Qx , Qy , Qz) = rank1 collection of Quasi-Azimuthal direction components in original coord system.
+    
+    '''
+    
+    import java
+    
     #monitor.setLabel('Field Aligner')    
     # ###
     # ### BOXCAR SMOOTH RAW MAG DATA TO DEFINE FIELD-ALIGNED VECTOR
@@ -51,7 +54,21 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
     TEMP_Rmag = sqrt(TEMP_Rx**2 + TEMP_Ry**2 + TEMP_Rz**2)
     
     ephem_time = TEMP_Rx.property(QDataSet.DEPEND_0)
-    ephem_to_mag_ratio = findex(ephem_time,mag_time)
+    try:
+        ephem_to_mag_ratio = findex(ephem_time,mag_time)
+    except(java.lang.IllegalArgumentException):
+        if(eq(len(TEMP_Rx), len(mag_time))):
+            ephem_time = mag_time
+            ephem_to_mag_ratio = findex(ephem_time,mag_time)
+            TEMP_Rx.putProperty(QDataSet.DEPEND_0, ephem_time)
+            TEMP_Ry.putProperty(QDataSet.DEPEND_0, ephem_time)
+            TEMP_Rz.putProperty(QDataSet.DEPEND_0, ephem_time)
+            TEMP_Rmag.putProperty(QDataSet.DEPEND_0, ephem_time)
+            print 'TEMP_Rx has no associated timestamps. Proceeding with assumption that they are of same time cadence as \'Btotal\''
+        else:
+            raise noTimeForGamesException
+        
+        
     
     #TEMP_Rx = interpolate( (TEMP_Rx/TEMP_Rmag) , ephem_to_mag_ratio )
     #TEMP_Ry = interpolate( (TEMP_Ry/TEMP_Rmag) , ephem_to_mag_ratio )
@@ -59,7 +76,7 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
     TEMP_Rx = synchronize( Btotal_smooth, (TEMP_Rx/TEMP_Rmag) )
     TEMP_Ry = synchronize( Btotal_smooth, (TEMP_Ry/TEMP_Rmag) )
     TEMP_Rz = synchronize( Btotal_smooth, (TEMP_Rz/TEMP_Rmag) )
-	
+
     # This version divides by Rmag again, which I should not be doing.... how long has this been in here??
     #Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
     #Ry = -(TEMP_Ry/TEMP_Rmag) 

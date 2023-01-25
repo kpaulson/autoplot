@@ -3,6 +3,19 @@
 import java
 
 def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
+    '''
+    Integral part of Hanningfft subroutine, makes the slide function possible by trimming off the beginning of the data set and reapplying the Hanning windowing function, then resorting the result back into the dataset. 
+    
+    Parameters:
+        ds = The rank1 dataset upon which to perform trimming and windowing.
+        ds_time = The DEPEND_0 component of ds (often stripped off when performing the Hanningfft routine).
+        processed_ds = The already windowed rank2 version of ds from previous iterations.
+        window = Size of window to be taken measured in number of data points.
+        leading_points = The number of points to be trimmed from beginning of ds (typically iterated over window*(i+1)/slide)
+        
+    Outputs:
+        result = merged processed rank2 version of ds.
+    '''
     
     
     ds_time.putProperty( QDataSet.CADENCE , dataset('0s') )
@@ -21,7 +34,8 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
     return( result )
 
 def Hanningfft( ds , freq_min , freq_max , window , slide ):
-    """FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    '''
+    FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
     
     Parameters:
         ds = The rank1 time-series input data.
@@ -31,7 +45,8 @@ def Hanningfft( ds , freq_min , freq_max , window , slide ):
         slide = Window overlap size, expressed as a fraction of the length (1 for no slide, 2 for half steps, 4 for quarters)
         
     Returns:
-        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range."""
+        waveform_fft = The rank3 fft result of both real and imaginary components trimmed to frequency range.
+    '''
     
     ds_time = ds.property(QDataSet.DEPEND_0)
     

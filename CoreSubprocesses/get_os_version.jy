@@ -1,3 +1,4 @@
+global get_os_version
 def get_os_version():
     '''
     Basic subprocess that should print out the operating system version. Mostly helpful

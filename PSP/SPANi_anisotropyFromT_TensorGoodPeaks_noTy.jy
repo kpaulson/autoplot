@@ -4,13 +4,21 @@ timerange = '2018-10-01 to 2019-06-08'
 #timerange = '2019-08-26'
 #timerange = '2019-04-05'
 timerange = '2020-01-26 to 2020-02-05'
-timerange = getParam('timerange','2020-01-31','Timerange for processing')
+timerange = getParam('timerange','2021-04-25','Timerange for processing')
+protonsOrAlphas = getParam( 'protonsOrAlphas', 'protons', 'Do you want to generate files for protons (sf00) or alpha (sf0a) components?', ['protons', 'alphas'])
 #timerange = '2018-11-01 to 2018-11-06'
 trend_seconds = 60
 uncertainty_threshold = 2.8
-writeStuff = True
-plotStuff = False
+writeStuff = False
+plotStuff = True
 onlyPlotGoodSPAN = False
+#protonsOrAlphas = 'protons'   # 'protons', 'alphas'
+
+
+if protonsOrAlphas == 'protons':
+    spanPrefix = 'sf00'
+elif protonsOrAlphas == 'alphas':
+    spanPrefix = 'sf0a'
 
 #mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 #mag = getDataSet(mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
@@ -20,7 +28,7 @@ L2_mag_1min_file_teamSite = 'http://research.ssl.berkeley.edu/data/spp/data/sci/
 
 
 
-SPANi_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
+SPANi_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(spanPrefix, spanPrefix)
 
 
 ### IMPORT SUBPROCESSES
@@ -45,7 +53,7 @@ from org.apache.commons.math.linear import RealVector
 
 ### SCIENCE!
 
-outputDirectory = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/McMannis_Method/'
+outputDirectory = 'file:/G:/My Drive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/McManus_Method/%s/'%(spanPrefix)
 trs = generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
     
@@ -54,11 +62,12 @@ for tr in trs:
     except:
         mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
     
-    t_tensor = getDataSet(SPANi_file+'?T_TENSOR',tr)
+    print SPANi_file+'?T_TENSOR_INST&timerange=%s'%tr
+    t_tensor = getDataSet(SPANi_file+'?T_TENSOR_INST', tr)
     
 
     if onlyPlotGoodSPAN == True:
-        peakObservationFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt'
+        peakObservationFile = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt'
         peakObservationFlags = getDataSet(peakObservationFile+'?depend0=Epoch&column=VDF_Peak_Obs',tr)
         
         r = where(eq(peakObservationFlags,0))
@@ -71,7 +80,7 @@ for tr in trs:
     time = mag_sc.property(QDataSet.DEPEND_0)
     
     Txx = t_tensor[:,0]
-    Txz = t_tensor[:,4] # NO IDEA IF THIS IS THE CORRECT ELEMENT (NO LABELS IN CDF)
+    Txz = t_tensor[:,4] # NO IDEA IF THIS IS THE CORRECT ELEMENT (NO LABELS IN CDF) - It is, the labels are in the axis labels (presumably in order)
     Tzz = t_tensor[:,2]
     
     Tperp1 = dblarr(len(time))
@@ -106,6 +115,7 @@ for tr in trs:
     #                | Qx_spani  Qy_spani  Qz_spani |
     #
     #      (but for our rotation we only have   R T = T'  , this doesn't seem right)
+    #           - This is correct for a rotation, we don't want a full diagonalization
     #            
     #
     #     We will invert
@@ -184,8 +194,8 @@ for tr in trs:
             
             T_tensor_mag = rotate_SPANiT_to_magT_inverse.multiply(T_tensor_SPANi)
             
-            print 'T_tensor_mag',T_tensor_mag
-            print 'T_tensor_SPANi',T_tensor_SPANi
+            #print 'T_tensor_mag',T_tensor_mag
+            #print 'T_tensor_SPANi',T_tensor_SPANi
             
             
             Tperp1[i] = T_tensor_mag.getEntry(0,0)
@@ -219,24 +229,27 @@ for tr in trs:
     anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_mag_perp_uncertainty/T_mag_para)
     anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_mag_perp_uncertainty/T_mag_para)
     
+    # This step throws out values that exceed the uncertainty value, but should we be doing that?
+    #    ie, is it better to report everything even where we have no confidence or throw some values out?
     goodData = where(lt(anisotropy_mcmannis.property(QDataSet.DELTA_PLUS)/anisotropy_mcmannis,uncertainty_threshold))
     anisotropy_mcmannis = anisotropy_mcmannis[goodData]
+    time = time[goodData]
     T_mag_para = T_mag_para[goodData]
     T_mag_perp = T_mag_perp[goodData]
     T_mag_perp_uncertainty = T_mag_perp_uncertainty[goodData]
     T_anisotropy_uncertainty = T_mag_perp_uncertainty/T_mag_para
     
     if plotStuff == True:
-        plot(6,anisotropy_mcmannis,color='dark green')
+        plot(1,anisotropy_mcmannis,color='dark green')
         anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_anisotropy_uncertainty)
         anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_anisotropy_uncertainty)
         #setLayoutOverplot(4)
-        plot(5,anisotropy_mcmannis,color='green')
+        plot(0,anisotropy_mcmannis,color='green')
         #plot(3,T_mag_perp_uncertainty/T_mag_para)
         #plot(6,putProperty(T_mag[:,0]/T_mag[:,2],QDataSet.VALID_MIN,1E-10))
         stop
         
-        spc_anisotropy_file = 'file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.4.cdf'
+        spc_anisotropy_file = 'file:/G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v$(v,sep)/SPC_Anisotropy_L1_$Y-$m-$d_v1.1.4.cdf'
         spc_anisotropy = getDataSet(spc_anisotropy_file+'?Anisotropy',tr)
         spc_anisotropy_deltaPlus = getDataSet(spc_anisotropy_file+'?anisotropy_deltaPlus',tr)
         spc_anisotropy_deltaMinus = getDataSet(spc_anisotropy_file+'?anisotropy_deltaMinus',tr)
@@ -256,18 +269,28 @@ for tr in trs:
         
         anisotropy_mcmannis.putProperty(QDataSet.NAME,'anisotropy')
         anisotropy_mcmannis.putProperty(QDataSet.LABEL,'SPANi Anisotropy')
-        anisotropy_mcmannis.putProperty(QDataSet.TITLE,'Temperature Anisotropy derived using partial vdf pbserved by SPANi using McMannis method')
+        anisotropy_mcmannis.putProperty(QDataSet.TITLE,'Temperature Anisotropy derived using partial vdf pbserved by SPANi using McManus method')
         
         T_anisotropy_uncertainty.putProperty(QDataSet.NAME,'anisotropy_uncertainty')
         T_anisotropy_uncertainty.putProperty(QDataSet.LABEL,'SPANi Anisotropy Uncertainty')
-        T_anisotropy_uncertainty.putProperty(QDataSet.TITLE,'Uncertainty of temperature Anisotropy derived using partial vdf pbserved by SPANi using McMannis method')
+        T_anisotropy_uncertainty.putProperty(QDataSet.TITLE,'Uncertainty of temperature Anisotropy derived using partial vdf pbserved by SPANi using McManus method')
+        
+        T_mag_para.putProperty(QDataSet.NAME,'T_parallel')
+        T_mag_para.putProperty(QDataSet.LABEL,'T!B||!N')
+        T_mag_para.putProperty(QDataSet.TITLE,'Parallel proton temperature using McManus method without Tyy measurement')
+       
+        T_mag_perp.putProperty(QDataSet.NAME,'T_perpendicular')
+        T_mag_perp.putProperty(QDataSet.LABEL,'T!B&perp;!N')
+        T_mag_perp.putProperty(QDataSet.TITLE,'Perpendicular proton temperature using McManus method without Tyy measurement')
+        
         
         anisotropy_mcmannis.putProperty(QDataSet.DELTA_PLUS,T_anisotropy_uncertainty)
         anisotropy_mcmannis.putProperty(QDataSet.DELTA_MINUS,T_anisotropy_uncertainty)
-        bindle = bundle(anisotropy_mcmannis,T_anisotropy_uncertainty)
+        bindle = bundle(anisotropy_mcmannis, T_anisotropy_uncertainty, T_mag_para, T_mag_perp)
         bindle.putProperty(QDataSet.DEPEND_0,time)
         
-        formatDataSet(bindle,outputDirectory+'SPANi_Anisotropy_L1_%s_v1.0.0.cdf?bundle=T'%tr)
+        mkdir(outputDirectory)
+        formatDataSet(bindle,outputDirectory+'SPANi_%s_Anisotropy_L1_%s_v1.0.0.cdf?bundle=T'%(spanPrefix,tr))
     
     
 

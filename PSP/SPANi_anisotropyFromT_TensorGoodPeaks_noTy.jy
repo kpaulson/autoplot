@@ -6,12 +6,12 @@ timerange = '2018-10-01 to 2019-06-08'
 timerange = '2020-01-26 to 2020-02-05'
 timerange = getParam('timerange','2021-04-25','Timerange for processing')
 protonsOrAlphas = getParam( 'protonsOrAlphas', 'protons', 'Do you want to generate files for protons (sf00) or alpha (sf0a) components?', ['protons', 'alphas'])
-outputDirectory = getParam('outputDirectory', 'file:/G:/My Drive/Research/PSP/SPAN/SPANi/SPANi_anisotropy/anisotropy_files/McManus_Method/%s/'%(spanPrefix), 'where to write the files')
+spaniDirectory = getParam('outputDirectory', 'file:/G:/My Drive/Research/PSP/SPAN/SPANi/, 'where to write the files')
 #timerange = '2018-11-01 to 2018-11-06'
 trend_seconds = 60
 uncertainty_threshold = 2.8
-writeStuff = False
-plotStuff = True
+writeStuff = True
+plotStuff = False
 onlyPlotGoodSPAN = False
 #protonsOrAlphas = 'protons'   # 'protons', 'alphas'
 
@@ -20,6 +20,8 @@ if protonsOrAlphas == 'protons':
     spanPrefix = 'sf00'
 elif protonsOrAlphas == 'alphas':
     spanPrefix = 'sf0a'
+
+outputDirectory = spaniDirectory + 'SPANi_anisotropy/anisotropy_files/McManus_Method/%s/'%(spanPrefix)
 
 #mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 #mag = getDataSet(mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)

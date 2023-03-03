@@ -29,9 +29,10 @@ outputDirectory = spaniDirectory + 'SPANi_anisotropy/anisotropy_files/McManus_Me
 L2_mag_1min_file = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 L2_mag_1min_file_teamSite = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
 
-
+L2_mag_4sa_per_sec_file_sao = '/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
 
 SPANi_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(spanPrefix, spanPrefix)
+SPANi_file_sao = '/psp/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(spanPrefix, spanPrefix)
 
 
 ### IMPORT SUBPROCESSES
@@ -45,6 +46,9 @@ execfile( rotateSCToSPANi.toString() )
 fieldAligner= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import Field Aligner'))
 execfile( fieldAligner.toString() )
 
+get_os_version= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version'))
+execfile( get_os_version.toString() )
+
 from org.apache.commons.math.linear import Array2DRowRealMatrix 
 from org.apache.commons.math.linear import LUDecompositionImpl
 from org.apache.commons.math.linear import DecompositionSolver
@@ -52,20 +56,26 @@ from org.apache.commons.math.linear import RealMatrix
 from org.apache.commons.math.linear import RealVector
 
 
-
+os = get_os_version()
 
 ### SCIENCE!
 
 trs = generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
     
-    try:
-        mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
-    except:
-        mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
+    if os=='linux':
+        mag_sc = getDataSet(L2_mag_4sa_per_sec_file_sao+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',tr)
+    else:
+        try:
+            mag_sc = getDataSet(L2_mag_1min_file+'?psp_fld_l2_mag_SC_1min',tr)
+        except:
+            mag_sc = getDataSet(L2_mag_1min_file_teamSite+'?psp_fld_l2_mag_SC_1min',tr)
     
     print SPANi_file+'?T_TENSOR_INST&timerange=%s'%tr
-    t_tensor = getDataSet(SPANi_file+'?T_TENSOR_INST', tr)
+    if os=='linux':
+        t_tensor = getDataSet(SPANi_file_sao+'?T_TENSOR_INST', tr)
+    else:
+        t_tensor = getDataSet(SPANi_file+'?T_TENSOR_INST', tr)
     
 
     if onlyPlotGoodSPAN == True:

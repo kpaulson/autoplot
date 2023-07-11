@@ -9,7 +9,7 @@ timerange = getParam('timerange','2018-11-01 06:00 to 06:15','Iteration Timerang
 
 writeStuff           = True   #Write out downsampled SPC file
 writeBundle          = True  #Write cdf as a bundle instead of appending individual variables
-useLocalSubprocesses = False  #Find local process files instead of going to github
+useLocalSubprocesses = True  #Find local process files instead of going to github
 
 smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of spectra to average together before defining flow directions',[1,2,4,5,10,60,3600])
 numberOfChannels     = getParam('nChannels', 32, 'Number of energy channels to keep (from 0) after downsample')
@@ -111,6 +111,7 @@ for tr in trs:
         monitor.setProgressMessage(tr)
         
         try:
+            print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'+'&timerange='+tr
             spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
             spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
             spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
@@ -127,23 +128,57 @@ for tr in trs:
         time_last = TimeUtil.now()
         #spc_list = [spc_a,spc_b,spc_c,spc_d]
         
-        timeSorted = sort(spc_a.property(QDataSet.DEPEND_0))
-        plot(0,spc_a.property(QDataSet.DEPEND_0))
-        plot(1,spc_a.property(QDataSet.DEPEND_0)[timeSorted])
-        try:
-            spc_a = trim(spc_a[timeSorted],tr)
-            spc_b = trim(spc_b[timeSorted],tr)
-            spc_c = trim(spc_c[timeSorted],tr)
-            spc_d = trim(spc_d[timeSorted],tr)
-            mv_lo = trim(mv_lo[timeSorted],tr)
-            mv_hi = trim(mv_hi[timeSorted],tr)
-        except:
-            spc_a = trim(sortInTime(spc_a),tr)
-            spc_b = trim(sortInTime(spc_b),tr)
-            spc_c = trim(sortInTime(spc_c),tr)
-            spc_d = trim(sortInTime(spc_d),tr)  
-            mv_lo = trim(sortInTime(mv_lo),tr)
-            mv_hi = trim(sortInTime(mv_hi),tr)
+        
+        if ge(min(diff(spc_a.property(QDataSet.DEPEND_0))), 0):
+            if eq(spc_a.property(QDataSet.DEPEND_0).property(QDataSet.MONOTONIC), 0):
+                monitor.setLabel('Dealing with non-Monotonic time') 
+                time = spc_a.property(QDataSet.DEPEND_0)
+                time.putProperty(QDataSet.MONOTONIC, True)
+                putProperty(spc_a, QDataSet.DEPEND_0, time)
+                putProperty(spc_b, QDataSet.DEPEND_0, time)
+                putProperty(spc_c, QDataSet.DEPEND_0, time)
+                putProperty(spc_d, QDataSet.DEPEND_0, time)
+                putProperty(mv_hi, QDataSet.DEPEND_0, time)
+                putProperty(mv_lo, QDataSet.DEPEND_0, time)
+                
+            spc_a = trim(spc_a, tr)
+            spc_b = trim(spc_b, tr)
+            spc_c = trim(spc_c, tr)
+            spc_d = trim(spc_d, tr)
+            mv_lo = trim(mv_lo, tr)
+            mv_hi = trim(mv_hi, tr)
+        elif lt(min(diff(spc_a.property(QDataSet.DEPEND_0))), 0) or eq(spc_a.property(QDataSet.DEPEND_0).property(QDataSet.MONOTONIC), 0):
+            monitor.setLabel('Sorting and Dealing with non-Monotonic time') 
+            timeSorted = sort(spc_a.property(QDataSet.DEPEND_0))
+#            try:
+#                spc_a = trim(spc_a[timeSorted],tr)
+#                spc_b = trim(spc_b[timeSorted],tr)
+#                spc_c = trim(spc_c[timeSorted],tr)
+#                spc_d = trim(spc_d[timeSorted],tr)
+#                mv_lo = trim(mv_lo[timeSorted],tr)
+#                mv_hi = trim(mv_hi[timeSorted],tr)
+#            except:
+            if True:
+                spc_a = sortInTime(spc_a)
+                spc_b = sortInTime(spc_b)
+                spc_c = sortInTime(spc_c)
+                spc_d = sortInTime(spc_d)
+                mv_lo = sortInTime(mv_lo)
+                mv_hi = sortInTime(mv_hi)
+                time = spc_a.property(QDataSet.DEPEND_0)
+                time.putProperty(QDataSet.MONOTONIC, True)
+                putProperty(spc_a, QDataSet.DEPEND_0, time)
+                putProperty(spc_b, QDataSet.DEPEND_0, time)
+                putProperty(spc_c, QDataSet.DEPEND_0, time)
+                putProperty(spc_d, QDataSet.DEPEND_0, time)
+                putProperty(mv_hi, QDataSet.DEPEND_0, time)
+                putProperty(mv_lo, QDataSet.DEPEND_0, time)
+                spc_a = trim(spc_a, tr)
+                spc_b = trim(spc_b, tr)
+                spc_c = trim(spc_c, tr)
+                spc_d = trim(spc_d, tr)
+                mv_hi = trim(mv_hi, tr)
+                mv_lo = trim(mv_lo, tr)
         
         monitor.setLabel('Downsampling A') 
         (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
@@ -278,6 +313,8 @@ for tr in trs:
                 formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
                 formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
                 #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+            
+            print 'File written successfully - %s'%(localDownsampledDataFile)
         
     #except:
     #    continue

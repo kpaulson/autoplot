@@ -1,8 +1,14 @@
+from org.das2.datum import TimeUtil
 timerange = getParam('timerange','2020-01-30','timerange of flags to generate (typically daily files)')
 fileType  = getParam('file type', 'sf00', 'Which type of span file do you want to generate peak files for?', ['sf00', 'sf0a', 'af00', 'af0a'])
 #tr = generateTimeRanges('$Y-$m-$d',timerange)
 tr = timerange
 writeStuff = True
+
+
+tr_year = TimeUtil.fromDatum(datum(tr))[0]
+tr_month = TimeUtil.fromDatum(datum(tr))[1]
+tr_day = TimeUtil.fromDatum(datum(tr))[2]
 
 w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(fileType, fileType)
 
@@ -37,7 +43,7 @@ peakObservationFlag.putProperty(QDataSet.DESCRIPTION,'Flag dataset on whether th
 
 
 if writeStuff == True:
-    spaniPeakObservation_directory = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/%s/'%(fileType)
+    spaniPeakObservation_directory = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/%s/%s/%s/'%(fileType, tr_year, tr_month)
     mkdir(spaniPeakObservation_directory)
 
     formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s_%s.txt?header=rich'%(fileType,tr))

@@ -75,7 +75,7 @@ perihelion_14 = '2022-12-06 to 2022-12-16'
 perihelionList_4 = [perihelion_07, perihelion_08, perihelion_09, perihelion_10]
 perihelionList_5 = [perihelion_11]
 
-tr = perihelion_09
+tr = perihelion_08
 
 if tr in perihelionList_4:
     lfr_density = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l3/rfs_lfr_qtn/psp_fld_l3_rfs_lfr_qtn_20210109_20211201_v01.cdf?N_elec')
@@ -90,7 +90,7 @@ span_density = synchronize(Bmag, span_density)
 
 mu = 1.1
 ni = span_density
-#ni = lfr_density
+ni = lfr_density
 #plot(0, ni)
 #stop
 
@@ -105,7 +105,7 @@ v_r_span = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_
 v_r_span = synchronize(v_alfven, v_r_span)
 v_alfven.putProperty(QDataSet.UNITS, v_r_span.property(QDataSet.UNITS))
 plot(1, v_r_span, color='black', ytitle='(%{UNITS})', legendLabel='v!Br!N')
-plot(0, (abs(v_r_span) - v_alfven)[::20], renderType='series', fillColor='mms_red', ytitle='v - v!BA!N (%{UNITS})')
+plot(0, (abs(v_r_span) / v_alfven)[::20], renderType='series', fillColor='mms_red', ytitle='M!BA!N = v / v!BA!N (%{UNITS})', yrange=[1E-1, 1E1])
 
 #####################################
 

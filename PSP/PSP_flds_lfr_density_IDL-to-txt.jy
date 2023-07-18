@@ -1,0 +1,25 @@
+idl_file = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.idl'
+idl_file2 = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/LFRV1-V2Ne_Tc_Thk_mimo_2022-12-04_2022-12-20.sav'
+
+ne = getDataSet('vap+sav:file:///'+idl_file+'?LFR.N_E.DAT')
+ne2 = getDataSet('vap+sav:file:///'+idl_file2+'?DENSTOT')
+
+time = getDataSet('vap+sav:file:///'+idl_file+'?LFR.EPOCH.DAT')
+time2 = getDataSet('vap+sav:file:///'+idl_file2+'?EPOCHL2')
+time.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+
+ne = concatenate(ne, ne2)
+time = concatenate(time, time2)
+
+ne.putProperty(QDataSet.DEPEND_0, time)
+plot(ne)
+
+
+ne.putProperty(QDataSet.NAME, 'electronDensity')
+ne.putProperty(QDataSet.LABEL, 'n!Be!N')
+ne.putProperty(QDataSet.UNITS, Units.pcm3)
+ne.putProperty(QDataSet.TITLE, 'Electron number density derived from FIELDS LFR QTN data product')
+
+
+formatDataSet(ne, 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt?header=rich')

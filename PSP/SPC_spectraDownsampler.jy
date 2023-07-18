@@ -315,6 +315,7 @@ for tr in trs:
                 #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
             
             print 'File written successfully - %s'%(localDownsampledDataFile)
-        
+    
+    print 'Total time taken to process file:',TimeUtil.now()-time_begin_tr
     #except:
     #    continue

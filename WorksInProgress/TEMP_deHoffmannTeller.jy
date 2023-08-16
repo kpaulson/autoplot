@@ -10,11 +10,15 @@
 timerange          = '2020-01-30'
 timerange          = '2021-01-17'
 timerange          = '2021-11-21 18:00 to 2021-11-22 12:00'
-timerange          = '2021-11-21 10:00 to 2021-11-22 19:00'
-timeSubset_minutes = 5 #5
+timerange          = '2021-11-21 10:00 to 2021-11-22 19:00' # Encounter 10 sub-alfvenic region
+timerange          = '2022-02-25'
+timerange          = '2022-09-05'
+timerange          = getParam('timerange', '2022-02-25', 'Overall timerange to examine')
+timeSubset_minutes = 60 #5
+timeSubset_minutes = getParam('Window size minutes', 60, 'Size of the sliding window to perform analysis')
 
 use_SPCorSPAN = 'span' #'spc' 'span'
-use_RTN_or_SC = 'SC'  #'RTN' 'SC'
+use_RTN_or_SC = 'RTN'  #'RTN' 'SC'
 
 spc_L3_file_cfa =  'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 span_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_INST_$Y$m$d_v$v.cdf'
@@ -22,7 +26,8 @@ span_L3_file_cfa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf0
 mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
 mag_L2_file_berkeley_team = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
     
-        
+writeFile = True
+outputDirectory = 'G:/My Drive/Research/aaaWork/YeimyWork/PSP-SolO_switchbacks/'
                 
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -259,9 +264,9 @@ for tr in trs:
 #            print '    deHoffmann-Teller velocity (SC): (',round(v_HT[0],2),'km/s', round(v_HT[1],2),'km/s', round(v_HT[2],2),'km/s',' )'
         
         v_HT_long = bundle( ones(len(B_rtn))*v_HT[0] , ones(len(B_rtn))*v_HT[1] , ones(len(B_rtn))*v_HT[2] )
-        D_v_HT = total( magnitude(crossProduct((v_rtn-v_HT_long),B_rtn))**2 ) / len(v_rtn)
-        D_v_0 = total( magnitude(crossProduct((v_rtn-bundle(zeros(len(v_rtn)),zeros(len(v_rtn)),zeros(len(v_rtn)))),B_rtn))**2 ) / len(v_rtn)
-        D_v_mean = total( magnitude(crossProduct((v_rtn-bundle(ones(len(v_rtn))*mean(v_rtn[:,0]),zeros(len(v_rtn))*mean(v_rtn[:,1]),zeros(len(v_rtn))*mean(v_rtn[:,2]))),B_rtn))**2 ) / len(v_rtn)
+        D_v_HT    = total( magnitude(crossProduct((v_rtn-v_HT_long),B_rtn))**2 ) / len(v_rtn)
+        D_v_0     = total( magnitude(crossProduct((v_rtn-bundle(zeros(len(v_rtn)),zeros(len(v_rtn)),zeros(len(v_rtn)))),B_rtn))**2 ) / len(v_rtn)
+        D_v_mean  = total( magnitude(crossProduct((v_rtn-bundle(ones(len(v_rtn))*mean(v_rtn[:,0]),zeros(len(v_rtn))*mean(v_rtn[:,1]),zeros(len(v_rtn))*mean(v_rtn[:,2]))),B_rtn))**2 ) / len(v_rtn)
     
         #print 'D_v_HT/D_v_0: ',D_v_HT/D_v_0
         #print 'D_v_HT/D_v_mean: ',D_v_HT/D_v_mean
@@ -281,15 +286,48 @@ for tr in trs:
     
     index += 1
     
+    
+
+#(v_HT_x, v_HT_y, v_HT_z) = unbundle(v_HT_dataset, 1)
+v_HT_x = v_HT_dataset[:,0]
+v_HT_y = v_HT_dataset[:,1]
+v_HT_z = v_HT_dataset[:,2]
+if use_RTN_or_SC == 'RTN':
+    v_HT_x.putProperty(QDataSet.LABEL, 'V_HT rtn_r')
+    v_HT_y.putProperty(QDataSet.LABEL, 'V_HT rtn_t')
+    v_HT_z.putProperty(QDataSet.LABEL, 'V_HT rtn_n')
+    v_HT_x.putProperty(QDataSet.NAME, 'V_HT_rtn_r')
+    v_HT_y.putProperty(QDataSet.NAME, 'V_HT_rtn_t')
+    v_HT_z.putProperty(QDataSet.NAME, 'V_HT_rtn_n')
+elif use_RTN_or_SC == 'SC':
+    v_HT_x.putProperty(QDataSet.LABEL, 'V_HT sc_x')
+    v_HT_y.putProperty(QDataSet.LABEL, 'V_HT sc_y')
+    v_HT_z.putProperty(QDataSet.LABEL, 'V_HT sc_z')
+    v_HT_x.putProperty(QDataSet.NAME, 'V_HT_sc_x')
+    v_HT_y.putProperty(QDataSet.NAME, 'V_HT_sc_y')
+    v_HT_z.putProperty(QDataSet.NAME, 'V_HT_sc_z')
+
+v_HT_dataset = bundle(v_HT_x, v_HT_y, v_HT_z)
+
 v_HT_dataset.putProperty(QDataSet.DEPEND_0,time_dataset)  
 v_HT_dataset.putProperty(QDataSet.VALID_MIN,-1E10)  
 v_HT_dataset.putProperty(QDataSet.VALID_MAX,1E10)  
-v_HT_dataset.putProperty(QDataSet.UNITS,Units.lookupUnits('km/s')) 
-if use_RTN_or_SC == 'SC':
-    v_HT_dataset.putProperty(QDataSet.LABEL, ['Vx (SC)', 'Vy (SC)', 'Vz (SC)']) 
-    #v_HT_dataset[:,0].putProperty(QDataSet.ELEMENT_LABEL, 'Vx (SC)') 
-elif use_RTN_or_SC == 'RTN':
-    v_HT_dataset.putProperty(QDataSet.LABEL, ['Vr', 'Vt', 'Vn']) 
+v_HT_dataset.putProperty(QDataSet.UNITS,Units.lookupUnits('km/s'))
+
+D_v_HT_dataset.putProperty(QDataSet.LABEL, 'D_v_HT')
+D_v_HT_dataset.putProperty(QDataSet.NAME, 'D_v_HT')
+D_v_HT_dataset.putProperty(QDataSet.UNITS,Units.lookupUnits('km/s'))
+
+D_v_HT_D_v_0_ratio.putProperty(QDataSet.LABEL, 'D_v_HT / D_v_0')
+D_v_HT_D_v_0_ratio.putProperty(QDataSet.NAME, 'D_v_HT_D_v_0_ratio')
+D_v_HT_D_v_mean_ratio.putProperty(QDataSet.LABEL, 'D_v_HT / D_v_mean')
+D_v_HT_D_v_mean_ratio.putProperty(QDataSet.NAME, 'D_v_HT_D_v_mean_ratio')
+
+#if use_RTN_or_SC == 'SC':
+#    v_HT_dataset.putProperty(QDataSet.LABEL, ['Vx (SC)', 'Vy (SC)', 'Vz (SC)']) 
+#    #v_HT_dataset[:,0].putProperty(QDataSet.ELEMENT_LABEL, 'Vx (SC)') 
+#elif use_RTN_or_SC == 'RTN':
+#    v_HT_dataset.putProperty(QDataSet.LABEL, ['Vr', 'Vt', 'Vn']) 
  
 plot(2, v_HT_dataset, ytitle='v!BHT!N!C!C(%{UNITS})', renderType='series')
 
@@ -299,6 +337,17 @@ plot(3,vp_moment_rtn - v_HT_upsample, ytitle='v!B'+use_RTN_or_SC+'!N - v!BHT!N!C
 plot(4,magnitude(vp_moment_rtn - v_HT_upsample), legendLabel='V!Bdiff!N!C!Cmagnitude')
 
 plot(5, vp_moment_rtn,  ytitle='v!B'+use_RTN_or_SC+' (%{UNITS})')
+
+if writeFile == True:
+    outputFile = outputDirectory + 'PSP_vHT_%s_%smin.txt'%(timerange, timeSubset_minutes)
+    
+    bindle = bundle(v_HT_dataset, D_v_HT_dataset, D_v_HT_D_v_0_ratio, D_v_HT_D_v_mean_ratio)
+    bindle.putProperty(QDataSet.DEPEND_0, time_dataset)
+    
+    mkdir(outputDirectory)
+    
+    formatDataSet(bindle, outputFile+'?header=rich')
+
 stop
 
 vp1_fit_rtn = getDataSet(spc_L3_file_cfa+'?vp1_fit_RTN',timerange)

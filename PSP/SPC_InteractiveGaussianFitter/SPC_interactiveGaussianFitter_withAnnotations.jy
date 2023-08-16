@@ -4,14 +4,14 @@ This demonstrates how a script can be used to create a digitizing app.  Data is 
 the top panel, and the scientist draws a box to select a time range in the top panel.  
 This will run a model on the time-averaged of the data in the interval.
 ''')
-
+print PWD
 load( PWD + 'layoutWithAnnotation.vap' )
-
+#stop
 #plot( 0, PWD + 'FAKE_SPC.cdf?vdf' )
 
 single_or_double = 'triple'
 chi_squared_critical_min = 0.05
-maxAttempts = 50
+maxAttempts = 10
 singleFitAttempt = False
 
 from org.apache.commons.math.optimization.fitting import CurveFitter
@@ -197,7 +197,7 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
     validPoints = where(valid(ds).and(gt(ds.property(QDataSet.DEPEND_0),200)))
     ds = ds[validPoints]
     
-    # NEED TO APPLY SINGLE PEAK FIT TO THE TOP 3-5 POINTS FIRST TO NAIL DOWN THE CORE BEFORE THAN APPLYING MULTIPEAK FIT
+    # NEED TO APPLY SINGLE PEAK FIT TO THE TOP 3-5 POINTS FIRST TO NAIL DOWN THE CORE BEFORE THEN APPLYING MULTIPEAK FIT
     
     ds_sigma = mean(ds[-5:-1])*sqrt(2)
     
@@ -330,7 +330,7 @@ def doGaussianFit(ds,peakEstimates,single_or_double,chi_squared_critical_min,max
     reportFit( { "Peak1_amplitude":Peak1_amplitude, "Peak1_center":Peak1_center, "Peak1_width":Peak1_width, "Peak2_amplitude":Peak2_amplitude, "Peak2_center":Peak2_center, "Peak2_width":Peak2_width, "Peak3_amplitude":Peak3_amplitude, "Peak3_center":Peak3_center, "Peak3_width":Peak3_width, "min_chi_squared":min_chi_squared } )
 
     model_vdf = dataset( peak_1 + peak_2 + peak_3, units=ds.property(QDataSet.UNITS) )
-    plot( 2, v_space, model_vdf, color=Color.RED , xlog=True , ylog=True)    
+    plot( 2, v_space, model_vdf, color=Color.RED , xlog=False , ylog=True)    
     
     
 def smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints):
@@ -355,31 +355,44 @@ def smoothSPCByVoltage(spc_a,spc_a_smooth,smoothPoints):
 
 def mouse( evt ):
     ds= dom.plotElements[0].controller.dataSet
-    ds= trim( ds, evt.getXRange() )
+    if gt(evt.getXRange().width(), datum('1E-3 sec')):
+        ds= trim( ds, evt.getXRange() )
+        ds_dep1 = ds.property(QDataSet.DEPEND_1)
+    else:
+        ds= slice0( ds, dataset(evt.getXRange().min()) )
+        ds_dep1 = ds.property(QDataSet.DEPEND_0)
     peakEstimates = [evt.getYRange().min().value(),evt.getYRange().max().value()]
-    ds_dep1 = ds.property(QDataSet.DEPEND_1)
     if ds_dep1.rank()==1:
-        col= collapse0( ds )
+        if gt(evt.getXRange().width(), datum('1E-3 sec')):
+            col= collapse0( ds )
+        else:
+            s = sort(ds_dep1)
+            col= ds[s]
     elif ds_dep1.rank()==2:
         uniq_dep1 = None
-        for i in xrange(len(ds)):
-            uniq_dep1 = concatenate( uniq_dep1 , ds_dep1[i,:] )
-        r = where(valid(uniq_dep1))
-        uniq_dep1 = uniq_dep1[r]
-        sortedIndices = sort(uniq_dep1)
-        uniq_dep1_sorted = uniq_dep1[sortedIndices]
-        uniqInidices = uniq(uniq_dep1_sorted)
-        uniq_dep1_sorted = uniq_dep1_sorted[uniqInidices]
-        col = dblarr(len(uniq_dep1_sorted))  
-        index = 0     
-        for dep1 in uniq_dep1_sorted:
-            r = where(eq(ds_dep1,dep1))
-            validPoints = where(valid(ds[r]))
-            col[index] = mean(ds[r][validPoints])
-            index += 1
-        col.putProperty(QDataSet.DEPEND_0,uniq_dep1_sorted)   
-        col.putProperty(QDataSet.UNITS,ds.property(QDataSet.UNITS))
+        if len(ds)>0:
+            for i in xrange(len(ds)):
+                uniq_dep1 = concatenate( uniq_dep1 , ds_dep1[i,:] )
+            r = where(valid(uniq_dep1))
+            uniq_dep1 = uniq_dep1[r]
+            sortedIndices = sort(uniq_dep1)
+            uniq_dep1_sorted = uniq_dep1[sortedIndices]
+            uniqInidices = uniq(uniq_dep1_sorted)
+            uniq_dep1_sorted = uniq_dep1_sorted[uniqInidices]
+            col = dblarr(len(uniq_dep1_sorted))  
+            index = 0     
+            for dep1 in uniq_dep1_sorted:
+                r = where(eq(ds_dep1,dep1))
+                validPoints = where(valid(ds[r]))
+                col[index] = mean(ds[r][validPoints])
+                index += 1
+            col.putProperty(QDataSet.DEPEND_0,uniq_dep1_sorted)   
+            col.putProperty(QDataSet.UNITS,ds.property(QDataSet.UNITS))
+        else:
+            col = dblarr(10)
+            
     
+    print col
     col_uncertainty = mean(col[-5:-1])*sqrt(2)
     col.putProperty(QDataSet.DELTA_PLUS,col_uncertainty)
     col.putProperty(QDataSet.DELTA_MINUS,col_uncertainty)

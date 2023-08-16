@@ -46,13 +46,18 @@ au = 149597870.700  # 1AU in km
 #     B is in Gauss
 #     mu is the reduced particle mass normalized to mp
 
-lfr_density_file = 'file:///G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.csv'
 
-lfr_epoch   = getDataSet(lfr_density_file+'?column=field0')
-lfr_density = getDataSet(lfr_density_file+'?column=field1')
+#lfr_density_file = 'file:///G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.csv'
 
-lfr_epoch.putProperty(QDataSet.UNITS, Units.cdfTT2000)
-lfr_density.putProperty(QDataSet.DEPEND_0, lfr_epoch)
+#lfr_epoch   = getDataSet(lfr_density_file+'?column=field0')
+#lfr_density = getDataSet(lfr_density_file+'?column=field1')
+#
+#lfr_epoch.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+#lfr_density.putProperty(QDataSet.DEPEND_0, lfr_epoch)
+
+lfr_density_file = 'file:/G:/My%20Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt'
+
+lfr_density = getDataSet(lfr_density_file+'?depend0=field0&column=electronDensity')
 
 #plot(lfr_density)
 #stop
@@ -75,7 +80,7 @@ perihelion_14 = '2022-12-06 to 2022-12-16'
 perihelionList_4 = [perihelion_07, perihelion_08, perihelion_09, perihelion_10]
 perihelionList_5 = [perihelion_11]
 
-tr = perihelion_08
+tr = perihelion_13
 
 if tr in perihelionList_4:
     lfr_density = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l3/rfs_lfr_qtn/psp_fld_l3_rfs_lfr_qtn_20210109_20211201_v01.cdf?N_elec')
@@ -92,6 +97,8 @@ mu = 1.1
 ni = span_density
 ni = lfr_density
 #plot(0, ni)
+#plot(0, Bmag)
+#plot(0, span_density)
 #stop
 
 

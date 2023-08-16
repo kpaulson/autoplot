@@ -1,6 +1,8 @@
 # ############################################################################################
 
 import java
+global trim_it_merge_it
+global Hanningfft
 
 def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
     '''
@@ -36,6 +38,8 @@ def trim_it_merge_it(ds,ds_time,processed_ds,window,leading_points):
 def Hanningfft( ds , freq_min , freq_max , window , slide ):
     '''
     FFT routine employing sliding Hanning window function while preserving both real and imaginary components. 
+    TODO: There is still a scaling factor of 1.725 in there. Find the reason for this not being variable or known-constant dependent
+    TODO: Add rank2 frequency axis functionality
     
     Parameters:
         ds = The rank1 time-series input data.

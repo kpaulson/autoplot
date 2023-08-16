@@ -36,7 +36,9 @@ def smoothAndDownsampleSPCByVoltage(spc_ds,mv_lo,mv_hi,smoothSeconds):
     time_downsampled                 = -1*ones(len(trs_downsampler))
     
     tr_downsampler_index = 0
+    monitor.setTaskSize(len(trs_downsampler))
     for tr_downsampler in trs_downsampler:
+        monitor.setTaskProgress(tr_downsampler_index)
         try:
             tr_downsampler_timerange = datumRange( '%s to %s'%(tr_downsampler,datum(tr_downsampler)+datum('%ssec'%smoothSeconds)) )
             

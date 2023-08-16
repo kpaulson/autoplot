@@ -2,8 +2,9 @@
 tr = getParam('timerange', '2021-04-25', 'overall timerange to generate plots (typically 1 day)')
 numberOfMinutesIntegration = getParam('numberOfMinutesIntegration', 60, 'number of minutes to integrate for each TOF plot')
 
-outputDirectory = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/tof/Plots/%smin/'%(numberOfMinutesIntegration)
-#outputDirectory = 'G:/My Drive/Research/PSP/SPAN/SPANi/tof/Plots/15min/'
+#outputDirectory = '/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/tof/Plots/%smin/'%(numberOfMinutesIntegration)
+outputDirectory = 'G:/My Drive/Research/PSP/SPAN/SPANi/tof/Plots/%smin/'%(numberOfMinutesIntegration)
+mkdir(outputDirectory)
 
 massTable_list = [0, 1, 2, 3]
 

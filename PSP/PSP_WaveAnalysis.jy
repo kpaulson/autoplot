@@ -9,8 +9,8 @@
 #timerange = getParam('timerange','2019-04-01 08:10 to 08:20','Timerange over which to calculate Poynting Flux')
 #timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
 #timerange = getParam('timerange','2021-04-28 09:00 to 12:00','Timerange over which to calculate Poynting Flux')
-timerange = getParam('timerange','2022-02-25 11:50 to 12:30','Timerange over which to calculate Wave Parameters')
-#timerange = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Wave Parameters')
+#timerange = getParam('timerange','2022-02-25 11:50 to 12:30','Timerange over which to calculate Wave Parameters')
+timerange = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Wave Parameters')
 
 freq_min         = getParam('minFrequency',   0.1,  'Lower frequency bound of analysis (Hz)')
 freq_max         = getParam('maxFrequency',   32.,   'Upper frequency bound of analysis (Hz)')
@@ -97,7 +97,7 @@ elif sunOrientedPoyntingFlux == 'F':
 ############################################################################
 
 monitor.started()
-localCodeDirectory  = 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/'
+localCodeDirectory  = 'G:/My Drive/Software/Autoplot/githubScripts_autoplot/'
 remoteCodeDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 
 def importSubprocesses(codeRootDirectory, subprocessList):
@@ -238,8 +238,10 @@ for tr in trs:
     tr = str(tr)+' to '+str(tr+datum('6 hr'))
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
-        
-    outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
+
+    outputSubDirectory = str(datumRange(tr).min())[0:4]+'/'+str(datumRange(tr).min())[5:7]+'/'
+    mkdir(waveAnalysisFiles_directory+outputSubDirectory)
+    outputFile = waveAnalysisFiles_directory+outputSubDirectory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
             
     fileAlreadyExists = False
     if checkForPreviousFiles == True:
@@ -325,8 +327,6 @@ for tr in trs:
         
         if useButterworthFilter == True:
             highFreqMagLimit = datum('1 sec')/mode(diff(mag_time))/2.
-            print highFreqMagLimit
-            print efield_data
             Ex = Butterworth_Bandpassify_zeroPhase( efield_data[:,0] , 2 , datum('0 Hz') , datum(str(highFreqMagLimit)+' Hz') , True )
             Ey = Butterworth_Bandpassify_zeroPhase( efield_data[:,1] , 2 , datum('0 Hz') , datum(str(highFreqMagLimit)+' Hz') , True )
             (Ex, Ey) = synchronize(mag_data, [Ex, Ey])
@@ -480,26 +480,26 @@ for tr in trs:
             ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization, Power_compressional, Power_perp, Wave_Power, kx, ky, kz ) = Polarize( Bn_fft_pol , Bp_fft_pol , Bq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min, giveUsTheK = True )
             ( Handedness_E , Ellipticity_E , Angle_Normal_E , Deg_Polarization_E , Coherency_E , Angle_polarization_E, Power_compressional_E, Power_perp_E, Wave_Power_E, kx_E, ky_E, kz_E ) = Polarize( En_fft_pol , Ep_fft_pol , Eq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min_E, giveUsTheK = True )
             
-            kx.putProperty(  QDataSet.NAME, 'kx_B')
-            ky.putProperty(  QDataSet.NAME, 'ky_B')
-            kz.putProperty(  QDataSet.NAME, 'kz_B')
-            kx_E.putProperty(QDataSet.NAME, 'kx_E')
-            ky_E.putProperty(QDataSet.NAME, 'ky_E')
-            kz_E.putProperty(QDataSet.NAME, 'kz_E')
+            kx.putProperty(  QDataSet.NAME, 'kp_B')
+            ky.putProperty(  QDataSet.NAME, 'kq_B')
+            kz.putProperty(  QDataSet.NAME, 'kn_B')
+            kx_E.putProperty(QDataSet.NAME, 'kp_E')
+            ky_E.putProperty(QDataSet.NAME, 'kq_E')
+            kz_E.putProperty(QDataSet.NAME, 'kn_E')
             
-            kx.putProperty(  QDataSet.LABEL, 'kx (Bfield)')
-            ky.putProperty(  QDataSet.LABEL, 'ky (Bfield)')
-            kz.putProperty(  QDataSet.LABEL, 'kz (Bfield)')
-            kx_E.putProperty(QDataSet.LABEL, 'kx (Efield)')
-            ky_E.putProperty(QDataSet.LABEL, 'ky (Efield)')
-            kz_E.putProperty(QDataSet.LABEL, 'kz (Efield)')
+            kx.putProperty(  QDataSet.LABEL, 'kp (Bfield B!B&perp;!N)')
+            ky.putProperty(  QDataSet.LABEL, 'kq (Bfield B!B&perp;!N)')
+            kz.putProperty(  QDataSet.LABEL, 'kn (Bfield B!B||!N)')
+            kx_E.putProperty(QDataSet.LABEL, 'kp (Efield B!B&perp;!N)')
+            ky_E.putProperty(QDataSet.LABEL, 'kq (Efield B!B&perp;!N)')
+            kz_E.putProperty(QDataSet.LABEL, 'kn (Efield B!B||!N)')
 
-            kx.putProperty(  QDataSet.TITLE, 'Wave Vector kx (Bfield)')
-            ky.putProperty(  QDataSet.TITLE, 'Wave Vector ky (Bfield)')
-            kz.putProperty(  QDataSet.TITLE, 'Wave Vector kz (Bfield)')
-            kx_E.putProperty(QDataSet.TITLE, 'Wave Vector kx (Efield)')
-            ky_E.putProperty(QDataSet.TITLE, 'Wave Vector ky (Efield)')
-            kz_E.putProperty(QDataSet.TITLE, 'Wave Vector kz (Efield)')
+            kx.putProperty(  QDataSet.TITLE, 'Wave Vector kp (Bfield B!B&perp;!N)')
+            ky.putProperty(  QDataSet.TITLE, 'Wave Vector kq (Bfield B!B&perp;!N)')
+            kz.putProperty(  QDataSet.TITLE, 'Wave Vector kn (Bfield B!B||!N)')
+            kx_E.putProperty(QDataSet.TITLE, 'Wave Vector kp (Efield B!B&perp;!N)')
+            ky_E.putProperty(QDataSet.TITLE, 'Wave Vector kq (Efield B!B&perp;!N)')
+            kz_E.putProperty(QDataSet.TITLE, 'Wave Vector kn (Efield B!B||!N)')
 
             kx.putProperty(  QDataSet.DEPEND_0, fft_time)
             ky.putProperty(  QDataSet.DEPEND_0, fft_time)
@@ -874,9 +874,12 @@ for tr in trs:
             waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/'
             load(waveAnalysis_directory+'PSP_waveAnalysis_stack.vap')
             
+            min_timeSeries = min(Bq_pol[::100])
+            max_timeSeries = max(Bn_pol[::100])
+            
             plot(0, mag_time, Bn_pol, ytitle='B (nT)', color='black', title='PSP WaveAnalysis   %s   v%s'%(tr_titles[index],version))
             plot(1, mag_time, Bp_pol, ytitle='B (nT)', color='red')
-            plot(2, mag_time, Bq_pol, ytitle='B (nT)', color='blue')
+            plot(2, mag_time, Bq_pol, ytitle='B (nT)', color='blue', yrange=[-1.1*min_timeSeries, 1.1*max_timeSeries])
             plot(3, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  

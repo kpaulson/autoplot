@@ -32,7 +32,6 @@ fixLayout()
 sl= None  # reference to the slice window
 
 def doSlice(x):
-    print x
     'Do the slice action off of the event thread'
     global sl
     d0= getApplication()

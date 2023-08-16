@@ -1,3 +1,4 @@
+global Butterworth_Bandpassify_zeroPhase
 def Butterworth_Bandpassify_zeroPhase( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject ):
     from org.das2.math.filter import Butterworth
     Component_bandpass_coefficients = Butterworth( Component , polynomial_order , low_frequency , high_frequency , pass_or_reject )

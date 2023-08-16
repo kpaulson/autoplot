@@ -108,22 +108,23 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min, giveUsTh
     
     del ( img_mag )
 
-    lowering_ratio = findex( Nx.property( QDataSet.DEPEND_0 ) , fft_time )
+    # Taking out the downsampling since I am using N_hat in the wrong coordinate system anyway and this is unnecessary
+    #lowering_ratio = findex( Nx.property( QDataSet.DEPEND_0 ) , fft_time )
 
-    Nx_fftcadence = interpolate ( Nx , lowering_ratio )
-    Ny_fftcadence = interpolate ( Ny , lowering_ratio )
-    Nz_fftcadence = interpolate ( Nz , lowering_ratio )
+    #Nx_fftcadence = interpolate ( Nx , lowering_ratio )
+    #Ny_fftcadence = interpolate ( Ny , lowering_ratio )
+    #Nz_fftcadence = interpolate ( Nz , lowering_ratio )
 
-    Nx_fftarray = dblarr( len( kp[:,1] ) , len( kp[1,:] ) )
-    Ny_fftarray = dblarr( len( kp[:,1] ) , len( kp[1,:] ) )
-    Nz_fftarray = dblarr( len( kp[:,1] ) , len( kp[1,:] ) )
+    Nx_fftarray = dblarr( len( kp[:,1] ) , len( kp[1,:] ) )  #Really this is Np (ie, 0)
+    Ny_fftarray = dblarr( len( kp[:,1] ) , len( kp[1,:] ) )  #Really this is Nq (ie, 0)
+    Nz_fftarray = ones( len( kp[:,1] ) , len( kp[1,:] ) )    #Really this is Nn (ie, 1)
 
-    for j in xrange( len( kp[1,:] ) ): # magnetic field direction is same at all frequencies, so turn vector into an array where DEPEND_1 is constant
-          Nx_fftarray[:,j] = Nx_fftcadence
-          Ny_fftarray[:,j] = Ny_fftcadence
-          Nz_fftarray[:,j] = Nz_fftcadence
+    #for j in xrange( len( kp[1,:] ) ): # magnetic field direction is same at all frequencies, so turn vector into an array where DEPEND_1 is constant
+    #      Nx_fftarray[:,j] = Nx_fftcadence
+    #      Ny_fftarray[:,j] = Ny_fftcadence
+    #      Nz_fftarray[:,j] = Nz_fftcadence
 
-    del ( [ Nx_fftcadence , Ny_fftcadence , Nz_fftcadence ] )
+    #del ( [ Nx_fftcadence , Ny_fftcadence , Nz_fftcadence ] )
 
     Nx_fftarray.putProperty(QDataSet.DEPEND_0,fft_time)
     Nx_fftarray.putProperty(QDataSet.DEPEND_1,frequency_axis)
@@ -153,7 +154,8 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min, giveUsTh
 #    monitor.setTaskProgress(52)
     monitor.setProgressMessage('Creating Wave-Normal Coordinate System')
      
-    theta = acos( kp*Nx_fftarray + kq*Ny_fftarray + kn*Nz_fftarray )
+    #theta = acos( kp*Nx_fftarray + kq*Ny_fftarray + kn*Nz_fftarray )  #TODO: shouldn't this also just be acos(kn)?
+    theta = acos( kn )  #TODO: shouldn't this also just be acos(kn)?
     factor = sin( theta )
 #    monitor.setTaskProgress(53)
     
@@ -163,10 +165,15 @@ def Polarize( Bn_fft , Bp_fft , Bq_fft , Nx , Ny , Nz , wave_power_min, giveUsTh
           # for i in xrange( len(kp[:,1]) ):
                 # if ( theta[i,j] > (PI/2) ):
                       # theta[i,j] = PI - theta[i,j]
-
+                      
+    # We now want to define a vector r that is perpendicular to k (if we find som kxn, won't we open ourselves to problems when theta->0?)
+    # Isn't this also mathematically illiterate since k and N are written in two different coordinate systems?
     Rx = ((kq * Nz_fftarray) - (kn * Ny_fftarray)) / factor # R_hat = k_hat x N_hat so is perpendicular to plane of wave normal and magnetic field
     Ry = ((kn * Nx_fftarray) - (kp * Nz_fftarray)) / factor
     Rz = ((kp * Ny_fftarray) - (kq * Nx_fftarray)) / factor
+    # Really it should be R_hat = k_hat x N_hat = k_hat x (0,0,1)
+    # I have modified N_hat to see if this propagates through.
+    
     
     # Below was original code, but this is not right-handed. This was edited in RBSP and MMS scripts before.
 #    Sx = (Ry * kn) - (Rz * kq)# S_hat = R_hat x k_hat so is in plane of wave normal and magnetic field

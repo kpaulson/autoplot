@@ -29,12 +29,13 @@ endtime_input = getParam( 'End Date and Time' , str(tstop) , 'End of wave activi
 
 timerange = str(starttime_input)+' through '+str(endtime_input)
 
-temperature = getDataSet('vap+cdaweb:ds=WI_PM_3DP&id=P_TEMP&timerange='+timerange)
+#temperature = getDataSet('vap+cdaweb:ds=WI_PM_3DP&id=P_TEMP&timerange='+timerange)
+temperature = getDataSet('vap+cdaweb:ds=WI_PM_3DP&id=P_TEMP', timerange)
 
 try:
-    velocity = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=V_GSE&timerange='+timerange)
+    velocity = getDataSet('vap+cdaweb:ds=WI_PM_3DP&filter=wind&id=P_VELS', timerange)
 except:
-    velocity = getDataSet('vap+cdaweb:ds=WI_PM_3DP&filter=wind&id=P_VELS&timerange='+timerange)
+    velocity = getDataSet('vap+cdaweb:ds=WI_K0_SWE&id=V_GSE', timerange)
 #    v_time = velocity.property(QDataSet.DEPEND_0)
 #    velocity = bundle(velocity,zeros(len(velocity)),zeros(len(velocity)))
 #    velocity.putProperty(QDataSet.DEPEND_0,v_time)
@@ -46,15 +47,22 @@ if len(time) != len(uniq(time)):
     u = uniq(time)
     time = time[u]
     temperature = temperature[u]
-
-Vp = filterAndUpscale(Vp,temperature)
-
+    
+try:
+    Vp = filterAndUpscale(Vp,temperature)
+except:
+    pass
+    
 Vp.putProperty(QDataSet.UNITS,None)
 T_exp = dblarr( len(Vp) )
 T_exp.putProperty( QDataSet.VALID_MIN , 0 )
 T_exp.putProperty( QDataSet.LABEL , 'T!Bexp!N' )
-T_exp.putProperty( QDataSet.DEPEND_0, time )
 T_exp.putProperty( QDataSet.UNITS, Units.eV )
+
+if eq(len(Vp), len(time)):
+    T_exp.putProperty( QDataSet.DEPEND_0, time )
+else:
+    T_exp.putProperty( QDataSet.DEPEND_0, velocity.property( QDataSet.DEPEND_0 ) )
 
 for i in xrange( len(Vp) ):
     if ( Vp[i] == -9999.90 ):

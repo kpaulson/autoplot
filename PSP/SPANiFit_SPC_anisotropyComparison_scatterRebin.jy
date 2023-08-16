@@ -16,10 +16,13 @@ tr = '2018-10-28 to 2018-11-20'  # Encounter 1
 #tr = '2020-01-20 to 2020-02-05'  # Encounter 4
 #tr = '2019-03-25 to 2020-04-20'  # Encounter 2-4
 tr = '2018-10-15 to 2020-04-20'  # Encounter all
+tr = '2022-02-23'# to 2022-02-24'
 
 onlyPlotEdges = False
 onlyPlotNoSPAN = False
-plotTemperatureComparison = False
+plotTemperatureComparison = True
+useSPANFOVexcluder = True
+SPANVDFExcluderMinimum = 0.9
 
 L0_version = '0.4.5'
 L1_version = '1.1.5'
@@ -60,11 +63,11 @@ execfile( spearmanCorrelate.toString() )
 
 
 
-ss_L0File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(L0_version,L0_version)
-ss_L1File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(L1_version,L1_version)
-ss_L1P1File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_p1_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
-ss_L13File = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_3_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
-ss_L1aFile = '/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_a_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
+ss_L0File   = 'G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(L0_version,L0_version)
+ss_L1File   = 'G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_$Y-$m-$d_v%s.cdf'%(L1_version,L1_version)
+ss_L1P1File = 'G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_p1_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
+ss_L13File  = 'G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_3_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
+ss_L1aFile  = 'G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L1/v%s/SPC_Anisotropy_L1_a_$Y-$m-$d_v%s.cdf'%(L1_version_p1,L1_version_p1)
 
 spc_L3File = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
     
@@ -75,10 +78,36 @@ spc_L3File = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp
 
 import java
 
-spani_p1_anisotropy = getDataSet('vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1?depend0=TIME&column=field3')
+spanFitFile = ''
+
+#spani_p1_anisotropy = getDataSet('vap+dat:file:///G:/My Drive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1?depend0=TIME&column=field3')
+#spani_p1_tperp = getDataSet('vap+dat:file:///G:/My Drive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1?depend0=TIME&column=field2')
+spani_p1_anisotropy = getDataSet('file:/G:/.shortcut-targets-by-id/1hYkeMR38JoiyZEvZRjehpOkZIEt9zBBO/span_fits/E11/sf00_E11_20220221-25_n4_v0.csv?depend0=time&column=Trat1')
+spani_p1_tperp = getDataSet('file:/G:/.shortcut-targets-by-id/1hYkeMR38JoiyZEvZRjehpOkZIEt9zBBO/span_fits/E11/sf00_E11_20220221-25_n4_v0.csv?depend0=time&column=Tperp1')
+
+
+
+badFits = where(eq(spani_p1_anisotropy,12.0))
+spani_p1_anisotropy[badFits] = -1E31
+spani_p1_tperp[badFits] = -1E31
+badFits = where(eq(spani_p1_anisotropy,0.01))
+spani_p1_anisotropy[badFits] = -1E31
+spani_p1_tperp[badFits] = -1E31
+
+
+if useSPANFOVexcluder == True:
+    fov = getDataSet('file:/G:/.shortcut-targets-by-id/1hYkeMR38JoiyZEvZRjehpOkZIEt9zBBO/span_fits/E11/2022-02-21-25_n4_sf00_fits_FOV.txt?column=field1')
+    timeFov = getDataSet('file:/G:/.shortcut-targets-by-id/1hYkeMR38JoiyZEvZRjehpOkZIEt9zBBO/span_fits/E11/2022-02-21-25_n4_sf00_fits_FOV.txt?column=field0')
+    timeFov.putProperty(QDataSet.UNITS, Units.t1970)
+    
+    fov = synchronize(spani_p1_anisotropy, fov)
+    goodFits = where(ge(fov,SPANVDFExcluderMinimum))
+    spani_p1_anisotropy = spani_p1_anisotropy[goodFits]
+    spani_p1_tperp = spani_p1_tperp[goodFits]
+
+
 spani_time = spani_p1_anisotropy.property(QDataSet.DEPEND_0)
 spani_time.putProperty(QDataSet.UNITS,Units.t1970)
-spani_p1_tperp = getDataSet('vap+dat:file:///C:/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/SPANi_fits/Davin_TEMP_files/SPANi_prelimFits_p1?depend0=TIME&column=field2')
 spani_p1_tp_1 = spani_p1_tperp * sqrt( 1 + (1./(spani_p1_anisotropy**2)) ) * 11606
 spani_p1_tp_2 = (spani_p1_tperp/3.) * ( 2 + (1./spani_p1_anisotropy) ) * 11606
 spani_p1_tp_1.putProperty(QDataSet.DEPEND_0,spani_time)
@@ -87,7 +116,7 @@ spani_p1_tp_2.putProperty(QDataSet.DEPEND_0,spani_time)
 spani_p1_anisotropy = trim(spani_p1_anisotropy,tr)
 spani_p1_Tp = trim(spani_p1_tp_2,tr)
 
-peakObservation = getDataSet('/Users/kpaulson/GoogleDrive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt',tr)
+peakObservation = getDataSet('G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/SPANi_peakObservationFlags_$Y-$m-$d.txt',tr)
 peakObservation = trim(peakObservation,tr)
 peakObservationEdges = abs(diff(peakObservation))
 
@@ -133,9 +162,9 @@ dataSubset_ss = []
         
 time_ss = spc_ss_anisotropy.property(QDataSet.DEPEND_0)
 
-spc_jia_anisotropy_E1 = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter1_anisotropy_Jia.cdf?anisotropy core')
-spc_jia_anisotropy_E2 = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter2_anisotropy_Jia.cdf?anisotropy core')
-spc_jia_anisotropy_E4 = getDataSet('file:/C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter4_anisotropy_Jia.cdf?anisotropy core')
+spc_jia_anisotropy_E1 = getDataSet('file:/G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter1_anisotropy_Jia.cdf?anisotropy core')
+spc_jia_anisotropy_E2 = getDataSet('file:/G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter2_anisotropy_Jia.cdf?anisotropy core')
+spc_jia_anisotropy_E4 = getDataSet('file:/G:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/JiaProvided/Encounter4_anisotropy_Jia.cdf?anisotropy core')
 spc_jia_anisotropy = concatenate(spc_jia_anisotropy_E1, spc_jia_anisotropy_E2)
 spc_jia_anisotropy = concatenate(spc_jia_anisotropy, spc_jia_anisotropy_E4)
 
@@ -254,7 +283,7 @@ if plotTemperatureComparison == False:
     #a_spani_jia= annotation(1,text='r= '+str(round(spani_jia_coeff,4)),borderType='Rounded_Rectangle')
     #a_jia_ss= annotation(2,text='r= '+str(round(jia_ss_coeff,4)),borderType='Rounded_Rectangle')
     
-    load('/Users/kpaulson/GoogleDrive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin.vap')
+    load('G:/My Drive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin.vap')
     
     dom.annotations[0].text= 'r= '+str(round(spani_ss_coeff,3))
     dom.annotations[1].text= 'r= '+str(round(spani_jia_coeff,3))
@@ -300,7 +329,7 @@ elif plotTemperatureComparison == True:
     #a_spani_jia= annotation(1,text='r= '+str(round(spani_jia_coeff,4)),borderType='Rounded_Rectangle')
     #a_jia_ss= annotation(2,text='r= '+str(round(jia_ss_coeff,4)),borderType='Rounded_Rectangle')
     
-    load('/Users/kpaulson/GoogleDrive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin_TpFilter.vap')
+    load('G:/My Drive/Research/PSP/PSP_SPC-SPANi_anisotropyComparisons_scatterRebin_TpFilter.vap')
     
     dom.annotations[0].text= 'r= '+str(round(spani_ss_coeff,3))
     dom.annotations[1].text= 'r= '+str(round(spani_ss_filtered_coeff,3))

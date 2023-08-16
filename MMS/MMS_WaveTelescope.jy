@@ -1005,6 +1005,8 @@ if writeStuff == True:
     kazTrim = reduceMean(kazTrim,1)
     kradTrim = reduceMean(kradTrim,1)
     
+    dom.controller.unbind( dom.plots[0].yaxis, dom.plots[0].yaxis.PROP_RANGE,  dom.plots[1].yaxis, dom.plots[1].yaxis.PROP_RANGE )
+    
     plot(1,kparTrim, ytitle='k!D||!N (%{UNITS})!C!C(mean)')
     plot(2,kazTrim, ytitle='k!D&perp;az!N (%{UNITS})!C!C(mean)')
     plot(3,kradTrim, ytitle='k!D&perp;rad!N (%{UNITS})!C!C(mean)')

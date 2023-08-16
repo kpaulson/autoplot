@@ -9,6 +9,9 @@ import java
 
 tr = '2021-01-20 04:59:43 to 04:59:48'
 tr = '2020-01-29'
+tr = '2022-02-25'
+tr = '2021-11-22'
+tr = '2022-02-25'
 trend_seconds = 60
 downsampleFactor = 1000 #100 #1
 
@@ -303,7 +306,8 @@ def doSlice(x):
     contour_vxvy = contour( rebinnedSPANBundle_vxvy_degapped, vv )
     
     #setLayoutOverplot(2)
-    plot(0, rebinnedSPANBundle_vxvz, xtitle='v!Bx!N', ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(spanTime_title,timeWidth), zlog=True, zrange=[1E4, 1E7], colorTable='apl_rainbow_black0')
+    #plot(0, rebinnedSPANBundle_vxvz, xtitle='v!Bx!N', ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(spanTime_title,timeWidth), zlog=True, zrange=[1E4, 1E7], colorTable='apl_rainbow_black0')
+    plot(0, rebinnedSPANBundle_vxvz_interpolated, xtitle='v!Bx!N', ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(spanTime_title,timeWidth), zlog=True, zrange=[1E4, 1E7], colorTable='apl_rainbow_black0')
     plot(1, contour_vxvz, color='magenta')
     plot(2, rebinnedSPANBundle_vxvy, xtitle='v!Bx!N', ytitle='v!By!N', zlog=True, zrange=[1E4, 1E7], colorTable='apl_rainbow_black0')
 

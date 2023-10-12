@@ -21,10 +21,10 @@ poynting_min     = getParam('poyntingMin',    1E-6, 'Minimum Poynting Flux value
 wave_power_min   = getParam('wavePowerMin',   1E-4, 'Minimum Wave Power value in Bfield to be plotted (filters out noise)')
 wave_power_min_E = getParam('wavePowerMin_E', 1E-10, 'Minimum electric field Wave Power value in Bfield to be plotted (filters out noise)')
 
-version = '1.2'
+version = '1.3'
 filterOutIncoherent = False
 
-useLocalSubprocesses      = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
+useLocalSubprocesses      = getParam('useLocalSubprocesses','F','Use local subprocess imports instead of Github',['T','F'])
 useLocalFiles             = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
 plotStuff                 = getParam('plotStuff','T','Plot dataset',['T','F'])
 writeStuff                = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
@@ -96,8 +96,29 @@ elif sunOrientedPoyntingFlux == 'F':
 ############################################################################
 ############################################################################
 
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver
+       
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
+    
 monitor.started()
-localCodeDirectory  = 'G:/My Drive/Software/Autoplot/githubScripts_autoplot/'
+localCodeDirectory  = googleDrive_path+'Software/Autoplot/githubScripts_autoplot/'
 remoteCodeDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 
 def importSubprocesses(codeRootDirectory, subprocessList):
@@ -179,13 +200,13 @@ except:
 ############################################################################
 ############################################################################
     
-OS = get_os_version().split()[0]
-if OS == 'mac' or OS == 'linux':
-    #googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
-    googleDrive_path = '/home/kpaulson/'
-elif OS == 'windows':
-    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
-    googleDrive_path = 'G:/My Drive/'
+#OS = get_os_version().split()[0]
+#if OS == 'mac' or OS == 'linux':
+#    #googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
+#    googleDrive_path = '/home/kpaulson/MyDrive/'
+#elif OS == 'windows':
+#    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+#    googleDrive_path = 'G:/My Drive/'
     
 waveAnalysisFiles_directory = googleDrive_path + outputDirectory
     
@@ -197,7 +218,7 @@ if useLocalFiles == True:
     #efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
     #mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
     mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v01.cdf'
+    efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
     mag_100bpsfile  = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/f2_100bps/$Y/$m/psp_fld_l2_f2_100bps_$Y$m$d_v$v.cdf'                    
 else:
     cfa_sweap_file  = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
@@ -222,6 +243,7 @@ else:
 # ### SPLIT EVERYTHING INTO 6-HOUR CHUNKS (ALA FIELDS DATA)
 # ###
 
+
 trs= generateTimeRanges('$Y-$m-$d $(H,span=6):00 ',timerange)
 tr_titles= generateTimeRanges('$Y-$m-$d_$(H,span=6)00 ',timerange)
 #dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',timerange)
@@ -231,27 +253,56 @@ monitor.setLabel('PSP Wave Analysis')
 
 if lt(datumRange(timerange).width(), datum('6 hr') ):
     trs = [str(trs[0])]  # [str(generateTimeRanges('$Y-$m-$d $(H,span=6):00 ',timerange)[0])]
+    
+if True:
+    trFailedFile = waveAnalysisFiles_directory+'psp_waveAnalysis_failedTimeranges.txt'
+    trFailedFile_read = open(trFailedFile, "r")  # read mode
+    trFailedStrings = trFailedFile_read.readlines()
+    trFailedList = list()
+    for i in xrange(len(trFailedStrings[1:])):
+        trFailedList.append(datumRange(trFailedStrings[i+1].split(',')[0]))
+
+    
+    #trFailList = getDataSet(trFailedFile+'?column=field0')
+    
 
 monitor.setTaskSize(len(trs))
 index = 0
 for tr in trs:
     tr = str(tr)+' to '+str(tr+datum('6 hr'))
+    
+    # Roll back to the original timerange in the case where timerange < 6 hours
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
+    
+    # Stop running the code if dates are in the future   
+    if gt(datumRange(tr).max(), TimeUtil.now()):
+        print '%s occurs in the future, killing script'%tr
+        break
 
     outputSubDirectory = str(datumRange(tr).min())[0:4]+'/'+str(datumRange(tr).min())[5:7]+'/'
     mkdir(waveAnalysisFiles_directory+outputSubDirectory)
     outputFile = waveAnalysisFiles_directory+outputSubDirectory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
             
-    fileAlreadyExists = False
+    # Perform check to see if the waveAnalysis has already been generated or if there is a known reason for failed processing
+    fileAlreadyExists         = False
+    timerangePreviouslyFailed = False
     if checkForPreviousFiles == True:
         try:
             print 'Checking existence of:',outputFile
-            TEMP_epoch = getDataSet(outputFile+'?Epoch')
+            try: # This had to be turned into a try/except because the newer versions of the files properly set Epoch='Bfield_time'
+                TEMP_epoch = getDataSet(outputFile+'?Epoch')
+            except:
+                TEMP_epoch = getDataSet(outputFile+'?Bfield_time')
             if ne( long(mode(copy(TEMP_epoch))), 0):
                 fileAlreadyExists = True
         except:
-            pass
+            try:
+                print 'Checking to see if %s in failed list'%datumRange(tr)
+                if datumRange(tr) in trFailedList:
+                    timerangePreviouslyFailed = True
+            except:
+                pass
         
     monitor.setTaskProgress(index)
     monitor.setLabel('Wave Analysis - %s'%tr_titles[index]) 
@@ -259,6 +310,9 @@ for tr in trs:
         if fileAlreadyExists == True:
             print 'File already exists for %s'%(tr)
             raise fileAlreadyExistsException
+        elif timerangePreviouslyFailed == True:
+            print 'Timerange %s in list of failed attempts'%(tr)
+            raise timerangeFailedException
             
         # ###
         # ### DOWNLOAD DATA AND INTERPOLATE
@@ -280,22 +334,30 @@ for tr in trs:
             hr = '12'
         elif le(int(hr), 23):
             hr = '18'
-            
-        mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/%s/%s/psp_fld_l2_mag_SC_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
-        efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/%s/%s/psp_fld_l2_dfb_wf_dvdc_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
+        
+        if useLocalFiles == True:        
+            mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/%s/%s/psp_fld_l2_mag_SC_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
+            efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/%s/%s/psp_fld_l2_dfb_wf_dvdc_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
+        else:
+            mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/%s/%s/psp_fld_l2_mag_SC_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
+            efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/%s/%s/psp_fld_l2_dfb_wf_dvdc_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
         if tr == timerange:
-            mag_datafile    = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-            efield_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+            if useLocalFiles == True:
+                mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+                efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
+            else:
+                mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+                efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
         
     
-        mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
         print 'mag_data: '+mag_datafile+'?psp_fld_l2_mag_SC'
+        mag_data = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
         mag_data = trim(mag_data,tr)
         mag_time = mag_data.property(QDataSet.DEPEND_0)
         
         try:
-            efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
             print 'efield_data:',efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc'
+            efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
         except:
             if generateEfieldFreeVersion == True:
                 efield_data = zeros(len(mag_data),3)
@@ -873,22 +935,23 @@ for tr in trs:
             #setLayoutOverplot(3)
             waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/'
             load(waveAnalysis_directory+'PSP_waveAnalysis_stack.vap')
+            waitUntilIdle()
             
             min_timeSeries = min(Bq_pol[::100])
             max_timeSeries = max(Bn_pol[::100])
             
-            plot(0, mag_time, Bn_pol, ytitle='B (nT)', color='black', title='PSP WaveAnalysis   %s   v%s'%(tr_titles[index],version))
-            plot(1, mag_time, Bp_pol, ytitle='B (nT)', color='red')
-            plot(2, mag_time, Bq_pol, ytitle='B (nT)', color='blue', yrange=[-1.1*min_timeSeries, 1.1*max_timeSeries])
-            plot(3, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
+            plot(0, mag_time, Bn_pol, ytitle='B (nT)', color='black', title='PSP WaveAnalysis   %s   v%s'%(tr_titles[index],version), xrange=tr)
+            plot(1, mag_time, Bp_pol, ytitle='B (nT)', color='red', xrange=tr)
+            plot(2, mag_time, Bq_pol, ytitle='B (nT)', color='blue', yrange=[1.1*min_timeSeries.value(), 1.1*max_timeSeries.value()])
+            #plot(3, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
-            #plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
+            plot(3, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(4, Power_perp_E, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD E!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             
-            if sunOrientedPoyntingFlux == True:
-                plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CAgainst          Along!CB          B', zlog=False, zrange=[0,180]) 
-            elif sunOrientedPoyntingFlux == False:
-                plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo          From!CSun          Sun', zlog=False, zrange=[0,180]) 
+            if sunOrientedPoyntingFlux == False:
+                plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CAgainst  Along!CB          B', zlog=False, zrange=[0,180]) 
+            elif sunOrientedPoyntingFlux == True:
+                plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo        From!CSun          Sun', zlog=False, zrange=[0,180]) 
             
             #plot(4, Poynting_phi, colorTable='apl_rainbow_black0')   
             #plot(4, Ellipticity_E, colorTable='blue_white_red', ztitle='Ellipticity_E!C!CRH            LH')
@@ -897,20 +960,29 @@ for tr in trs:
             #plot(1, Sn, ztitle='Sn (along B)', colorTable='blue_white_red') 
             #plot(2, Sp, ztitle='Sp (~RTN!BT!N)', colorTable='blue_white_red')    
             #plot(3, Sq, ztitle='Sq (~RTN!BN!N)', colorTable='blue_white_red')  
-            plot(7, Angle_Normal, xrange=tr, ztitle='Wave Normal!Ck &middot; |B|', colorTable='inverse_grayscale')  
+            plot(7, Angle_Normal, xrange=tr, ztitle='Wave Normal!Ck &middot; |B|', colorTable='inverse_grayscale' )#datumRange(str(fft_time[0])+' to '+str(fft_time[-1])) )  
             
             
             if generateEfieldFreeVersion == True:
                 plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
                 plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             
+            #dom.plots[0].xaxis.setRange = datumRange(fft_time)
+            
             waitUntilIdle()
-            writeToPng(waveAnalysis_directory+'PSP_WaveAnalysis_%s_v%s.png'%(tr_titles[index],version))
+            mkdir(waveAnalysis_directory+'Plots/v%s/'%(version))
+            writeToPng(waveAnalysis_directory+'Plots/v%s/'%(version)+'PSP_WaveAnalysis_%s_v%s.png'%(tr_titles[index],version))
             
         index = index+1
     except:
+        exc_type, exc_value, exc_tb = sys.exc_info()
         if fileAlreadyExists == False:
             print 'Couldn\'t Run Analysis for %s'%(str(tr_titles[index])) 
+            if timerangePreviouslyFailed == False:
+                print exc_value
+                trFailedFile_append = open(trFailedFile, "a")  # append mode
+                trFailedFile_append.write('\n%s, %s'%(tr, exc_value))
+                trFailedFile_append.close()
         index = index+1
         continue
         

@@ -8,17 +8,22 @@
 timerange = getParam('timerange','2018-11-01 06:00 to 06:15','Iteration Timerange')
 
 writeStuff           = True   #Write out downsampled SPC file
-writeBundle          = True  #Write cdf as a bundle instead of appending individual variables
-useLocalSubprocesses = True  #Find local process files instead of going to github
+writeBundle          = getParam( 'writeBundle', 'T', 'Write the data out as a bundle instead of appending each variable', ['T','F'] )
 
+useLocalSubprocesses = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
 smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of spectra to average together before defining flow directions',[1,2,4,5,10,60,3600])
 numberOfChannels     = getParam('nChannels', 32, 'Number of energy channels to keep (from 0) after downsample')
 skipPreviousFiles    = getParam('skipPreviousFiles','T','Look for previously generated files and skip analysis if found',['T','F'])
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-
+server_sweap_file = '/psp/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
     
+if writeBundle == 'T':
+    writeBundle = True
+elif writeBundle == 'F':
+    writeBundle = False    
+
 if skipPreviousFiles == 'T':
     skipPreviousFiles = True
 elif skipPreviousFiles == 'F':
@@ -29,8 +34,28 @@ elif skipPreviousFiles == 'F':
 ##################            IMPORTS            ###########################
 ############################################################################
 ############################################################################
-    
 
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver
+       
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
+    
 import sys
 try:
     if useLocalSubprocesses == True:
@@ -46,18 +71,12 @@ try:
 except:
     print 'Unable to grab subprocess from github'
     
-    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    get_OS_version = getFile( googleDrive_path+'Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
     execfile( get_OS_version.toString() )
 
-    smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+    smoothAndDownsampleSPCByVoltage = getFile( googleDrive_path+'Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
     execfile( smoothAndDownsampleSPCByVoltage.toString() )
-       
-OS = get_os_version().split()[0]
-if OS == 'mac':
-    googleDrive_path = '~/MyDrive/'
-elif OS == 'windows':
-    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
-    googleDrive_path = 'G:/My Drive/'
+
        
 
 ############################################################################
@@ -83,6 +102,7 @@ for tr in trs:
         
     localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
     localDownsampledDataFile = localDownsampledDataDirectory+'SPC_DownsampledSpectra_%s_%ssec.cdf'%(tr,smoothSeconds)
+    mkdir(localDownsampledDataDirectory)
     
     fileAlreadyExists = False
     time_begin_tr = TimeUtil.now() 
@@ -106,215 +126,230 @@ for tr in trs:
     #try:
     #if True:
     if fileAlreadyExists == False:
-        monitor.setLabel('Downloading SPC') 
-        
-        monitor.setProgressMessage(tr)
-        
         try:
-            print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'+'&timerange='+tr
-            spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
-            spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
-            spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
-            spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+            monitor.setLabel('Downloading SPC') 
             
-            mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
-            mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
-        except:
-            noSPCData = None
-            raise java.io.FileNotFoundException
-        
+            monitor.setProgressMessage(tr)
             
-        print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
-        time_last = TimeUtil.now()
-        #spc_list = [spc_a,spc_b,spc_c,spc_d]
-        
-        
-        if ge(min(diff(spc_a.property(QDataSet.DEPEND_0))), 0):
-            if eq(spc_a.property(QDataSet.DEPEND_0).property(QDataSet.MONOTONIC), 0):
-                monitor.setLabel('Dealing with non-Monotonic time') 
-                time = spc_a.property(QDataSet.DEPEND_0)
-                time.putProperty(QDataSet.MONOTONIC, True)
-                putProperty(spc_a, QDataSet.DEPEND_0, time)
-                putProperty(spc_b, QDataSet.DEPEND_0, time)
-                putProperty(spc_c, QDataSet.DEPEND_0, time)
-                putProperty(spc_d, QDataSet.DEPEND_0, time)
-                putProperty(mv_hi, QDataSet.DEPEND_0, time)
-                putProperty(mv_lo, QDataSet.DEPEND_0, time)
+            try:
+                print server_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'+'&timerange='+tr
+                spc_a = getDataSet(server_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+                spc_b = getDataSet(server_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+                spc_c = getDataSet(server_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+                spc_d = getDataSet(server_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
                 
-            spc_a = trim(spc_a, tr)
-            spc_b = trim(spc_b, tr)
-            spc_c = trim(spc_c, tr)
-            spc_d = trim(spc_d, tr)
-            mv_lo = trim(mv_lo, tr)
-            mv_hi = trim(mv_hi, tr)
-        elif lt(min(diff(spc_a.property(QDataSet.DEPEND_0))), 0) or eq(spc_a.property(QDataSet.DEPEND_0).property(QDataSet.MONOTONIC), 0):
-            monitor.setLabel('Sorting and Dealing with non-Monotonic time') 
-            timeSorted = sort(spc_a.property(QDataSet.DEPEND_0))
-#            try:
-#                spc_a = trim(spc_a[timeSorted],tr)
-#                spc_b = trim(spc_b[timeSorted],tr)
-#                spc_c = trim(spc_c[timeSorted],tr)
-#                spc_d = trim(spc_d[timeSorted],tr)
-#                mv_lo = trim(mv_lo[timeSorted],tr)
-#                mv_hi = trim(mv_hi[timeSorted],tr)
-#            except:
-            if True:
-                spc_a = sortInTime(spc_a)
-                spc_b = sortInTime(spc_b)
-                spc_c = sortInTime(spc_c)
-                spc_d = sortInTime(spc_d)
-                mv_lo = sortInTime(mv_lo)
-                mv_hi = sortInTime(mv_hi)
-                time = spc_a.property(QDataSet.DEPEND_0)
-                time.putProperty(QDataSet.MONOTONIC, True)
-                putProperty(spc_a, QDataSet.DEPEND_0, time)
-                putProperty(spc_b, QDataSet.DEPEND_0, time)
-                putProperty(spc_c, QDataSet.DEPEND_0, time)
-                putProperty(spc_d, QDataSet.DEPEND_0, time)
-                putProperty(mv_hi, QDataSet.DEPEND_0, time)
-                putProperty(mv_lo, QDataSet.DEPEND_0, time)
+                mv_lo = getDataSet(server_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+                mv_hi = getDataSet(server_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+            except:
+                #try:
+                #    print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'+'&timerange='+tr
+                #    spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+                #    spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+                #    spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+                #    spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+                #    
+                #    mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+                #    mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+                #except:
+                if True:
+                    noSPCData = None
+                    raise FileNotFoundException
+            
+                
+            print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
+            time_last = TimeUtil.now()
+            #spc_list = [spc_a,spc_b,spc_c,spc_d]
+            
+            
+            if ge(min(diff(spc_a.property(QDataSet.DEPEND_0))), 0):
+                if eq(spc_a.property(QDataSet.DEPEND_0).property(QDataSet.MONOTONIC), 0):
+                    monitor.setLabel('Dealing with non-Monotonic time') 
+                    time = spc_a.property(QDataSet.DEPEND_0)
+                    time.putProperty(QDataSet.MONOTONIC, True)
+                    putProperty(spc_a, QDataSet.DEPEND_0, time)
+                    putProperty(spc_b, QDataSet.DEPEND_0, time)
+                    putProperty(spc_c, QDataSet.DEPEND_0, time)
+                    putProperty(spc_d, QDataSet.DEPEND_0, time)
+                    putProperty(mv_hi, QDataSet.DEPEND_0, time)
+                    putProperty(mv_lo, QDataSet.DEPEND_0, time)
+                    
                 spc_a = trim(spc_a, tr)
                 spc_b = trim(spc_b, tr)
                 spc_c = trim(spc_c, tr)
                 spc_d = trim(spc_d, tr)
-                mv_hi = trim(mv_hi, tr)
                 mv_lo = trim(mv_lo, tr)
-        
-        monitor.setLabel('Downsampling A') 
-        (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
-        monitor.setLabel('Downsampling B') 
-        (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,mv_hi,smoothSeconds)
-        monitor.setLabel('Downsampling C') 
-        (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,mv_hi,smoothSeconds)
-        monitor.setLabel('Downsampling D') 
-        (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,mv_hi,smoothSeconds)
+                mv_hi = trim(mv_hi, tr)
+            elif lt(min(diff(spc_a.property(QDataSet.DEPEND_0))), 0) or eq(spc_a.property(QDataSet.DEPEND_0).property(QDataSet.MONOTONIC), 0):
+                monitor.setLabel('Sorting and Dealing with non-Monotonic time') 
+                timeSorted = sort(spc_a.property(QDataSet.DEPEND_0))
+    #            try:
+    #                spc_a = trim(spc_a[timeSorted],tr)
+    #                spc_b = trim(spc_b[timeSorted],tr)
+    #                spc_c = trim(spc_c[timeSorted],tr)
+    #                spc_d = trim(spc_d[timeSorted],tr)
+    #                mv_lo = trim(mv_lo[timeSorted],tr)
+    #                mv_hi = trim(mv_hi[timeSorted],tr)
+    #            except:
+                if True:
+                    spc_a = sortInTime(spc_a)
+                    spc_b = sortInTime(spc_b)
+                    spc_c = sortInTime(spc_c)
+                    spc_d = sortInTime(spc_d)
+                    mv_lo = sortInTime(mv_lo)
+                    mv_hi = sortInTime(mv_hi)
+                    time = spc_a.property(QDataSet.DEPEND_0)
+                    time.putProperty(QDataSet.MONOTONIC, True)
+                    putProperty(spc_a, QDataSet.DEPEND_0, time)
+                    putProperty(spc_b, QDataSet.DEPEND_0, time)
+                    putProperty(spc_c, QDataSet.DEPEND_0, time)
+                    putProperty(spc_d, QDataSet.DEPEND_0, time)
+                    putProperty(mv_hi, QDataSet.DEPEND_0, time)
+                    putProperty(mv_lo, QDataSet.DEPEND_0, time)
+                    spc_a = trim(spc_a, tr)
+                    spc_b = trim(spc_b, tr)
+                    spc_c = trim(spc_c, tr)
+                    spc_d = trim(spc_d, tr)
+                    mv_hi = trim(mv_hi, tr)
+                    mv_lo = trim(mv_lo, tr)
             
-        mv_lo = mv_lo_downsampled
-        mv_hi = mv_hi_downsampled
-        time = spc_a_smooth_downsampled_mean.property(QDataSet.DEPEND_0)
-        
-        # Trims datasets to lowest numberOfChannels energy channels (width of peakTracking mode)
-        mv_lo = mv_lo[:,0:numberOfChannels]
-        mv_hi = mv_hi[:,0:numberOfChannels]   
-        
-        spc_a_smooth_downsampled_mean   = spc_a_smooth_downsampled_mean[:,0:numberOfChannels]
-        spc_a_smooth_downsampled_median = spc_a_smooth_downsampled_median[:,0:numberOfChannels]
-        spc_a_smooth_downsampled_mode   = spc_a_smooth_downsampled_mode[:,0:numberOfChannels]
-        
-        spc_b_smooth_downsampled_mean   = spc_b_smooth_downsampled_mean[:,0:numberOfChannels]
-        spc_b_smooth_downsampled_median = spc_b_smooth_downsampled_median[:,0:numberOfChannels]
-        spc_b_smooth_downsampled_mode   = spc_b_smooth_downsampled_mode[:,0:numberOfChannels]
-        
-        spc_c_smooth_downsampled_mean   = spc_c_smooth_downsampled_mean[:,0:numberOfChannels]
-        spc_c_smooth_downsampled_median = spc_c_smooth_downsampled_median[:,0:numberOfChannels]
-        spc_c_smooth_downsampled_mode   = spc_c_smooth_downsampled_mode[:,0:numberOfChannels]
-        
-        spc_d_smooth_downsampled_mean   = spc_d_smooth_downsampled_mean[:,0:numberOfChannels]
-        spc_d_smooth_downsampled_median = spc_d_smooth_downsampled_median[:,0:numberOfChannels]
-        spc_d_smooth_downsampled_mode   = spc_d_smooth_downsampled_mode[:,0:numberOfChannels]
-        
-        
-        ###
-        ### WRITE STUFF
-        ###
-        
-        time.putProperty(QDataSet.NAME,'epoch')
-        
-        mv_lo.putProperty(QDataSet.DEPEND_0,time)
-        mv_hi.putProperty(QDataSet.DEPEND_0,time)
-        
-        spc_a_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
-        spc_a_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
-        spc_a_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
-                                                             
-        spc_b_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
-        spc_b_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
-        spc_b_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
-                                                            
-        spc_c_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
-        spc_c_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
-        spc_c_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
-                                                            
-        spc_d_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
-        spc_d_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
-        spc_d_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
-        
-        
-        
-        spc_a_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_a_mean')
-        spc_a_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_a_median')
-        spc_a_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_a_mode')
-        
-        spc_b_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_b_mean')
-        spc_b_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_b_median')
-        spc_b_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_b_mode')
-        
-        spc_c_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_c_mean')
-        spc_c_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_c_median')
-        spc_c_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_c_mode')
-        
-        spc_d_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_d_mean')
-        spc_d_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_d_median')
-        spc_d_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_d_mode')
-        
-        mv_lo.putProperty(  QDataSet.NAME,'mv_lo')
-        mv_hi.putProperty(  QDataSet.NAME,'mv_hi')
-        
-        time.putProperty(QDataSet.TITLE,'Epoch')
-        
-        spc_a_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc a-current downsampled as mean over %s seconds'%smoothSeconds)
-        spc_a_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_a-current downsampled as median over %s seconds'%smoothSeconds)
-        spc_a_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_a-current downsampled as mode over %s seconds'%smoothSeconds)
-                                                                        
-        spc_b_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_b-current downsampled as mean over %s seconds'%smoothSeconds)
-        spc_b_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_b-current downsampled as median over %s seconds'%smoothSeconds)
-        spc_b_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_b-current downsampled as mode over %s seconds'%smoothSeconds)
-                                                                                                     
-        spc_c_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_c-current downsampled as mean over %s seconds'%smoothSeconds)
-        spc_c_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_c-current downsampled as median over %s seconds'%smoothSeconds)
-        spc_c_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_c-current downsampled as mode over %s seconds'%smoothSeconds)
-                                                                                                      
-        spc_d_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_d-current downsampled as mean over %s seconds'%smoothSeconds)
-        spc_d_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_d-current downsampled as median over %s seconds'%smoothSeconds)
-        spc_d_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_d-current downsampled as mode over %s seconds'%smoothSeconds)
-        
-        mv_lo.putProperty(  QDataSet.TITLE,'minimum voltage of each bin downsampled over %s seconds'%smoothSeconds)
-        mv_hi.putProperty(  QDataSet.TITLE,'maximum voltage of each bin downsampled over %s seconds'%smoothSeconds)
-        
-        if writeStuff == True:
-            if writeBundle == True:
-                bindle = bundle(mv_lo, mv_hi)
-                bindle = bundle(bindle, spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median)
-                bindle = bundle(bindle, spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median)
-                bindle = bundle(bindle, spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median)
-                bindle = bundle(bindle, spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median)
+            monitor.setLabel('Downsampling A') 
+            (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
+            monitor.setLabel('Downsampling B') 
+            (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,mv_hi,smoothSeconds)
+            monitor.setLabel('Downsampling C') 
+            (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,mv_hi,smoothSeconds)
+            monitor.setLabel('Downsampling D') 
+            (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,mv_hi,smoothSeconds)
                 
-                bindle.putProperty(QDataSet.DEPEND_0, time)
-                
-                formatDataSet(bindle,localDownsampledDataFile+'?bundle=T')
-                
-            else:
-                formatDataSet(time,localDownsampledDataFile)
-                formatDataSet(mv_lo,localDownsampledDataFile+'?append=T')
-                formatDataSet(mv_hi,localDownsampledDataFile+'?append=T')
-                
-                formatDataSet(spc_a_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-                formatDataSet(spc_a_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-                #formatDataSet(spc_a_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+            mv_lo = mv_lo_downsampled
+            mv_hi = mv_hi_downsampled
+            time = spc_a_smooth_downsampled_mean.property(QDataSet.DEPEND_0)
+            
+            # Trims datasets to lowest numberOfChannels energy channels (width of peakTracking mode)
+            mv_lo = mv_lo[:,0:numberOfChannels]
+            mv_hi = mv_hi[:,0:numberOfChannels]   
+            
+            spc_a_smooth_downsampled_mean   = spc_a_smooth_downsampled_mean[:,0:numberOfChannels]
+            spc_a_smooth_downsampled_median = spc_a_smooth_downsampled_median[:,0:numberOfChannels]
+            spc_a_smooth_downsampled_mode   = spc_a_smooth_downsampled_mode[:,0:numberOfChannels]
+            
+            spc_b_smooth_downsampled_mean   = spc_b_smooth_downsampled_mean[:,0:numberOfChannels]
+            spc_b_smooth_downsampled_median = spc_b_smooth_downsampled_median[:,0:numberOfChannels]
+            spc_b_smooth_downsampled_mode   = spc_b_smooth_downsampled_mode[:,0:numberOfChannels]
+            
+            spc_c_smooth_downsampled_mean   = spc_c_smooth_downsampled_mean[:,0:numberOfChannels]
+            spc_c_smooth_downsampled_median = spc_c_smooth_downsampled_median[:,0:numberOfChannels]
+            spc_c_smooth_downsampled_mode   = spc_c_smooth_downsampled_mode[:,0:numberOfChannels]
+            
+            spc_d_smooth_downsampled_mean   = spc_d_smooth_downsampled_mean[:,0:numberOfChannels]
+            spc_d_smooth_downsampled_median = spc_d_smooth_downsampled_median[:,0:numberOfChannels]
+            spc_d_smooth_downsampled_mode   = spc_d_smooth_downsampled_mode[:,0:numberOfChannels]
+            
+            
+            ###
+            ### WRITE STUFF
+            ###
+            
+            time.putProperty(QDataSet.NAME,'epoch')
+            
+            mv_lo.putProperty(QDataSet.DEPEND_0,time)
+            mv_hi.putProperty(QDataSet.DEPEND_0,time)
+            
+            spc_a_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+            spc_a_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+            spc_a_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+                                                                 
+            spc_b_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+            spc_b_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+            spc_b_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+                                                                
+            spc_c_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+            spc_c_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+            spc_c_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+                                                                
+            spc_d_smooth_downsampled_mean.putProperty(  QDataSet.DEPEND_0, time)
+            spc_d_smooth_downsampled_median.putProperty(QDataSet.DEPEND_0, time)
+            spc_d_smooth_downsampled_mode.putProperty(  QDataSet.DEPEND_0, time)
+            
+            
+            
+            spc_a_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_a_mean')
+            spc_a_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_a_median')
+            spc_a_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_a_mode')
+            
+            spc_b_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_b_mean')
+            spc_b_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_b_median')
+            spc_b_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_b_mode')
+            
+            spc_c_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_c_mean')
+            spc_c_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_c_median')
+            spc_c_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_c_mode')
+            
+            spc_d_smooth_downsampled_mean.putProperty(  QDataSet.NAME,'spc_d_mean')
+            spc_d_smooth_downsampled_median.putProperty(QDataSet.NAME,'spc_d_median')
+            spc_d_smooth_downsampled_mode.putProperty(  QDataSet.NAME,'spc_d_mode')
+            
+            mv_lo.putProperty(  QDataSet.NAME,'mv_lo')
+            mv_hi.putProperty(  QDataSet.NAME,'mv_hi')
+            
+            time.putProperty(QDataSet.TITLE,'Epoch')
+            
+            spc_a_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc a-current downsampled as mean over %s seconds'%smoothSeconds)
+            spc_a_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_a-current downsampled as median over %s seconds'%smoothSeconds)
+            spc_a_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_a-current downsampled as mode over %s seconds'%smoothSeconds)
+                                                                            
+            spc_b_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_b-current downsampled as mean over %s seconds'%smoothSeconds)
+            spc_b_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_b-current downsampled as median over %s seconds'%smoothSeconds)
+            spc_b_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_b-current downsampled as mode over %s seconds'%smoothSeconds)
+                                                                                                         
+            spc_c_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_c-current downsampled as mean over %s seconds'%smoothSeconds)
+            spc_c_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_c-current downsampled as median over %s seconds'%smoothSeconds)
+            spc_c_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_c-current downsampled as mode over %s seconds'%smoothSeconds)
+                                                                                                          
+            spc_d_smooth_downsampled_mean.putProperty(  QDataSet.TITLE,'spc_d-current downsampled as mean over %s seconds'%smoothSeconds)
+            spc_d_smooth_downsampled_median.putProperty(QDataSet.TITLE,'spc_d-current downsampled as median over %s seconds'%smoothSeconds)
+            spc_d_smooth_downsampled_mode.putProperty(  QDataSet.TITLE,'spc_d-current downsampled as mode over %s seconds'%smoothSeconds)
+            
+            mv_lo.putProperty(  QDataSet.TITLE,'minimum voltage of each bin downsampled over %s seconds'%smoothSeconds)
+            mv_hi.putProperty(  QDataSet.TITLE,'maximum voltage of each bin downsampled over %s seconds'%smoothSeconds)
+            
+            if writeStuff == True:
+                if writeBundle == True:
+                    bindle = bundle(mv_lo, mv_hi)
+                    bindle = bundle(bindle, spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median)
+                    bindle = bundle(bindle, spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median)
+                    bindle = bundle(bindle, spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median)
+                    bindle = bundle(bindle, spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median)
+                    
+                    bindle.putProperty(QDataSet.DEPEND_0, time)
+                    
+                    formatDataSet(bindle,localDownsampledDataFile+'?bundle=T')
+                    
+                else:
+                    formatDataSet(time,localDownsampledDataFile)
+                    formatDataSet(mv_lo,localDownsampledDataFile+'?append=T')
+                    formatDataSet(mv_hi,localDownsampledDataFile+'?append=T')
+                    
+                    formatDataSet(spc_a_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                    formatDataSet(spc_a_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                    #formatDataSet(spc_a_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                                            
+                    formatDataSet(spc_b_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                    formatDataSet(spc_b_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                    #formatDataSet(spc_b_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
                                                                                         
-                formatDataSet(spc_b_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-                formatDataSet(spc_b_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-                #formatDataSet(spc_b_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
-                                                                                    
-                formatDataSet(spc_c_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-                formatDataSet(spc_c_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-                #formatDataSet(spc_c_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
-                                                                                   
-                formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
-                formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
-                #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
-            
-            print 'File written successfully - %s'%(localDownsampledDataFile)
+                    formatDataSet(spc_c_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                    formatDataSet(spc_c_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                    #formatDataSet(spc_c_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                                                                                       
+                    formatDataSet(spc_d_smooth_downsampled_mean,  localDownsampledDataFile+'?append=T')
+                    formatDataSet(spc_d_smooth_downsampled_median,localDownsampledDataFile+'?append=T')
+                    #formatDataSet(spc_d_smooth_downsampled_mode,  localDownsampledDataFile+'?append=T')
+                
+                print 'File written successfully - %s'%(localDownsampledDataFile)
+        
+        except:
+            continue
     
     print 'Total time taken to process file:',TimeUtil.now()-time_begin_tr
     #except:

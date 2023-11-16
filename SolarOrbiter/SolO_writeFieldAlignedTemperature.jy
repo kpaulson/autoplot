@@ -1,7 +1,52 @@
 
-tr = getParam('timerange', '2021-05-05', 'date of analysis')
-outputDirectory = 'G:/My Drive/Research/SolarOrbiter/SWA-PAS/fieldAlignedTemperature_Files/'
+timerange   = getParam('timerange', '2022-01-22', 'date of analysis')
+plotStuff   = getParam('plotStuff','T','Plot dataset',['T','F'])
+writeStuff  = getParam('writeStuff','F','Write dataset out to cdf file',['T','F'])
+inverter    = getParam('matrixInverter', 'transpose', 'What algorithm should be used for the inversion of the rotation matrix? (R^-1)', ['lowerUpperDecomposition', 'RealMatrixInverse', 'transpose'])
+
+outputDirectory = 'Research/SolarOrbiter/SWA-PAS/fieldAlignedTemperature_Files/'
 #tr = '2022-03-25'
+
+def convertTstoTrues(parameterInput):
+    if parameterInput == 'T':
+        parameterInput = True
+    elif parameterInput == 'F':
+        parameterInput = False
+    return(parameterInput)
+    
+    
+plotStuff  = convertTstoTrues(plotStuff)
+writeStuff = convertTstoTrues(writeStuff)
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver
+       
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
+    
+monitor.started()
+localCodeDirectory  = googleDrive_path+'Software/Autoplot/githubScripts_autoplot/'
+remoteCodeDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 
 
 # IMPORT FIELDALIGNER
@@ -75,19 +120,11 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
         else:
             raise noTimeForGamesException
         
-        
-    
-    #TEMP_Rx = interpolate( (TEMP_Rx/TEMP_Rmag) , ephem_to_mag_ratio )
-    #TEMP_Ry = interpolate( (TEMP_Ry/TEMP_Rmag) , ephem_to_mag_ratio )
-    #TEMP_Rz = interpolate( (TEMP_Rz/TEMP_Rmag) , ephem_to_mag_ratio )
     TEMP_Rx = synchronize( Btotal_smooth, (TEMP_Rx/TEMP_Rmag) )
     TEMP_Ry = synchronize( Btotal_smooth, (TEMP_Ry/TEMP_Rmag) )
     TEMP_Rz = synchronize( Btotal_smooth, (TEMP_Rz/TEMP_Rmag) )
 
     # This version divides by Rmag again, which I should not be doing.... how long has this been in here??
-    #Rx = -(TEMP_Rx/TEMP_Rmag) #Negate R so that NxR is westwards (need this for right-handedness)
-    #Ry = -(TEMP_Ry/TEMP_Rmag) 
-    #Rz = -(TEMP_Rz/TEMP_Rmag)
     Rx = -(TEMP_Rx) #Negate R so that NxR is westwards (need this for right-handedness)
     Ry = -(TEMP_Ry) 
     Rz = -(TEMP_Rz) 
@@ -159,6 +196,8 @@ def rotateVector( Ax , Ay , Az , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ):
     INPUT:
         (Ax, Ay, Az) = rank1 vector components in same coordinate system as N, P, Q
         (Nx, Ny, Nz) = rank1 unit vector components parallel to magnetic field
+        (Px, Py, Pz) = rank1 unit vector components perpendicular to magnetic field
+        (Qx, Qy, Qz) = rank1 unit vector components perpendicular to magnetic field
     OUTPUT:
         (An, Ap, Aq) = rank1 vector components in field-aligned coordinate system
     '''
@@ -171,140 +210,183 @@ def rotateVector( Ax , Ay , Az , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ):
     
     return( An , Ap , Aq )
 
-
-# GET BFIELD DATA
-b_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_MAG-RTN-NORMAL-1-MINUTE&filter=solo&id=B_RTN', tr)
-
-
-
-# FIELD ALIGN
-Btotal = magnitude(b_rtn)
-TEMP_Rx = ones(len(b_rtn))
-TEMP_Ry = ones( len(b_rtn))
-TEMP_Rz = ones(len(b_rtn))
-trend_seconds = 60
-( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( b_rtn[:,0] , b_rtn[:,1] , b_rtn[:,2] , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
-#b_npq = bundle(Bn, Bp, Bq)
-#b_npq.putProperty(QDataSet.DEPEND_0, b_rtn.property(QDataSet.DEPEND_0))
-#b_npq.putProperty(QDataSet.NAME, None)
-
-#plot(0, b_rtn)
-#plot(1, Bn)
-#plot(2, Bp)
-#plot(3, Bq)
-#stop
-
-# GET TEMP DATA
-T_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&filter=solo&id=TxTyTz_RTN', tr)
-time = T_rtn.property(QDataSet.DEPEND_0)
-
-( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = synchronize(T_rtn, ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ))
-# BUILD ROTATION MATRIX
-
-from org.apache.commons.math.linear import Array2DRowRealMatrix 
-from org.apache.commons.math.linear import LUDecompositionImpl
-from org.apache.commons.math.linear import DecompositionSolver
-from org.apache.commons.math.linear import RealMatrix
-from org.apache.commons.math.linear import RealVector
-
-realMatrix = RealMatrix
-rotate_rtnT_to_magT = Array2DRowRealMatrix(3,3)
-T_tensor_rtn = Array2DRowRealMatrix(3,3)
-
-Tperp1 = dblarr(len(time))
-Tperp2 = dblarr(len(time))
-Tpara = dblarr(len(time))
-
-for i in xrange(len(time)):
-#    rotate_rtnT_to_magT.setEntry(0,0,N_hat_spani[i,0].value()*N_hat_spani[i,0].value())
-#    rotate_rtnT_to_magT.setEntry(0,1,P_hat_spani[i,0].value()*P_hat_spani[i,0].value())
-#    rotate_rtnT_to_magT.setEntry(0,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,0].value())
-#    rotate_rtnT_to_magT.setEntry(1,0,N_hat_spani[i,0].value()*N_hat_spani[i,2].value())
-#    rotate_rtnT_to_magT.setEntry(1,1,P_hat_spani[i,0].value()*P_hat_spani[i,2].value())
-#    rotate_rtnT_to_magT.setEntry(1,2,Q_hat_spani[i,0].value()*Q_hat_spani[i,2].value())
-#    rotate_rtnT_to_magT.setEntry(2,0,N_hat_spani[i,2].value()*N_hat_spani[i,2].value())
-#    rotate_rtnT_to_magT.setEntry(2,1,P_hat_spani[i,2].value()*P_hat_spani[i,2].value())
-#    rotate_rtnT_to_magT.setEntry(2,2,Q_hat_spani[i,2].value()*Q_hat_spani[i,2].value())
-    rotate_rtnT_to_magT.setEntry(0,0,Nx[i].value())
-    rotate_rtnT_to_magT.setEntry(0,1,Px[i].value())
-    rotate_rtnT_to_magT.setEntry(0,2,Qx[i].value())
-    rotate_rtnT_to_magT.setEntry(1,0,Ny[i].value())
-    rotate_rtnT_to_magT.setEntry(1,1,Py[i].value())
-    rotate_rtnT_to_magT.setEntry(1,2,Qy[i].value())
-    rotate_rtnT_to_magT.setEntry(2,0,Nz[i].value())
-    rotate_rtnT_to_magT.setEntry(2,1,Pz[i].value())
-    rotate_rtnT_to_magT.setEntry(2,2,Qz[i].value())
+def rotateTensor(Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz, T_rtn):
+        
+    from org.apache.commons.math.linear import Array2DRowRealMatrix 
+    from org.apache.commons.math.linear import LUDecompositionImpl
+    from org.apache.commons.math.linear import DecompositionSolver
+    from org.apache.commons.math.linear import RealMatrix
+    from org.apache.commons.math.linear import RealVector
     
-    #rotate_rtnT_to_magT = rotate_rtnT_to_magT.transpose()
+    rotationMatrix_to_mag = Array2DRowRealMatrix(3,3)  # matrix entries are identified as (row, column)
+    T_tensor_rtn = Array2DRowRealMatrix(3,3)
+    
+    Tperp1 = dblarr(len(time))
+    Tperp2 = dblarr(len(time))
+    Tpara = dblarr(len(time))
+    
+    for i in xrange(len(T_rtn)):
+        
+        rotationMatrix_to_mag.setEntry(0,0,Nx[i].value()) # rotation matrix built from unit vectors  Nr  Nt  Nn
+        rotationMatrix_to_mag.setEntry(0,1,Ny[i].value()) #                                          Pr  Pt  Pn
+        rotationMatrix_to_mag.setEntry(0,2,Nz[i].value()) #                                          Qr  Qt  Qn
+        rotationMatrix_to_mag.setEntry(1,0,Px[i].value())
+        rotationMatrix_to_mag.setEntry(1,1,Py[i].value())
+        rotationMatrix_to_mag.setEntry(1,2,Pz[i].value())
+        rotationMatrix_to_mag.setEntry(2,0,Qx[i].value())
+        rotationMatrix_to_mag.setEntry(2,1,Qy[i].value())
+        rotationMatrix_to_mag.setEntry(2,2,Qz[i].value())
+        
+        
+        T_tensor_rtn.setEntry(0,0,T_rtn[i,0].value())  # Tr  0   0
+        T_tensor_rtn.setEntry(1,1,T_rtn[i,1].value())  # 0   Tt  0
+        T_tensor_rtn.setEntry(2,2,T_rtn[i,2].value())  # 0   0   Tn
+        
+        # Tmag = R Trtn R^-1
+        try:
+            if inverter == 'lowerUpperDecomposition':
+                solver = LUDecompositionImpl(rotationMatrix_to_mag).getSolver()
+                rotationMatrix_to_mag_inverse = solver.getInverse()
+            elif inverter == 'RealMatrixInverse':
+                rotationMatrix_to_mag_inverse = RealMatrix.inverse(rotationMatrix_to_mag)
+            elif inverter == 'transpose':
+                # inverse of a rotation matrix is just its transpose
+                rotationMatrix_to_mag_inverse = rotationMatrix_to_mag.transpose()
+            
+            T_tensor_mag = rotationMatrix_to_mag.multiply(T_tensor_rtn.multiply(rotationMatrix_to_mag_inverse)) 
+            #T_tensor_mag = rotationMatrix_to_mag.multiply(T_tensor_rtn).multiply(rotationMatrix_to_mag_inverse)
+            #T_tensor_mag = rotationMatrix_to_mag_inverse.multiply(T_tensor_rtn.multiply(rotationMatrix_to_mag)) # This seems backwards in terms of operations,m but I am finally getting values that make sense (Tperp1=Tperp2, no dependence on TEMP_R). Is this how it should be written in apacheSpeak?
+            
+            Tpara[i]  = T_tensor_mag.getEntry(0,0)
+            Tperp1[i] = T_tensor_mag.getEntry(1,1)
+            Tperp2[i] = T_tensor_mag.getEntry(2,2)
+        except:
+            Tperp1[i] = -1E38
+            Tperp2[i] = -1E38
+            Tpara[i]  = -1E38
+        
+        
+    return(Tpara, Tperp1, Tperp2)
     
     
-    T_tensor_rtn.setEntry(0,0,T_rtn[i,0].value())
-    T_tensor_rtn.setEntry(1,1,T_rtn[i,1].value())
-    T_tensor_rtn.setEntry(2,2,T_rtn[i,2].value())
-    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
     try:
-        solver = LUDecompositionImpl(rotate_rtnT_to_magT).getSolver()
-        rotate_rtnT_to_magT_inverse = solver.getInverse()
+
+        year  = tr[0:4]
+        month = tr[5:7]
+        day   = tr[8:10]
+
+        # GET BFIELD DATA
+        b_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_MAG-RTN-NORMAL-1-MINUTE&filter=solo&id=B_RTN', tr)
+        #b_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_MAG-RTN-NORMAL&filter=solo&id=B_RTN', tr)
+        b_time = b_rtn.property(QDataSet.DEPEND_0)
         
-        T_tensor_mag = rotate_rtnT_to_magT.multiply(T_tensor_rtn.multiply(rotate_rtnT_to_magT_inverse))
         
-        Tpara[i] = T_tensor_mag.getEntry(0,0)
-        Tperp1[i] = T_tensor_mag.getEntry(1,1)
-        Tperp2[i]  = T_tensor_mag.getEntry(2,2)
+        # FIELD ALIGN
+        Btotal = magnitude(b_rtn)
+        TEMP_Rx = putProperty(zeros(len(b_rtn)), QDataSet.DEPEND_0, b_time)
+        TEMP_Ry = putProperty(ones( len(b_rtn)), QDataSet.DEPEND_0, b_time)
+        TEMP_Rz = putProperty(ones( len(b_rtn)), QDataSet.DEPEND_0, b_time)
+        trend_seconds = 60 # 60
+        ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( b_rtn[:,0] , b_rtn[:,1] , b_rtn[:,2] , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+        
+        if False:
+            # Check out magnetic field in MFA-coords
+            b_npq = bundle(Bn, Bp, Bq)
+            b_npq.putProperty(QDataSet.DEPEND_0, b_rtn.property(QDataSet.DEPEND_0))
+            b_npq.putProperty(QDataSet.NAME, None)
+            
+            plot(0, b_rtn)
+            plot(1, Bn)
+            plot(2, Bp)
+            plot(3, Bq)
+            stop
+        
+        if False:
+            # Check out magnetic field and MFA-coords unit vectors
+            plot(0, b_rtn)
+            plot(1, b_time, bundle(Nx, Ny, Nz))
+            plot(2, b_time, bundle(Px, Py, Pz))
+            plot(3, b_time, bundle(Qx, Qy, Qz))
+            
+            stop
+        
+        # GET TEMP DATA
+        T_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&filter=solo&id=TxTyTz_RTN', tr)
+        time = T_rtn.property(QDataSet.DEPEND_0)
+        
+        ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = synchronize(T_rtn, ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ))
+        
+        
+        # ROTATE TEMPERATURE TENSOR
+        (Tpara, Tperp1, Tperp2) = rotateTensor(Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz, T_rtn)  
+        
+        Tn = putProperty(Tpara, QDataSet.DEPEND_0, time)
+        Tp = putProperty(Tperp1, QDataSet.DEPEND_0, time)
+        Tq = putProperty(Tperp2, QDataSet.DEPEND_0, time)
+        
+        #Tn = abs(Tn)
+        #Tp = abs(Tp)
+        #Tq = abs(Tq)
+        
+        Tn.putProperty(QDataSet.VALID_MIN, 0)
+        Tp.putProperty(QDataSet.VALID_MIN, 0)
+        Tq.putProperty(QDataSet.VALID_MIN, 0)
+        
+        if False:
+            ## ROTATE TEMP DATA
+            ( Tn , Tp , Tq ) = rotateVector( T_rtn[:,0] , T_rtn[:,1] , T_rtn[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
+            #
+            Tn = abs(Tn)
+            Tp = abs(Tp)
+            Tq = abs(Tq)
+            
+            #plot(0, (Tn + Tp + Tq)/3., legendLabel='T')
+            #plot(4, Tn, legendLabel='Tpar')
+            #plot(1, Tp)
+            #plot(2, Tq)
+            #plot(3, (Tp+Tq)/2., legendLabel='Tperp')
+        
+        Tn.putProperty(QDataSet.NAME, 'T_parallel')
+        Tp.putProperty(QDataSet.NAME, 'T_perp1')
+        Tq.putProperty(QDataSet.NAME, 'T_perp2')
+        
+        Tn.putProperty(QDataSet.LABEL, 'T_||')
+        Tp.putProperty(QDataSet.LABEL, 'T_&perp;1')
+        Tq.putProperty(QDataSet.LABEL, 'T_&perp;2')
+        
+        Tn.putProperty(QDataSet.UNITS, Units.eV)
+        Tp.putProperty(QDataSet.UNITS, Units.eV)
+        Tq.putProperty(QDataSet.UNITS, Units.eV)
+        
+        if plotStuff:
+            plot(0, time, T_rtn, renderType='series')
+            plot(1, time, bundle(Tn, Tp, Tq), yrange=[0, 15], renderType='series')
+            plot(2, time, Tp/Tq, renderType='series', ylog=True, yrange=[0.1,10])
+            plot(3, time, ((Tp+Tq)/2)/Tn, renderType='series', ylog=True, yrange=[0.1,10])
+        
+            #plot(3, time, Tp, legendLabel='Tp', renderType='series')
+            #plot(4, time, Tq, legendLabel='Tq', renderType='series')
+            #plot(5, time, Tn, legendLabel='Tn', renderType='series')
+            #stop
+        
+        
+        # WRITE OUT TEMP FILE
+        bindle = bundle(Tn, Tp, Tq)
+        bindle.putProperty(QDataSet.DEPEND_0, Tn.property(QDataSet.DEPEND_0))
+        
+        if writeStuff:
+            outputFile = 'SolO_%s_fieldAlignedTemperature.cdf'%tr
+            writeDirectory = googleDrive_path + outputDirectory + '%s/%s/'%(year, month)
+            mkdir(writeDirectory)
+            
+            formatDataSet(bindle, writeDirectory+outputFile+'?bundle=T')
+    
     except:
-        Tperp1[i] = -1E38
-        Tperp2[i] = -1E38
-        Tpara[i]  = -1E38
-        
-
-plot(0, time, Tperp1, yrange=[-100, 100])
-plot(1, time, Tperp2, yrange=[-100, 100])
-plot(2, time, Tpara, yrange=[-100, 100])
-#plot(2, time, (Tperp1+Tperp2)/2., yrange=[-100, 100])
-#stop
-
-Tn = putProperty(Tpara, QDataSet.DEPEND_0, time)
-Tp = putProperty(Tperp1, QDataSet.DEPEND_0, time)
-Tq = putProperty(Tperp2, QDataSet.DEPEND_0, time)
-
-Tn.putProperty(QDataSet.VALID_MIN, 0)
-Tp.putProperty(QDataSet.VALID_MIN, 0)
-Tq.putProperty(QDataSet.VALID_MIN, 0)
-
-## ROTATE TEMP DATA
-#( Tn , Tp , Tq ) = rotateVector( T_rtn[:,0] , T_rtn[:,1] , T_rtn[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
-#
-#Tn = abs(Tn)
-#Tp = abs(Tp)
-#Tq = abs(Tq)
-
-#plot(0, (Tn + Tp + Tq)/3., legendLabel='T')
-#plot(4, Tn, legendLabel='Tpar')
-#plot(1, Tp)
-#plot(2, Tq)
-#plot(3, (Tp+Tq)/2., legendLabel='Tperp')
-#stop
-# WRITE OUT TEMP FILE
-Tn.putProperty(QDataSet.NAME, 'T_parallel')
-Tp.putProperty(QDataSet.NAME, 'T_perp1')
-Tq.putProperty(QDataSet.NAME, 'T_perp2')
-
-Tn.putProperty(QDataSet.LABEL, 'T_||')
-Tp.putProperty(QDataSet.LABEL, 'T_&perp;1')
-Tq.putProperty(QDataSet.LABEL, 'T_&perp;2')
-
-Tn.putProperty(QDataSet.UNITS, Units.eV)
-Tp.putProperty(QDataSet.UNITS, Units.eV)
-Tq.putProperty(QDataSet.UNITS, Units.eV)
-
-bindle = bundle(Tn, Tp, Tq)
-bindle.putProperty(QDataSet.DEPEND_0, Tn.property(QDataSet.DEPEND_0))
-
-plot(0, (Tn))
-plot(1, (Tp))
-plot(2, bindle)
-
-outputFile = 'SolO_%s_fieldAlignedTemperature.cdf'%tr
-mkdir(outputDirectory)
-
-formatDataSet(bindle, outputDirectory+outputFile+'?bundle=T')
+        print 'couldn\'t run analysis for %s'%(tr)

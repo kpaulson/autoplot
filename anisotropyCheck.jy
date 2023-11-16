@@ -28,7 +28,7 @@ anisotropyBinNumber = 50  # Number of bins in anisotropy space
 timeToStopProcessing = '2019-10-06 19:30'   # Time in UT until which the process will run and aggregate data before writing the result (EDT = UT-4)
 
 # Mac
-temp_outputMap = '/home/kpaulson/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
+temp_outputMap = '/G:/My Drive/Research/PSP/Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
 #outputMap      = '/home/kpaulson/Research/PSP/Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
 temp_outputMap_googleDrive = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC Anisotropy/TEMP_Anisotropy_DELTA_PLUS-MINUS.cdf'
 outputMap      = '/home/kpaulson/Google Drive File Stream/My Drive/Research/PSP/SPC/SPC Anisotropy/Anisotropy_DELTA_PLUS-MINUS.cdf'
@@ -70,7 +70,7 @@ if RunningSingleCase == True or UseRealisticGaussians == True or RunningDoubleCa
     thermalSpeed_parallel_beam = 40 # Taken from bin averages around 2018-11-01 7:52 UT (arbitrarily chosen)
     beamSeparationSpeed = 80
     velocity_parallel_beam = velocity_parallel + (beamSeparationSpeed*cos(toRadians(angle)))#460
-    density_parallel_beam = 100
+    density_parallel_beam = 50
     
     thermalSpeed_perp_beam = thermalSpeed_parallel_beam*aniso_beam
     velocity_perp_beam = velocity_perp + (beamSeparationSpeed*sin(toRadians(angle)))   #200

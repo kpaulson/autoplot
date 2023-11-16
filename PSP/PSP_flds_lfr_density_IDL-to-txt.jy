@@ -1,9 +1,11 @@
 idl_file = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.idl'
 idl_file2 = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/LFRV1-V2Ne_Tc_Thk_mimo_2022-12-04_2022-12-20.sav'
 
-idl_files_dir = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/'
-idl_sav_files = [idl_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2022-12-04_2022-12-20.sav',
-                 idl_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2023-03-07_2023-03-24.sav']
+ne_files_dir = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/'
+idl_sav_files = [ne_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2022-12-04_2022-12-20.sav',
+                 ne_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2023-03-07_2023-03-24.sav']
+ne_csv_files = [ne_files_dir+'ENC16_QTN_Ne.csv']
+       
 
 ne = getDataSet('vap+sav:file:///'+idl_file+'?LFR.N_E.DAT')
 #ne2 = getDataSet('vap+sav:file:///'+idl_file2+'?DENSTOT')
@@ -13,10 +15,18 @@ time = getDataSet('vap+sav:file:///'+idl_file+'?LFR.EPOCH.DAT')
 time.putProperty(QDataSet.UNITS, Units.cdfTT2000)
 #time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
 
-for sav_file in idl_sav_files:
-    ne2 = getDataSet('vap+sav:file:///'+sav_file+'?DENSTOT')
-    time2 = getDataSet('vap+sav:file:///'+sav_file+'?EPOCHL2')
+for ne_file in idl_sav_files:
+    ne2 = getDataSet('vap+sav:file:///'+ne_file+'?DENSTOT')
+    time2 = getDataSet('vap+sav:file:///'+ne_file+'?EPOCHL2')
     time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+    
+    ne = concatenate(ne, ne2)
+    time = concatenate(time, time2)
+
+for ne_file in ne_csv_files:
+    ne2 = getDataSet(ne_file+'?Ne')
+    time2 = getDataSet(ne_file+'?Time')
+    #time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
     
     ne = concatenate(ne, ne2)
     time = concatenate(time, time2)

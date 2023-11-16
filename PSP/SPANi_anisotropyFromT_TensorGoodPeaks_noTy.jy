@@ -49,11 +49,59 @@ execfile( fieldAligner.toString() )
 get_os_version= getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version'))
 execfile( get_os_version.toString() )
 
-from org.apache.commons.math.linear import Array2DRowRealMatrix 
-from org.apache.commons.math.linear import LUDecompositionImpl
-from org.apache.commons.math.linear import DecompositionSolver
-from org.apache.commons.math.linear import RealMatrix
-from org.apache.commons.math.linear import RealVector
+def rotateTensor(Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz, T_rtn):
+        
+    from org.apache.commons.math.linear import Array2DRowRealMatrix 
+    from org.apache.commons.math.linear import LUDecompositionImpl
+    from org.apache.commons.math.linear import DecompositionSolver
+    from org.apache.commons.math.linear import RealMatrix
+    from org.apache.commons.math.linear import RealVector
+    
+    rotationMatrix_to_mag = Array2DRowRealMatrix(3,3)  # matrix entries are identified as (row, column)
+    T_tensor_rtn = Array2DRowRealMatrix(3,3)
+    
+    Tperp1 = dblarr(len(time))
+    Tperp2 = dblarr(len(time))
+    Tpara = dblarr(len(time))
+    
+    for i in xrange(len(T_rtn)):
+        
+        rotationMatrix_to_mag.setEntry(0,0,Nx[i].value()) # rotation matrix built from unit vectors  Nr  Nt  Nn
+        rotationMatrix_to_mag.setEntry(0,1,Ny[i].value()) #                                          Pr  Pt  Pn
+        rotationMatrix_to_mag.setEntry(0,2,Nz[i].value()) #                                          Qr  Qt  Qn
+        rotationMatrix_to_mag.setEntry(1,0,Px[i].value())
+        rotationMatrix_to_mag.setEntry(1,1,Py[i].value())
+        rotationMatrix_to_mag.setEntry(1,2,Pz[i].value())
+        rotationMatrix_to_mag.setEntry(2,0,Qx[i].value())
+        rotationMatrix_to_mag.setEntry(2,1,Qy[i].value())
+        rotationMatrix_to_mag.setEntry(2,2,Qz[i].value())
+        
+        
+        T_tensor_rtn.setEntry(0,0,T_rtn[i,0].value())  # Tr  0   0
+        T_tensor_rtn.setEntry(1,1,T_rtn[i,1].value())  # 0   Tt  0
+        T_tensor_rtn.setEntry(2,2,T_rtn[i,2].value())  # 0   0   Tn
+        
+        # Tmag = R Trtn R^-1
+        try:
+            if inverter == 'lowerUpperDecomposition':
+                solver = LUDecompositionImpl(rotationMatrix_to_mag).getSolver()
+                rotationMatrix_to_mag_inverse = solver.getInverse()
+            elif inverter == 'RealMatrixInverse':
+                rotationMatrix_to_mag_inverse = RealMatrix.inverse(rotationMatrix_to_mag)
+            
+            T_tensor_mag = rotationMatrix_to_mag.multiply(T_tensor_rtn.multiply(rotationMatrix_to_mag_inverse)) 
+            #T_tensor_mag = rotationMatrix_to_mag_inverse.multiply(T_tensor_rtn.multiply(rotationMatrix_to_mag)) # This seems backwards in terms of operations,m but I am finally getting values that make sense (Tperp1=Tperp2, no dependence on TEMP_R). Is this how it should be written in apacheSpeak?
+            
+            Tpara[i]  = T_tensor_mag.getEntry(0,0)
+            Tperp1[i] = T_tensor_mag.getEntry(1,1)
+            Tperp2[i] = T_tensor_mag.getEntry(2,2)
+        except:
+            Tperp1[i] = -1E38
+            Tperp2[i] = -1E38
+            Tpara[i]  = -1E38
+        
+        
+    return(Tpara, Tperp1, Tperp2)
 
 
 os = get_os_version()
@@ -127,7 +175,6 @@ for tr in trs:
     #                | Qx_spani  Qy_spani  Qz_spani |
     #
     #      (but for our rotation we only have   R T = T'  , this doesn't seem right)
-    #           - This is correct for a rotation, we don't want a full diagonalization
     #            
     #
     #     We will invert

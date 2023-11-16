@@ -15,6 +15,7 @@ tr = '2021-04-25 16:39:58 to 16:39:59'
 #tr = '2021-08-01 18:32 to 18:33'
 tr = '2020-01-29 18:10:02 to 18:10:03'
 tr = '2021-01-20 04:59:43 to 04:59:48'
+tr = '2023-09-23 00:30 to 00:31'
 trend_seconds = 60
 
 averageOverTheta = True
@@ -49,6 +50,7 @@ execfile( fieldAligner.toString() )
 #######################################################################
 
 import java
+import java.io
 
 # Download and trim down magnetic field data
 #mag_sc = getDataSet(L2draft_mag_w3sweap_file+'?psp_fld_mag_sc',tr)
@@ -132,6 +134,32 @@ numberFlux = eflux / energyValues
 vdf = numberFlux * (mp**2 )/((2E-5)*energyValues) 
 v_star = sqrt( 2*electronCharge*energyValues / mp )
 
+v_star_allTheta = reduceSum(reduceMean(v_star,0), 2)
+phi_allTheta = reduceSum(reduceMean(phi,0), 2)
+vdf_allTheta = reduceSum(reduceMean(vdf,0), 2)
+
+v_star_allPhi = reduceSum(reduceMean(v_star,0), 0)
+theta_allPhi = reduceSum(reduceMean(theta,0), 0)
+vdf_allPhi = reduceSum(reduceMean(vdf,0), 0)
+
+phi_allTheta.putProperty(QDataSet.VALID_MIN, -1E30)
+phi_allTheta.putProperty(QDataSet.VALID_MAX, 1E30)
+#ds = link(reform(v_star_allTheta, [32*8]), reform(phi_allTheta, [32*8]), reform(vdf_allTheta, [32*8]))
+ds_allTheta = link(v_star_allTheta, toRadians(phi_allTheta), vdf_allTheta)
+ds_allPhi = link(v_star_allPhi, toRadians(theta_allPhi), vdf_allPhi)
+plot(ds_allPhi)
+#plot(ds[:,0])
+#plot(ds[:,1])
+#plot(ds[:,2])
+#plot(v_star_allTheta)
+#plot(toRadians(theta_allPhi))
+#plot(mod(toRadians(phi_allTheta), datum('6.28 radian')))
+#phi_allTheta[0,16]
+#plot(vdf_allTheta)
+#print ds
+
+#stop
+
 # Create cartesian velocity components from SPAN phi/theta values
 vx = v_star*cos(toRadians(phi))*cos(toRadians(theta))
 vy = v_star*sin(toRadians(phi))*cos(toRadians(theta))
@@ -187,6 +215,33 @@ vdfCollapsed.putProperty(QDataSet.DEPEND_0,None)
 vx_Collapsed.putProperty(QDataSet.DEPEND_0,None)
 vy_Collapsed.putProperty(QDataSet.DEPEND_0,None)
 vz_Collapsed.putProperty(QDataSet.DEPEND_0,None)
+
+
+###########################################
+##### Trying Jeremy's Suggestion ##########
+###########################################
+Jeremy = 'Faden'
+if Jeremy == 'Faden':
+    x= -vx_Collapsed
+    y= vy_Collapsed
+    z= vdfCollapsed
+    r= sqrt( x**2 + y**2 )
+    a= atan2( y, x )
+    r = concatenate( concatenate( r, r ), r )
+    a= concatenate( concatenate( a-TAU, a ), a+TAU )
+    z= concatenate( concatenate( z, z ), z )
+    
+    rr = linspace(0,100, 100)
+    thetatheta = linspace(-TAU, TAU, 100)
+    rebinned= rebin( link( a, r, z ), rr, thetatheta )
+    
+    plot(2, link( a, r, z ))
+    
+    
+    
+###########################################
+###########################################
+###########################################
 
 #collapsedSPANBundle = bundle(collapse0(theta[index,:]),collapse0(phi[index,:]),collapse0(numberFlux[index,:]))
 collapsedSPANBundle = bundle(thetaCollapsed,phiCollapsed,vdfCollapsed)
@@ -313,9 +368,69 @@ contour_vxvz = contour( rebinnedSPANBundle_vxvz_degapped, vv )
 contour_vxvy = contour( rebinnedSPANBundle_vxvy_degapped, vv )
 print contour_vxvz
 
-plot(0, rebinnedSPANBundle_vxvz_degapped,xtitle='v!Bx!N',ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(timestamp,timeWidth))
-plot(1, contour_vxvz)
-stop
+
+##############################################
+####  Attempt to interpolate contour   #######
+#############    (FAILED)     ################
+##############################################
+#tempSort = sort(contour_vxvz[:,2])
+#uniqvv = uniqValues(contour_vxvz[:,2], tempSort)
+#contour_vxvzSorted = dblarr(len(tempSort), 3)
+#contour_vxvzSorted[:,0] = contour_vxvz[tempSort,0]
+#contour_vxvzSorted[:,1] = contour_vxvz[tempSort,1]
+#contour_vxvzSorted[:,2] = contour_vxvz[tempSort,2]
+#
+#tempSort = sort(contour_vxvzSorted[:,2])
+#uniqvv = uniqValues(contour_vxvzSorted[:,2], tempSort)
+#plot(1, uniqvv)
+##stop
+#
+#interpolatedSpaceLength = 100
+#interpolatedSpace = linspace(0, 2*PI, interpolatedSpaceLength)
+#newContour = dblarr(len(uniqvv)*100, 3)
+#contourStep = 0
+#for vvv in uniqvv:
+#    print vvv
+#    r = where(eq(contour_vxvzSorted[:,2], vvv))
+#    midvx = mean(contour_vxvzSorted[r,0])
+#    midvz = mean(contour_vxvzSorted[r,1])
+#    s = sort(atan2(contour_vxvzSorted[r,1]-midvz, contour_vxvzSorted[r,0]-midvx))
+#    plot(1, atan2(contour_vxvzSorted[r,1]-midvz, contour_vxvzSorted[r,0]-midvx))
+#    plot(2, atan2(contour_vxvzSorted[r,1][s]-midvz, contour_vxvzSorted[r,0][s]-midvx))
+#    sleep(1000)
+#
+#    try:
+#        interpolantRatio = findex(atan2(contour_vxvzSorted[r,1]-midvz[s], contour_vxvzSorted[r,0]-midvx[s]), interpolatedSpace)
+#        newContour[contourStep:(contourStep+interpolatedSpaceLength), 0] = interpolate(contour_vxvzSorted[r,0][s], interpolantRatio)
+#        newContour[contourStep:(contourStep+interpolatedSpaceLength), 1] = interpolate(contour_vxvzSorted[r,1][s], interpolantRatio)
+#        newContour[contourStep:(contourStep+interpolatedSpaceLength), 2] = interpolate(contour_vxvzSorted[r,2][s], interpolantRatio)
+#    except:
+#        newContour[contourStep:(contourStep+interpolatedSpaceLength), 0] = -1E38 #zeros(interpolatedSpaceLength)
+#        newContour[contourStep:(contourStep+interpolatedSpaceLength), 1] = -1E38 #zeros(interpolatedSpaceLength)
+#        newContour[contourStep:(contourStep+interpolatedSpaceLength), 2] = -1E38 #zeros(interpolatedSpaceLength)
+#
+#    contourStep = contourStep+100
+#    #contour_vxvz[r,0] = contour_vxvz[r,0][s]
+#    #contour_vxvz[r,1] = contour_vxvz[r,1][s]
+#    #contour_vxvz[r,2] = contour_vxvz[r,2][s]
+#
+#    plot(1, contour_vxvzSorted[r,0], contour_vxvzSorted[r,1], title=str(vvv))
+#    plot(2, contour_vxvzSorted[r,0][s], contour_vxvzSorted[r,1][s], title=str(vvv))
+#    sleep(1000)
+#    #stop
+#
+#newContour.putProperty(QDataSet.VALID_MIN, 1E-38)
+#plot(0, rebinnedSPANBundle_vxvz_degapped,xtitle='v!Bx!N',ytitle='v!Bz!N', ztitle='vdf', title='%s &plusmn; %s sec'%(timestamp,timeWidth))
+#
+#plot(2, contour_vxvz[:,0], contour_vxvz[:,1])
+#plot(2, newContour[:,0], newContour[:,1])
+#stop
+
+##############################################
+##############################################
+##############################################
+##############################################
+
 plot(0,rebinnedSPANBundle_vxvz,xtitle='v!Bx!N',ytitle='v!Bz!N   (v!BR!N)', ztitle='vdf')
 
 #plot(0,link(-vx,vy,vdf), xtitle='v!Bx!N', ytitle='v!By!N', title='%s &plusmn; %s sec'%(timestamp,timeWidth), ztitle='vdf', symbolSize=3, renderType='colorScatter')
@@ -401,8 +516,8 @@ rebinnedSPANBundle_vpvn_mag = rebin( link(vSPAN_p,vSPAN_n,vdf) , vp_span_bins , 
 rebinnedSPANBundle_vpvq_mag = rebin( link(vSPAN_p,vSPAN_q,vdf) , vp_span_bins , vq_span_bins )
 rebinnedSPANBundle_vpvq_mag_reflected = rebin( temp , vp_span_bins , vq_span_bins )
 
-plot(0,rebinnedSPANBundle_vpvn_mag,ytitle='v!B||!N',xtitle='v!B&perp;1!N',xrange=[vp_span_bins[0],vp_span_bins[-1]],title=str(timestamp)[:-1]+' ± '+timeWidth)
-plot(2,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N',title=str(timestamp)[:-1]+' ± '+timeWidth)
+plot(0,rebinnedSPANBundle_vpvn_mag,ytitle='v!B||!N',xtitle='v!B&perp;1!N',xrange=[vp_span_bins[0],vp_span_bins[-1]],title=str(timestamp)[:-1]+' ï¿½ '+timeWidth)
+plot(2,rebinnedSPANBundle_vpvq_mag,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N',title=str(timestamp)[:-1]+' ï¿½ '+timeWidth)
 #plot(1,rebinnedSPANBundle_vpvq_mag_reflected,ytitle='v!B&perp;2!N',xtitle='v!B&perp;1!N')
 
 

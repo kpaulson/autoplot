@@ -5,12 +5,7 @@
 ############################################################################
 
 
-#timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')
-#timerange = getParam('timerange','2019-04-01 08:10 to 08:20','Timerange over which to calculate Poynting Flux')
-#timerange = getParam('timerange','2019-04-01 02:45 to 03:15','Timerange over which to calculate Poynting Flux')
-#timerange = getParam('timerange','2021-04-28 09:00 to 12:00','Timerange over which to calculate Poynting Flux')
-#timerange = getParam('timerange','2022-02-25 11:50 to 12:30','Timerange over which to calculate Wave Parameters')
-timerange = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Wave Parameters')
+timerange        = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Wave Parameters')
 
 freq_min         = getParam('minFrequency',   0.1,  'Lower frequency bound of analysis (Hz)')
 freq_max         = getParam('maxFrequency',   32.,   'Upper frequency bound of analysis (Hz)')
@@ -30,26 +25,30 @@ plotStuff                 = getParam('plotStuff','T','Plot dataset',['T','F'])
 writeStuff                = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
 useRegularTimestamps      = getParam('useRegularTimestamps','T','Rewrite flds timestamps to constant cadence',['T','F'])
 useButterworthFilter      = getParam('useButterworthFilter','T','Cut off higher frequencies in Efield files to prevent aliasing',['T','F'])
-checkForPreviousFiles     = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next day',['T','F'])
+checkForPreviousFiles     = getParam('checkPrevious','T','If previous copies of L1 file exist, then skip to next time period',['T','F'])
+checkForFailedFiles       = getParam('checkFailed','T','If records of failed attempts of L1 file exist, then skip to next time period',['T','F'])
 removeReactionWheelTone   = getParam('removeReactionWheelTone','F','Attempt to remove signal from reaction wheels',['T','F'])
 writeAttempts             = getParam('writeAttempts',  1, 'How many times try to write file before moving on (set to 0 to turn this off)')
 generateEfieldFreeVersion = getParam('generateEfieldFreeVersion','F','If no Efield data available, drop to v0 and generate Bfield analysis file',['T','F'])
 sunOrientedPoyntingFlux   = getParam('sunwardPoyntingFlux','F','Flip the Efield and Bfield vectors relative to sign of Br to get sunward-oriented poyting flux?',['T','F'])
 
-if useLocalSubprocesses == 'T':
-    useLocalSubprocesses = True
-elif useLocalSubprocesses == 'F':
-    useLocalSubprocesses = False
+def convertTstoTrues(parameterInput):
+    if parameterInput == 'T':
+        parameterInput = True
+    elif parameterInput == 'F':
+        parameterInput = False
+    return(parameterInput)
     
-if useLocalFiles == 'T':
-    useLocalFiles = True
-elif useLocalFiles == 'F':
-    useLocalFiles = False
-    
-if plotStuff == 'T':
-    plotStuff = True
-elif plotStuff == 'F':
-    plotStuff = False
+useLocalSubprocesses      = convertTstoTrues(useLocalSubprocesses)
+useLocalFiles             = convertTstoTrues(useLocalFiles)
+plotStuff                 = convertTstoTrues(plotStuff)
+useRegularTimestamps      = convertTstoTrues(useRegularTimestamps)
+useButterworthFilter      = convertTstoTrues(useButterworthFilter)
+checkForPreviousFiles     = convertTstoTrues(checkForPreviousFiles)
+checkForFailedFiles       = convertTstoTrues(checkForFailedFiles)
+removeReactionWheelTone   = convertTstoTrues(removeReactionWheelTone)
+generateEfieldFreeVersion = convertTstoTrues(generateEfieldFreeVersion)
+sunOrientedPoyntingFlux   = convertTstoTrues(sunOrientedPoyntingFlux)
     
 if writeStuff == 'T':
     writeStuff = True
@@ -59,37 +58,7 @@ elif writeStuff == 'F':
     writeStuff = True
     outputDirectory = '/tmp/'
     print 'secretly writing file to %s directory'%(outputDirectory)
-    
-if useRegularTimestamps == 'T':
-    useRegularTimestamps = True
-elif useRegularTimestamps == 'F':
-    useRegularTimestamps = False
-    
-if useButterworthFilter == 'T':
-    useButterworthFilter = True
-elif useButterworthFilter == 'F':
-    useButterworthFilter = False
-
-if checkForPreviousFiles == 'T':
-    checkForPreviousFiles = True
-elif checkForPreviousFiles == 'F':
-    checkForPreviousFiles = False
-    
-if removeReactionWheelTone == 'T':
-    removeReactionWheelTone = True
-elif removeReactionWheelTone == 'F':
-    removeReactionWheelTone = False
-    
-if generateEfieldFreeVersion == 'T':
-    generateEfieldFreeVersion = True
-elif generateEfieldFreeVersion == 'F':
-    generateEfieldFreeVersion = False
-    
-if sunOrientedPoyntingFlux == 'T':
-    sunOrientedPoyntingFlux = True
-elif sunOrientedPoyntingFlux == 'F':
-    sunOrientedPoyntingFlux = False
-
+   
 
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -200,14 +169,7 @@ except:
 ############################################################################
 ############################################################################
     
-#OS = get_os_version().split()[0]
-#if OS == 'mac' or OS == 'linux':
-#    #googleDrive_path = 'file:///Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
-#    googleDrive_path = '/home/kpaulson/MyDrive/'
-#elif OS == 'windows':
-#    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
-#    googleDrive_path = 'G:/My Drive/'
-    
+
 waveAnalysisFiles_directory = googleDrive_path + outputDirectory
     
 if useLocalFiles == True:
@@ -254,7 +216,7 @@ monitor.setLabel('PSP Wave Analysis')
 if lt(datumRange(timerange).width(), datum('6 hr') ):
     trs = [str(trs[0])]  # [str(generateTimeRanges('$Y-$m-$d $(H,span=6):00 ',timerange)[0])]
     
-if True:
+if checkForFailedFiles:
     trFailedFile = waveAnalysisFiles_directory+'psp_waveAnalysis_failedTimeranges.txt'
     trFailedFile_read = open(trFailedFile, "r")  # read mode
     trFailedStrings = trFailedFile_read.readlines()
@@ -287,7 +249,7 @@ for tr in trs:
     # Perform check to see if the waveAnalysis has already been generated or if there is a known reason for failed processing
     fileAlreadyExists         = False
     timerangePreviouslyFailed = False
-    if checkForPreviousFiles == True:
+    if checkForPreviousFiles:
         try:
             print 'Checking existence of:',outputFile
             try: # This had to be turned into a try/except because the newer versions of the files properly set Epoch='Bfield_time'
@@ -297,20 +259,21 @@ for tr in trs:
             if ne( long(mode(copy(TEMP_epoch))), 0):
                 fileAlreadyExists = True
         except:
-            try:
-                print 'Checking to see if %s in failed list'%datumRange(tr)
-                if datumRange(tr) in trFailedList:
-                    timerangePreviouslyFailed = True
-            except:
-                pass
+            if checkForFailedFiles:
+                try:
+                    print 'Checking to see if %s in failed list'%datumRange(tr)
+                    if datumRange(tr) in trFailedList:
+                        timerangePreviouslyFailed = True
+                except:
+                    pass
         
     monitor.setTaskProgress(index)
     monitor.setLabel('Wave Analysis - %s'%tr_titles[index]) 
     try:
-        if fileAlreadyExists == True:
+        if fileAlreadyExists:
             print 'File already exists for %s'%(tr)
             raise fileAlreadyExistsException
-        elif timerangePreviouslyFailed == True:
+        elif timerangePreviouslyFailed:
             print 'Timerange %s in list of failed attempts'%(tr)
             raise timerangeFailedException
             
@@ -335,14 +298,14 @@ for tr in trs:
         elif le(int(hr), 23):
             hr = '18'
         
-        if useLocalFiles == True:        
+        if useLocalFiles:        
             mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/%s/%s/psp_fld_l2_mag_SC_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
             efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/%s/%s/psp_fld_l2_dfb_wf_dvdc_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
         else:
             mag_datafile    = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/%s/%s/psp_fld_l2_mag_SC_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
             efield_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/%s/%s/psp_fld_l2_dfb_wf_dvdc_%s%s%s%s_v$v.cdf'%(year, month, year, month, day, hr)
         if tr == timerange:
-            if useLocalFiles == True:
+            if useLocalFiles:
                 mag_datafile    = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
                 efield_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_dvdc/$Y/$m/psp_fld_l2_dfb_wf_dvdc_$Y$m$d$(H,span=6)_v$v.cdf'
             else:
@@ -359,7 +322,7 @@ for tr in trs:
             print 'efield_data:',efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc'
             efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
         except:
-            if generateEfieldFreeVersion == True:
+            if generateEfieldFreeVersion:
                 efield_data = zeros(len(mag_data),3)
                 efield_data.putProperty(QDataSet.DEPEND_0,mag_time)
                 version = '0'+version[1:]
@@ -371,7 +334,7 @@ for tr in trs:
     
         # This clause generates new timestamps from the most common cadence in the mag dataset
         #   (this is to avoid the issues with the fft when there are changes in time cadence)
-        if useRegularTimestamps == True:
+        if useRegularTimestamps:
             startTime = putProperty(mag_time[0],QDataSet.NAME,None)
             endTime = putProperty(mag_time[-1],QDataSet.NAME,None)
             cadence = mode(diff(mag_time))
@@ -387,7 +350,7 @@ for tr in trs:
         Bz = mag_data[:,2]
         Btotal = magnitude(mag_data)
         
-        if useButterworthFilter == True:
+        if useButterworthFilter:
             highFreqMagLimit = datum('1 sec')/mode(diff(mag_time))/2.
             Ex = Butterworth_Bandpassify_zeroPhase( efield_data[:,0] , 2 , datum('0 Hz') , datum(str(highFreqMagLimit)+' Hz') , True )
             Ey = Butterworth_Bandpassify_zeroPhase( efield_data[:,1] , 2 , datum('0 Hz') , datum(str(highFreqMagLimit)+' Hz') , True )
@@ -397,7 +360,7 @@ for tr in trs:
             Ex = efield_data[:,0]
             Ey = efield_data[:,1]
         
-        if removeReactionWheelTone == True:
+        if removeReactionWheelTone:
             reactionWheelTone_1 = getDataSet(mag_100bpsfile+'?PSP_FLD_L2_F2_100bps_SC_Reaction_Wheel_Speed_RW1',tr)
             reactionWheelTone = dblarr(len(reactionWheelTone_1),4)
             reactionWheelTone[:,0] = reactionWheelTone_1
@@ -462,7 +425,7 @@ for tr in trs:
     
         # Reverse direction for positive Bz periods so that we are always looking at wave propagation relative to sun->sc direction 
         
-        if sunOrientedPoyntingFlux == True:
+        if sunOrientedPoyntingFlux:
             # THIS SEEMS TO BE MAKING MORE TROUBLE THAN IT IS WORTH (DOUBLE THE FFTs)
             # I WILL SHELVE IT FOR NOW, ESPECIALLY BECAUSE I MIGHT BE SCREWING SOMETHING UP
             # IT WILL BE TURNED ON WITH A FLAG FOR NOW SO I CAN TEST IT.
@@ -498,7 +461,7 @@ for tr in trs:
             Eq_fft = Hanningfft( Eq , freq_min , freq_max , window , slide )
             
           
-        elif sunOrientedPoyntingFlux == False:      
+        elif not sunOrientedPoyntingFlux:      
             # ###
             # ### RENAME ABOVE FFTS FOR POYNTING 
             # ###
@@ -519,7 +482,7 @@ for tr in trs:
         # ### FILTER OUT REACTION WHEEL SIGNALS
         # ###
     
-        if removeReactionWheelTone == True:
+        if removeReactionWheelTone:
             for fft_ds in [Bn_fft,Bp_fft,Bq_fft,En_fft,Ep_fft,Eq_fft]:
                 for wheelNumber in xrange(len(reactionWheelTone[0,:])):
                     if gt(len(reactionWheelTone[:,wheelNumber][where(valid(reactionWheelTone[:,wheelNumber]))]), 0):
@@ -535,10 +498,10 @@ for tr in trs:
     
         monitor.setProgressMessage('Polarization')
         giveUsTheK = True
-        if giveUsTheK == False:
+        if not giveUsTheK:
             ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization, Power_compressional, Power_perp, Wave_Power ) = Polarize( Bn_fft_pol , Bp_fft_pol , Bq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min )
             ( Handedness_E , Ellipticity_E , Angle_Normal_E , Deg_Polarization_E , Coherency_E , Angle_polarization_E, Power_compressional_E, Power_perp_E, Wave_Power_E ) = Polarize( En_fft_pol , Ep_fft_pol , Eq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min_E )
-        elif giveUsTheK == True:
+        elif giveUsTheK:
             ( Handedness , Ellipticity , Angle_Normal , Deg_Polarization , Coherency , Angle_polarization, Power_compressional, Power_perp, Wave_Power, kx, ky, kz ) = Polarize( Bn_fft_pol , Bp_fft_pol , Bq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min, giveUsTheK = True )
             ( Handedness_E , Ellipticity_E , Angle_Normal_E , Deg_Polarization_E , Coherency_E , Angle_polarization_E, Power_compressional_E, Power_perp_E, Wave_Power_E, kx_E, ky_E, kz_E ) = Polarize( En_fft_pol , Ep_fft_pol , Eq_fft_pol , Nx_pol , Ny_pol , Nz_pol , wave_power_min_E, giveUsTheK = True )
             
@@ -649,56 +612,6 @@ for tr in trs:
         
         putPropsDep0Dep1(variableList, fft_time, frequency_axis)
         
-#        Ellipticity.putProperty(          QDataSet.DEPEND_0,fft_time)
-#        Angle_Normal.putProperty(         QDataSet.DEPEND_0,fft_time)
-#        Coherency.putProperty(            QDataSet.DEPEND_0,fft_time)
-#        Power_compressional.putProperty(  QDataSet.DEPEND_0,fft_time)
-#        Power_perp.putProperty(           QDataSet.DEPEND_0,fft_time)
-#        Wave_Power.putProperty(           QDataSet.DEPEND_0,fft_time)
-#        Ellipticity_E.putProperty(        QDataSet.DEPEND_0,fft_time)
-#        Angle_Normal_E.putProperty(       QDataSet.DEPEND_0,fft_time)
-#        Coherency_E.putProperty(          QDataSet.DEPEND_0,fft_time)
-#        Power_compressional_E.putProperty(QDataSet.DEPEND_0,fft_time)
-#        Power_perp_E.putProperty(         QDataSet.DEPEND_0,fft_time)
-#        Wave_Power_E.putProperty(         QDataSet.DEPEND_0,fft_time)
-#        Smag.putProperty(                 QDataSet.DEPEND_0,fft_time)
-#        Poynting_theta.putProperty(       QDataSet.DEPEND_0,fft_time)
-#        Poynting_phi.putProperty(         QDataSet.DEPEND_0,fft_time)
-#        Sn.putProperty(                   QDataSet.DEPEND_0,fft_time)
-#        Sp.putProperty(                   QDataSet.DEPEND_0,fft_time)
-#        Sq.putProperty(                   QDataSet.DEPEND_0,fft_time)
-#        Bn_fft_pol.putProperty(           QDataSet.DEPEND_0,fft_time)
-#        Bp_fft_pol.putProperty(           QDataSet.DEPEND_0,fft_time)
-#        Bq_fft_pol.putProperty(           QDataSet.DEPEND_0,fft_time)
-#        En_fft_pol.putProperty(           QDataSet.DEPEND_0,fft_time)
-#        Ep_fft_pol.putProperty(           QDataSet.DEPEND_0,fft_time)
-#        Eq_fft_pol.putProperty(           QDataSet.DEPEND_0,fft_time)
-#
-#        Ellipticity.putProperty(          QDataSet.DEPEND_1,frequency_axis)
-#        Angle_Normal.putProperty(         QDataSet.DEPEND_1,frequency_axis)
-#        Coherency.putProperty(            QDataSet.DEPEND_1,frequency_axis)
-#        Power_compressional.putProperty(  QDataSet.DEPEND_1,frequency_axis)
-#        Power_perp.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-#        Wave_Power.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-#        Ellipticity_E.putProperty(        QDataSet.DEPEND_1,frequency_axis)
-#        Angle_Normal_E.putProperty(       QDataSet.DEPEND_1,frequency_axis)
-#        Coherency_E.putProperty(          QDataSet.DEPEND_1,frequency_axis)
-#        Power_compressional_E.putProperty(QDataSet.DEPEND_1,frequency_axis)
-#        Power_perp_E.putProperty(         QDataSet.DEPEND_1,frequency_axis)
-#        Wave_Power_E.putProperty(         QDataSet.DEPEND_1,frequency_axis)
-#        Smag.putProperty(                 QDataSet.DEPEND_1,frequency_axis)
-#        Poynting_theta.putProperty(       QDataSet.DEPEND_1,frequency_axis)
-#        Poynting_phi.putProperty(         QDataSet.DEPEND_1,frequency_axis)
-#        Sn.putProperty(                   QDataSet.DEPEND_1,frequency_axis)
-#        Sp.putProperty(                   QDataSet.DEPEND_1,frequency_axis)
-#        Sq.putProperty(                   QDataSet.DEPEND_1,frequency_axis)
-#        Bn_fft_pol.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-#        Bp_fft_pol.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-#        Bq_fft_pol.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-#        En_fft_pol.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-#        Ep_fft_pol.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-#        Eq_fft_pol.putProperty(           QDataSet.DEPEND_1,frequency_axis)
-        
         Ellipticity.putProperty(          QDataSet.NAME,'ellipticity_b')
         Angle_Normal.putProperty(         QDataSet.NAME,'wave_normal_b')
         Coherency.putProperty(            QDataSet.NAME,'coherency_b')
@@ -770,9 +683,9 @@ for tr in trs:
         Smag.putProperty(                 QDataSet.TITLE,'Poynting Flux Magnitude')
         Poynting_theta.putProperty(       QDataSet.TITLE,'Poynting Theta (S dot B)')
         Poynting_phi.putProperty(         QDataSet.TITLE,'Poynting Phi (clock angle where 0=RTN_T and 90=RTN_N)')
-        if sunOrientedPoyntingFlux == True:
+        if sunOrientedPoyntingFlux:
             Sn.putProperty(                   QDataSet.TITLE,'Poynting Flux Parallel (away from Sun)')
-        elif sunOrientedPoyntingFlux == False:
+        elif not sunOrientedPoyntingFlux:
             Sn.putProperty(                   QDataSet.TITLE,'Poynting Flux Parallel (Field-oriented)')
         Sp.putProperty(                   QDataSet.TITLE,'Poynting Flux Perpendicular (approximately in RTN_T direction)')
         Sq.putProperty(                   QDataSet.TITLE,'Poynting Flux Perpendicular (approximately in RTN_N direction)')
@@ -791,7 +704,7 @@ for tr in trs:
         # ### WRITE STUFF
         # ###
             
-        if writeStuff == True:
+        if writeStuff:
             
             def writeVarsToCDF(variableList, outputFile):
                 if gt(len(variableList),0):
@@ -820,43 +733,6 @@ for tr in trs:
                     for i in xrange(writeAttempts):
                         writeVarsToCDF(variableList, outputFile)
                         
-#                        formatDataSet(fft_time           ,outputFile)
-#                        formatDataSet(mag_time           ,outputFile+'?append=T')
-#                        formatDataSet(Ellipticity        ,outputFile+'?append=T')
-#                        formatDataSet(Angle_Normal       ,outputFile+'?append=T')
-#                        formatDataSet(Coherency          ,outputFile+'?append=T')
-#                        formatDataSet(Power_compressional,outputFile+'?append=T')
-#                        formatDataSet(Power_perp         ,outputFile+'?append=T')
-#                        formatDataSet(Wave_Power         ,outputFile+'?append=T')
-#                        formatDataSet(Smag               ,outputFile+'?append=T')
-#                        formatDataSet(Poynting_theta     ,outputFile+'?append=T')
-#                        formatDataSet(Poynting_phi       ,outputFile+'?append=T')
-#                        formatDataSet(Sn                 ,outputFile+'?append=T')
-#                        formatDataSet(Sp                 ,outputFile+'?append=T')
-#                        formatDataSet(Sq                 ,outputFile+'?append=T')
-#                        formatDataSet(Bn_pol             ,outputFile+'?append=T')
-#                        formatDataSet(Bp_pol             ,outputFile+'?append=T')
-#                        formatDataSet(Bq_pol             ,outputFile+'?append=T')
-#                        formatDataSet(Bn_fft_pol         ,outputFile+'?append=T')
-#                        formatDataSet(Bp_fft_pol         ,outputFile+'?append=T')
-#                        formatDataSet(Bq_fft_pol         ,outputFile+'?append=T')
-#                        formatDataSet(Ellipticity_E        ,outputFile+'?append=T')
-#                        formatDataSet(Angle_Normal_E       ,outputFile+'?append=T')
-#                        formatDataSet(Coherency_E          ,outputFile+'?append=T')
-#                        formatDataSet(Power_compressional_E,outputFile+'?append=T')
-#                        formatDataSet(Power_perp_E         ,outputFile+'?append=T')
-#                        formatDataSet(Wave_Power_E         ,outputFile+'?append=T')
-#                        formatDataSet(En_fft_pol           ,outputFile+'?append=T')
-#                        formatDataSet(Ep_fft_pol           ,outputFile+'?append=T')
-#                        formatDataSet(Eq_fft_pol           ,outputFile+'?append=T')
-#                        if giveUsTheK == True:
-#                            formatDataSet(kx               ,outputFile+'?append=T')
-#                            formatDataSet(ky               ,outputFile+'?append=T')
-#                            formatDataSet(kz               ,outputFile+'?append=T')
-#                            formatDataSet(kx_E             ,outputFile+'?append=T')
-#                            formatDataSet(ky_E             ,outputFile+'?append=T')
-#                            formatDataSet(kz_E             ,outputFile+'?append=T')
-                        
                         print 'writeAttempt:',i+1
                         fileAlreadyExists = False
                         try:
@@ -873,43 +749,6 @@ for tr in trs:
                 
             else:
                 writeVarsToCDF(variableList, outputFile)
-                
-#                formatDataSet(fft_time           ,outputFile)
-#                formatDataSet(mag_time           ,outputFile+'?append=T')
-#                formatDataSet(Ellipticity        ,outputFile+'?append=T')
-#                formatDataSet(Angle_Normal       ,outputFile+'?append=T')
-#                formatDataSet(Coherency          ,outputFile+'?append=T')
-#                formatDataSet(Power_compressional,outputFile+'?append=T')
-#                formatDataSet(Power_perp         ,outputFile+'?append=T')
-#                formatDataSet(Wave_Power         ,outputFile+'?append=T')
-#                formatDataSet(Smag               ,outputFile+'?append=T')
-#                formatDataSet(Poynting_theta     ,outputFile+'?append=T')
-#                formatDataSet(Poynting_phi       ,outputFile+'?append=T')
-#                formatDataSet(Sn                 ,outputFile+'?append=T')
-#                formatDataSet(Sp                 ,outputFile+'?append=T')
-#                formatDataSet(Sq                 ,outputFile+'?append=T')
-#                formatDataSet(Bn_pol             ,outputFile+'?append=T')
-#                formatDataSet(Bp_pol             ,outputFile+'?append=T')
-#                formatDataSet(Bq_pol             ,outputFile+'?append=T')
-#                formatDataSet(Bn_fft_pol             ,outputFile+'?append=T')
-#                formatDataSet(Bp_fft_pol             ,outputFile+'?append=T')
-#                formatDataSet(Bq_fft_pol             ,outputFile+'?append=T')
-#                formatDataSet(Ellipticity_E          ,outputFile+'?append=T')
-#                formatDataSet(Angle_Normal_E         ,outputFile+'?append=T')
-#                formatDataSet(Coherency_E            ,outputFile+'?append=T')
-#                formatDataSet(Power_compressional_E  ,outputFile+'?append=T')
-#                formatDataSet(Power_perp_E           ,outputFile+'?append=T')
-#                formatDataSet(Wave_Power_E           ,outputFile+'?append=T')
-#                formatDataSet(En_fft_pol             ,outputFile+'?append=T')
-#                formatDataSet(Ep_fft_pol             ,outputFile+'?append=T')
-#                formatDataSet(Eq_fft_pol             ,outputFile+'?append=T')
-#                if giveUsTheK == True:
-#                    formatDataSet(kx               ,outputFile+'?append=T')
-#                    formatDataSet(ky               ,outputFile+'?append=T')
-#                    formatDataSet(kz               ,outputFile+'?append=T')
-#                    formatDataSet(kx_E             ,outputFile+'?append=T')
-#                    formatDataSet(ky_E             ,outputFile+'?append=T')
-#                    formatDataSet(kz_E             ,outputFile+'?append=T')
             
         
         # ###
@@ -917,8 +756,8 @@ for tr in trs:
         # ###
             
         monitor.setProgressMessage('Plotting')
-        if plotStuff == True:
-            if filterOutIncoherent == True:
+        if plotStuff:
+            if filterOutIncoherent:
                 incoherent = where(lt(medianFilter(Coherency,10),0.9))
                 Smag[incoherent] = 0
                 Power_perp[incoherent] = 0
@@ -948,9 +787,9 @@ for tr in trs:
             plot(3, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             #plot(4, Power_perp_E, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD E!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             
-            if sunOrientedPoyntingFlux == False:
+            if not sunOrientedPoyntingFlux:
                 plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CAgainst  Along!CB          B', zlog=False, zrange=[0,180]) 
-            elif sunOrientedPoyntingFlux == True:
+            elif sunOrientedPoyntingFlux:
                 plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo        From!CSun          Sun', zlog=False, zrange=[0,180]) 
             
             #plot(4, Poynting_phi, colorTable='apl_rainbow_black0')   
@@ -963,7 +802,7 @@ for tr in trs:
             plot(7, Angle_Normal, xrange=tr, ztitle='Wave Normal!Ck &middot; |B|', colorTable='inverse_grayscale' )#datumRange(str(fft_time[0])+' to '+str(fft_time[-1])) )  
             
             
-            if generateEfieldFreeVersion == True:
+            if generateEfieldFreeVersion:
                 plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
                 plot(4, Power_perp, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bkperp!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
             
@@ -976,9 +815,9 @@ for tr in trs:
         index = index+1
     except:
         exc_type, exc_value, exc_tb = sys.exc_info()
-        if fileAlreadyExists == False:
+        if fileAlreadyExists:
             print 'Couldn\'t Run Analysis for %s'%(str(tr_titles[index])) 
-            if timerangePreviouslyFailed == False:
+            if not timerangePreviouslyFailed:
                 print exc_value
                 trFailedFile_append = open(trFailedFile, "a")  # append mode
                 trFailedFile_append.write('\n%s, %s'%(tr, exc_value))

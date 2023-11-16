@@ -1,0 +1,52 @@
+
+tr = '2021-11-15 to 2021-11-30'
+tr = '2021-04-28 to 2021-05-01'
+tr = '2023-03-13 through 2023-03-20'
+tr = getParam('timerange', '2022-02-24 to 2022-02-28', 'timerange for aggregation')
+
+SPAN_or_QTN_density = getParam('whichDensity', 'QTN', 'Which density measurement do you want to use?', ['SPC', 'SPAN', 'QTN'])
+
+Tp1 = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?TEMP', tr)
+
+if SPAN_or_QTN_density == 'SPAN':
+    np1 = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?DENS', tr)
+elif SPAN_or_QTN_density == 'SPC':
+    np1 = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment', tr)
+    np1 = synchronize(Tp1, np1)
+elif SPAN_or_QTN_density == 'QTN':
+    np1 = getDataSet('file:/G:/My%20Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt?depend0=field0&column=electronDensity')
+    np1 = synchronize(Tp1, np1)
+
+Bm = magnitude(getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_RTN_1min/$Y/$m/psp_fld_l2_mag_RTN_1min_$Y$m$d_v$v.cdf?psp_fld_l2_mag_RTN_1min', tr))
+
+r_sun = getDataSet('file:/G:/My Drive/Research/PSP/Ephemeris/dailyFiles/PSP_ephemeris_$Y-$m-$d.txt?r_Sun', tr)
+
+time = np1.property(QDataSet.DEPEND_0)
+Bm   = synchronize(np1, Bm)
+
+Tp  = Tp1*11604.525    #eV to Kelvin
+np  = np1*1000000.    #1/cm^3 to 1/m^3
+
+# SI Constants
+k    = 1.3807E-23
+mu_0 = PI*4E-7
+mp   = 1.6726E-27
+
+# Particle Pressure
+ParticlePres=np*Tp*k
+
+# Magnetic Pressure
+#Bm=B_Magnitude=sqrt(((BR)*(10**(-9)))**2+((BT)*(10**(-9)))**2+((BN)*(10**(-9)))**2)
+MagneticPressure=((Bm*1E-9)**2)/(2*mu_0)
+
+# Beta
+PlasmaBeta=ParticlePres/MagneticPressure
+totalPressure = ParticlePres + MagneticPressure
+
+r_sun = synchronize(np, r_sun)
+
+plot(0, time, PlasmaBeta, ytitle='Plasma Beta')
+#plot(1, time, Bmag, ytitle='Magnetic Field (Magnitude) (nT)')
+plot(1, time, ParticlePres, ytitle='Particle Pressure')
+plot(2, time, MagneticPressure, ytitle='Magnetic Pressure')
+plot(3, time, totalPressure*r_sun, ytitle='Total Pressure')

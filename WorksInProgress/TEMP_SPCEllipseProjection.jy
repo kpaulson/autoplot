@@ -1,5 +1,5 @@
-plotStuff = False
-writeStuff = True
+plotStuff = True
+writeStuff = False
 #if plotStuff == True:
     #setLayoutOverplot(5)
     

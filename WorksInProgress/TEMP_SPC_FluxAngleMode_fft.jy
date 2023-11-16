@@ -1,13 +1,15 @@
 freq_min       = getParam('minFrequency', 0.03,  'Lower frequency bound of analysis (Hz)')
 freq_max       = getParam('maxFrequency', 4.,  'Upper frequency bound of analysis (Hz)')
-window         = getParam('windowWidth',  2048, 'Number of points in fft window')
+window         = getParam('windowWidth',  512, 'Number of points in fft window')
 slide          = getParam('slideFactor',  16,    'Reciprocal of fraction of non-overlap between neighboring windows')
+tr = '2023-06-16'
 
+spc_ifaFile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2ifa_$Y$m$d_v$v.cdf'
 
-
-
-spc_time = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2020/02/spp_swp_spc_l2ifa_20200203_v02.cdf?measurement_time')
-spc_a = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2020/02/spp_swp_spc_l2ifa_20200203_v02.cdf?a_current')
+#spc_time = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2020/02/spp_swp_spc_l2ifa_20200203_v02.cdf?measurement_time')
+#spc_a    = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2020/02/spp_swp_spc_l2ifa_20200203_v02.cdf?a_current')
+spc_time = getDataSet(spc_ifaFile+'?measurement_time', tr)
+spc_a    = getDataSet(spc_ifaFile+'?a_current', tr)
 
 time = spc_a.property(QDataSet.DEPEND_0)
 

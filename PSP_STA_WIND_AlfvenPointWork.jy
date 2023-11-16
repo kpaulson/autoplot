@@ -57,6 +57,11 @@ carringtonRotation_2221_and_2222 = '2019-08-23 to 2019-10-16'
 
 nishuTime = '2018-11-13 to 2018-11-24'
 
+densityDepletionTime = '2023-03-14 through 2023-03-21'
+
+###
+###
+###
 
 tr = frs3_inwards
 #tr = perihelion3
@@ -75,9 +80,11 @@ tr = nishuTime
 #tr = orbit1
 #tr = '2018-08-12 08:15 to 2019-06-18 20:15'
 #tr = '2020-11-20 to 2020-11-25'
+tr = '2020-01-27 through 2020-02-03'
+tr = densityDepletionTime
 
 tr_WIND = '2018-11-04 to 2018-11-07'#carringtonRotation_2220
-tr_WIND = carringtonRotation_2213
+tr_WIND = '2023-03-20 through 2023-03-30'
 tr_STA = tr_WIND
 
 plotType = 'dialPlot'  #'longitudeStack', 'dialPlot'
@@ -93,7 +100,7 @@ filterVelocity = False
 minVelAU = 0.0
 maxVelAU = 1.
 
-downsampleFactor = 1
+downsampleFactor = 10
 
 
 if plotType == 'dialPlot':
@@ -153,6 +160,14 @@ PSP_Vt_SPC       = PSP_plasmaSPC[:,2]
 PSP_Vn_SPC       = PSP_plasmaSPC[:,3]
 PSP_Density      = PSP_plasmaSPC[:,4]
 PSP_thermalSpeed = PSP_plasmaSPC[:,5]
+
+PSP_plasmaSPC_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+PSP_Vrtn_SPC     = getDataSet(PSP_plasmaSPC_file+'?vp_moment_RTN', tr)
+PSP_Vr_SPC       = PSP_Vrtn_SPC[:,0]
+PSP_Vt_SPC       = PSP_Vrtn_SPC[:,1]
+PSP_Vn_SPC       = PSP_Vrtn_SPC[:,2]
+PSP_Density      = getDataSet(PSP_plasmaSPC_file+'?np_moment', tr)
+PSP_thermalSpeed = getDataSet(PSP_plasmaSPC_file+'?wp_moment', tr)
 
 PSP_plasmaSPi = getDataSet(psp_plasmaFileSPi+'?bundle=PSP_EPOCH-PSP_TEMP_SPI_EV')
 PSP_plasmaSPi.putProperty(QDataSet.DEPEND_0,PSP_time)
@@ -447,16 +462,22 @@ for j in xrange(len(r_STA[0,:])):
     #plot(i,r[:,j],lon[:,j],v[j],renderType='polar')
     #plot(j,r[:,j]*cos(toRadians(lon[:,j])),r[:,j]*sin(toRadians(lon[:,j])),v[j]*ones(len(tt)),renderType='series')
 
+try:
+    inRange_STA = where(eq(lt(rTot_STA,min_STA_range).or(gt(rTot_STA,max_STA_range)),0))
+    rTot_STA         = rTot_STA[inRange_STA]
+    lonTot_STA       = lonTot_STA[inRange_STA]
+    vTot_STA         = vTot_STA[inRange_STA]
+    magSectorTot_STA = magSectorTot_STA[inRange_STA]
+except:
+    print 'No Valid Stereo-A Data in Directory'
+    rTot_STA           = zeros(1)
+    lonTot_STA         = zeros(1)
+    vTot_STA           = zeros(1)
+    magSectorTot_STA   = zeros(1)
 
-inRange_STA = where(eq(lt(rTot_STA,min_STA_range).or(gt(rTot_STA,max_STA_range)),0))
-rTot_STA   = rTot_STA[inRange_STA]
-lonTot_STA = lonTot_STA[inRange_STA]
-vTot_STA   = vTot_STA[inRange_STA]
-magSectorTot_STA   = magSectorTot_STA[inRange_STA]
 
 negSector_STA = where(lt(magSectorTot_STA,0))
 posSector_STA = where(gt(magSectorTot_STA,0))
-
 
 
 lonTot_PSP = mod(lonTot_PSP+360,360)

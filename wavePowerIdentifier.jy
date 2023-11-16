@@ -11,7 +11,7 @@ writeStuff            = getParam('writeFiles',   'T', 'Write out the L1 files wi
 writeAttempts         = getParam('writeAttempts',  1, 'How many times try to write file before moving on (set to 0 to turn this off)')
 
 
-fileVersion = '1.1'
+fileVersion = '1.2'
 
 
 if checkForPreviousFiles == 'T':

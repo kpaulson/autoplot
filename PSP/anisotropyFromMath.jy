@@ -104,10 +104,30 @@ elif skipPreviousFiles == 'F':
 ############################################################################
 ############################################################################
     
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver
+
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
 
 import sys
 ### IMPORT SUBPROCESSES
-localGithubDirectory = 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/'
+localGithubDirectory = googleDrive_path+'Software/Autoplot/GithubScripts/'
 remoteGithubDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 try:
     if useLocalSubprocesses == True:
@@ -194,14 +214,6 @@ from org.apache.commons.math.optimization.fitting import ParametricRealFunction
 from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
 from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
 from org.apache.commons.math.stat.regression      import SimpleRegression
-
-OS = get_os_version().split()[0]
-if OS == 'mac':
-    googleDrive_path = '/Volumes/Macintosh HD/Volumes/GoogleDrive/My Drive/'
-    googleDrive_path = '/Volumes/GoogleDrive/My Drive/'
-elif OS == 'windows':
-    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
-    googleDrive_path = 'G:/My Drive/'
 
 #addToSearchPath(sys.path, str(googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar'), monitor)
 

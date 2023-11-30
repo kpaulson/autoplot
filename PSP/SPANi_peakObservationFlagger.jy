@@ -1,49 +1,74 @@
 from org.das2.datum import TimeUtil
 timerange = getParam('timerange','2020-01-30','timerange of flags to generate (typically daily files)')
 fileType  = getParam('file type', 'sf00', 'Which type of span file do you want to generate peak files for?', ['sf00', 'sf0a', 'af00', 'af0a'])
-#tr = generateTimeRanges('$Y-$m-$d',timerange)
-tr = timerange
+
+#tr = timerange
 writeStuff = True
+checkPrevious = True
 
 
-tr_year = TimeUtil.fromDatum(datum(tr))[0]
-tr_month = TimeUtil.fromDatum(datum(tr))[1]
-tr_day = TimeUtil.fromDatum(datum(tr))[2]
+trs = generateTimeRanges('$Y-$m-$d',timerange)
+for tr in trs:
 
-w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(fileType, fileType)
-
-eflux_vs_phi = getDataSet(w3sweap_SPAN_L3_file+'?EFLUX_VS_PHI',tr)
-phi_vals = getDataSet(w3sweap_SPAN_L3_file+'?PHI_VALS',tr)
-time = eflux_vs_phi.property(QDataSet.DEPEND_0)
-
-#This subsection should fill-out where the anode is blocked by the shield (good anode is at 163.125 degrees)
-#r = where(gt(phi_vals,164)) 
-#eflux_vs_phi[r] = -1
-
-eflux_vs_phi.putProperty(QDataSet.VALID_MIN,0)
-eflux_vs_phi.putProperty(QDataSet.VALID_MAX,1E20)
-
-
-peakObservationFlag = ones(len(time))
-
-for i in xrange(len(eflux_vs_phi)):
-    r = where(lt(phi_vals[i,:],164))
+    tr_year = TimeUtil.fromDatum(datum(tr))[0]
+    tr_month = TimeUtil.fromDatum(datum(tr))[1]
+    if len(str(tr_month))==1:
+        tr_month = '0'+str(tr_month)
+    tr_day = TimeUtil.fromDatum(datum(tr))[2]
     
-    if gt( max(eflux_vs_phi[i,r]) , eflux_vs_phi[i,r[imax(phi_vals[i,r])]] ).and(gt( max(eflux_vs_phi[i,r]) , eflux_vs_phi[i,r[imin(phi_vals[i,r])]] )):
-#    if gt( max(eflux_vs_phi[i,:]) , eflux_vs_phi[i,imax(phi_vals[i,:])] ).and(gt( max(eflux_vs_phi[i,:]) , eflux_vs_phi[i,imin(phi_vals[i,:])] )):
-        peakObservationFlag[i] = 0
-
-#plot(0,eflux_vs_phi,xrange=tr)
-#plot(1,time,peakObservationFlag)
-
-peakObservationFlag.putProperty(QDataSet.DEPEND_0,time)
-peakObservationFlag.putProperty(QDataSet.LABEL,'VDF Peak Observation (0=Yes, 1=No)')
-peakObservationFlag.putProperty(QDataSet.NAME,'VDF_Peak_Obs')
-peakObservationFlag.putProperty(QDataSet.DESCRIPTION,'Flag dataset on whether the peak of the VDF is located within the edge of the view the SPANi instrument')
-
-
-if writeStuff == True:
     spaniPeakObservation_directory = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/%s/%s/%s/'%(fileType, tr_year, tr_month)
-    mkdir(spaniPeakObservation_directory)
-
-    formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s_%s.txt?header=rich'%(fileType,tr))
+    outputFile = 'SPANi_peakObservationFlags_%s_%s.txt?header=rich'%(fileType,tr)
+    
+    fileAlreadyExists = False
+    if checkPrevious==True:
+        try:
+            TEMP_epoch = getDataSet(spaniPeakObservation_directory+outputFile+'?column=Epoch')
+            if ne( long(mode(copy(TEMP_epoch))), 0):
+                fileAlreadyExists = True
+        except:
+            pass
+            
+    try:
+        if fileAlreadyExists:
+            print 'File already exists for %s'%(tr)
+            raise fileAlreadyExistsException  
+    
+        w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(fileType, fileType)
+        
+        eflux_vs_phi = getDataSet(w3sweap_SPAN_L3_file+'?EFLUX_VS_PHI',tr)
+        phi_vals = getDataSet(w3sweap_SPAN_L3_file+'?PHI_VALS',tr)
+        time = eflux_vs_phi.property(QDataSet.DEPEND_0)
+        
+        #This subsection should fill-out where the anode is blocked by the shield (good anode is at 163.125 degrees)
+        #r = where(gt(phi_vals,164)) 
+        #eflux_vs_phi[r] = -1
+        
+        eflux_vs_phi.putProperty(QDataSet.VALID_MIN,0)
+        eflux_vs_phi.putProperty(QDataSet.VALID_MAX,1E20)
+        
+        
+        peakObservationFlag = ones(len(time))
+        
+        for i in xrange(len(eflux_vs_phi)):
+            r = where(lt(phi_vals[i,:],164))
+            
+            if gt( max(eflux_vs_phi[i,r]) , eflux_vs_phi[i,r[imax(phi_vals[i,r])]] ).and(gt( max(eflux_vs_phi[i,r]) , eflux_vs_phi[i,r[imin(phi_vals[i,r])]] )):
+        #    if gt( max(eflux_vs_phi[i,:]) , eflux_vs_phi[i,imax(phi_vals[i,:])] ).and(gt( max(eflux_vs_phi[i,:]) , eflux_vs_phi[i,imin(phi_vals[i,:])] )):
+                peakObservationFlag[i] = 0
+        
+        #plot(0,eflux_vs_phi,xrange=tr)
+        #plot(1,time,peakObservationFlag)
+        
+        peakObservationFlag.putProperty(QDataSet.DEPEND_0,time)
+        peakObservationFlag.putProperty(QDataSet.LABEL,'VDF Peak Observation (0=Yes, 1=No)')
+        peakObservationFlag.putProperty(QDataSet.NAME,'VDF_Peak_Obs')
+        peakObservationFlag.putProperty(QDataSet.DESCRIPTION,'Flag dataset on whether the peak of the VDF is located within the edge of the view the SPANi instrument')
+        
+        
+        if writeStuff == True:
+            mkdir(spaniPeakObservation_directory)
+        
+            formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s_%s.txt?header=rich'%(fileType,tr))
+            
+    except:
+        continue

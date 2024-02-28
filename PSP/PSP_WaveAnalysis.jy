@@ -19,7 +19,7 @@ wave_power_min_E = getParam('wavePowerMin_E', 1E-10, 'Minimum electric field Wav
 version = '1.3'
 filterOutIncoherent = False
 
-useLocalSubprocesses      = getParam('useLocalSubprocesses','F','Use local subprocess imports instead of Github',['T','F'])
+useLocalSubprocesses      = getParam('useLocalSubprocesses','T','Use local subprocess imports instead of Github',['T','F'])
 useLocalFiles             = getParam('useLocalFiles','F','Pull data from local cache',['T','F'])
 plotStuff                 = getParam('plotStuff','T','Plot dataset',['T','F'])
 writeStuff                = getParam('writeStuff','T','Write dataset out to cdf file',['T','F'])
@@ -215,9 +215,9 @@ monitor.setLabel('PSP Wave Analysis')
 
 if lt(datumRange(timerange).width(), datum('6 hr') ):
     trs = [str(trs[0])]  # [str(generateTimeRanges('$Y-$m-$d $(H,span=6):00 ',timerange)[0])]
-    
+
+trFailedFile = waveAnalysisFiles_directory+'psp_waveAnalysis_failedTimeranges.txt'        
 if checkForFailedFiles:
-    trFailedFile = waveAnalysisFiles_directory+'psp_waveAnalysis_failedTimeranges.txt'
     trFailedFile_read = open(trFailedFile, "r")  # read mode
     trFailedStrings = trFailedFile_read.readlines()
     trFailedList = list()
@@ -270,8 +270,8 @@ for tr in trs:
     monitor.setTaskProgress(index)
     monitor.setLabel('Wave Analysis - %s'%tr_titles[index]) 
     try:
+    #if True:
         if fileAlreadyExists:
-            print 'File already exists for %s'%(tr)
             raise fileAlreadyExistsException
         elif timerangePreviouslyFailed:
             print 'Timerange %s in list of failed attempts'%(tr)
@@ -322,6 +322,8 @@ for tr in trs:
             print 'efield_data:',efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc'
             efield_data = getDataSet(efield_datafile+'?psp_fld_l2_dfb_wf_dVdc_sc',tr)
         except:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            print exc_value
             if generateEfieldFreeVersion:
                 efield_data = zeros(len(mag_data),3)
                 efield_data.putProperty(QDataSet.DEPEND_0,mag_time)
@@ -813,12 +815,19 @@ for tr in trs:
             writeToPng(waveAnalysis_directory+'Plots/v%s/'%(version)+'PSP_WaveAnalysis_%s_v%s.png'%(tr_titles[index],version))
             
         index = index+1
-    except:
+      
+    except:  
+    #else:    
         exc_type, exc_value, exc_tb = sys.exc_info()
+        print exc_value
+        print exc_tb
         if fileAlreadyExists:
+            print 'File already exists for %s'%(tr)
+            #print 'how did you even get to this message?'
+        else:
             print 'Couldn\'t Run Analysis for %s'%(str(tr_titles[index])) 
+        if checkForFailedFiles:
             if not timerangePreviouslyFailed:
-                print exc_value
                 trFailedFile_append = open(trFailedFile, "a")  # append mode
                 trFailedFile_append.write('\n%s, %s'%(tr, exc_value))
                 trFailedFile_append.close()

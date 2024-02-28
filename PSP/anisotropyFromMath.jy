@@ -18,16 +18,17 @@ version = getParam('version','0.4.5','Version number to be appended to filenames
 #usePreviouslyDownsampledData   = True  #Use Downsampled data file created previously
 #useLocalSubprocesses           = True  #Use local script call files instead of pulling from github
 
-skipPreviousFiles              = getParam('skipPreviousFiles','T','Look for previously generated files and skip analysis if found',['T','F'])
-separatePeaksWithL3Values      = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
-writeStuff                     = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
-useVDFFluxForWeights           = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
-useLocalSubprocesses           = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
-conflateAndDownsampleSpectra   = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
-usePreviouslyDownsampledData   = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
+skipPreviousFiles                   = getParam('skipPreviousFiles','T','Look for previously generated files and skip analysis if found',['T','F'])
+separatePeaksWithL3Values           = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
+writeStuff                          = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
+useVDFFluxForWeights                = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
+useLocalSubprocesses                = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
+conflateAndDownsampleSpectra        = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
+usePreviouslyDownsampledData        = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
 if usePreviouslyDownsampledData == 'F':
-    spc_mode                       = getParam('spcInstrumentMode', 'fullScan', 'Use data from Peak Tracking (default) or Full Scan mode?', ['peakTrack', 'fullScan'])
-analyzingTimeWidthComparisons  = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
+    spc_mode                        = getParam('spcInstrumentMode', 'fullScan', 'Use data from Peak Tracking (default) or Full Scan mode?', ['peakTrack', 'fullScan'])
+runSpectraDownsamplerIfFileNotFound = getParam('runSpectraDownsamplerIfFileNotFound','F','If no downsampled file exists, should this code try to generate one?',['T','F'])
+analyzingTimeWidthComparisons       = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
 
 
 m_p                  = 1.6726231E-24
@@ -52,55 +53,73 @@ cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp
 plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
 
 
+def convertTstoTrues(parameterInput):
+    if parameterInput == 'T':
+        parameterInput = True
+    elif parameterInput == 'F':
+        parameterInput = False
+    return(parameterInput)
 
-if useLocalSubprocesses == 'T':
-    useLocalSubprocesses = True
-elif useLocalSubprocesses == 'F':
-    useLocalSubprocesses = False
+useLocalSubprocesses                = convertTstoTrues(useLocalSubprocesses)  
+usePreviouslyDownsampledData        = convertTstoTrues(usePreviouslyDownsampledData)   
+writeStuff                          = convertTstoTrues(writeStuff)   
+useVDFFluxForWeights                = convertTstoTrues(useVDFFluxForWeights)   
+conflateAndDownsampleSpectra        = convertTstoTrues(conflateAndDownsampleSpectra)   
+analyzingTimeWidthComparisons       = convertTstoTrues(analyzingTimeWidthComparisons)   
+separatePeaksWithL3Values           = convertTstoTrues(separatePeaksWithL3Values)   
+plotFitsAndPauseALot_yn             = convertTstoTrues(plotFitsAndPauseALot_yn)   
+skipPreviousFiles                   = convertTstoTrues(skipPreviousFiles)   
+runSpectraDownsamplerIfFileNotFound = convertTstoTrues(runSpectraDownsamplerIfFileNotFound)  
+
+# if useLocalSubprocesses == 'T':
+    # useLocalSubprocesses = True
+# elif useLocalSubprocesses == 'F':
+    # useLocalSubprocesses = False
     
-if usePreviouslyDownsampledData == 'T':
-    usePreviouslyDownsampledData = True
-elif usePreviouslyDownsampledData == 'F':
-    usePreviouslyDownsampledData = False
+# if usePreviouslyDownsampledData == 'T':
+    # usePreviouslyDownsampledData = True
+# elif usePreviouslyDownsampledData == 'F':
+    # usePreviouslyDownsampledData = False
     
-if writeStuff == 'T':
-    writeStuff = True
-elif writeStuff == 'F':
-    writeStuff = False
+# if writeStuff == 'T':
+    # writeStuff = True
+# elif writeStuff == 'F':
+    # writeStuff = False
     
-if useVDFFluxForWeights == 'T':
-    useVDFFluxForWeights = True
-elif useVDFFluxForWeights == 'F':
-    useVDFFluxForWeights = False
+# if useVDFFluxForWeights == 'T':
+    # useVDFFluxForWeights = True
+# elif useVDFFluxForWeights == 'F':
+    # useVDFFluxForWeights = False
     
-if conflateAndDownsampleSpectra == 'T':
-    conflateAndDownsampleSpectra = True
-elif conflateAndDownsampleSpectra == 'F':
-    conflateAndDownsampleSpectra = False
+# if conflateAndDownsampleSpectra == 'T':
+    # conflateAndDownsampleSpectra = True
+# elif conflateAndDownsampleSpectra == 'F':
+    # conflateAndDownsampleSpectra = False
     
-if analyzingTimeWidthComparisons == 'T':
-    analyzingTimeWidthComparisons = True
-elif analyzingTimeWidthComparisons == 'F':
-    analyzingTimeWidthComparisons = False
+# if analyzingTimeWidthComparisons == 'T':
+    # analyzingTimeWidthComparisons = True
+# elif analyzingTimeWidthComparisons == 'F':
+    # analyzingTimeWidthComparisons = False
     
-if separatePeaksWithL3Values == 'T':
-    separatePeaksWithL3Values = True
-elif separatePeaksWithL3Values == 'F':
-    separatePeaksWithL3Values = False
+# if separatePeaksWithL3Values == 'T':
+    # separatePeaksWithL3Values = True
+# elif separatePeaksWithL3Values == 'F':
+    # separatePeaksWithL3Values = False
     
-if plotFitsAndPauseALot_yn == 'T':
-    plotFitsAndPauseALot = True
-elif plotFitsAndPauseALot_yn == 'F':
-    plotFitsAndPauseALot = False
+# if plotFitsAndPauseALot_yn == 'T':
+    # plotFitsAndPauseALot = True
+# elif plotFitsAndPauseALot_yn == 'F':
+    # plotFitsAndPauseALot = False
     
-if skipPreviousFiles == 'T':
-    skipPreviousFiles = True
-elif skipPreviousFiles == 'F':
-    skipPreviousFiles = False
+# if skipPreviousFiles == 'T':
+    # skipPreviousFiles = True
+# elif skipPreviousFiles == 'F':
+    # skipPreviousFiles = False
     
+serverList = ['fc.cfa.harvard.edu', 'nanook']
     
 ############################################################################
-##################            IMPORTS            ###########################
+##################       Directory Locator       ###########################
 ############################################################################
 ############################################################################
     
@@ -125,9 +144,20 @@ elif OS == 'windows':
     #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
     googleDrive_path = 'G:/My Drive/'
 
+    
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
 import sys
+import java
+
+import socket
+hostName = socket.gethostname()
+
 ### IMPORT SUBPROCESSES
-localGithubDirectory = googleDrive_path+'Software/Autoplot/GithubScripts/'
+localGithubDirectory = googleDrive_path+'Software/Autoplot/githubScripts_autoplot/'
 remoteGithubDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 try:
     if useLocalSubprocesses == True:
@@ -375,8 +405,10 @@ for tr in trs:
                 time_last = TimeUtil.now()
                 
             except:
-                usePreviouslyDownsampledData = False
-                raise java.io.FileNotFoundException
+                if runSpectraDownsamplerIfFileNotFound:
+                    usePreviouslyDownsampledData = False
+                #raise java.io.FileNotFoundException
+                raise FileNotFoundException
                 
         elif usePreviouslyDownsampledData == False:
             monitor.setLabel('Downloading SPC') 
@@ -634,10 +666,12 @@ for tr in trs:
         #plot(vz_tanPhi)
         #stop
         
-        #U is supposed to be v_sc so that we keep the spacecraft motion out of this (duh...)
-        #HOWEVER, it has little to no effect on the results
+        # This is a dumb thing to do, fix it. U is bulk solar wind flow, not s/c velocity. We shouldn't care about aberration
         try:
-            psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+            if hostName in serverList:
+                psp_ephem_file_local = '/psp/data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+            else:
+                psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
             psp_ephem_file = psp_ephem_file_local #Some day I need to figure out how to grab a nonlocal copy of these files
             v_scz = getDataSet(psp_ephem_file+'?SC_VR_kms',tr)
             v_scx = getDataSet(psp_ephem_file+'?SC_VORB_kms',tr)

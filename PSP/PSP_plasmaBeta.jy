@@ -1,7 +1,7 @@
 
 tr = '2021-11-15 to 2021-11-30'
-tr = '2021-04-28 to 2021-05-01'
-tr = '2023-03-13 through 2023-03-20'
+#tr = '2021-04-28 to 2021-05-01'
+#tr = '2023-03-13 through 2023-03-20'
 tr = getParam('timerange', '2022-02-24 to 2022-02-28', 'timerange for aggregation')
 
 SPAN_or_QTN_density = getParam('whichDensity', 'QTN', 'Which density measurement do you want to use?', ['SPC', 'SPAN', 'QTN'])
@@ -47,6 +47,6 @@ r_sun = synchronize(np, r_sun)
 
 plot(0, time, PlasmaBeta, ytitle='Plasma Beta')
 #plot(1, time, Bmag, ytitle='Magnetic Field (Magnitude) (nT)')
-plot(1, time, ParticlePres, ytitle='Particle Pressure')
-plot(2, time, MagneticPressure, ytitle='Magnetic Pressure')
-plot(3, time, totalPressure*r_sun, ytitle='Total Pressure')
+plot(1, time, ParticlePres,        ytitle='Particle Pressure!C(Pa)')
+plot(2, time, MagneticPressure,    ytitle='Magnetic Pressure!C(Pa)')
+plot(3, time, totalPressure*r_sun, ytitle='Total Pressure!C(Pa)')

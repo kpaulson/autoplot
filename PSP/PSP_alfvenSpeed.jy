@@ -69,7 +69,12 @@ perihelion_10 = '2021-11-19 through 2021-11-25'
 perihelion_11 = '2022-02-22 to 2022-03-02' # Perihelion
 perihelion_12 = '2022-05-25 to 2022-06-06'
 perihelion_13 = '2022-09-01 to 2022-09-11'
-perihelion_14 = '2022-12-06 to 2022-12-16'
+perihelion_14 = '2022-12-05 to 2022-12-16'
+perihelion_15 = '2023-03-05 to 2023-03-16'
+perihelion_16 = '2023-06-17 to 2023-06-27'
+perihelion_17 = '2023-09-22 to 2023-10-03'
+perihelion_18 = '2023-12-24 to 2024-01-01'
+perihelion_19 = '2023-09-22 to 2023-10-03'
 #tr = '2022-02-22 to 2022-02-28'
 #tr = '2022-02-22 to 2022-02-28'
 #tr = '2022-02-22 to 2022-02-28'
@@ -80,7 +85,7 @@ perihelion_14 = '2022-12-06 to 2022-12-16'
 perihelionList_4 = [perihelion_07, perihelion_08, perihelion_09, perihelion_10]
 perihelionList_5 = [perihelion_11]
 
-tr = perihelion_13
+tr = perihelion_18
 
 if tr in perihelionList_4:
     lfr_density = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l3/rfs_lfr_qtn/psp_fld_l3_rfs_lfr_qtn_20210109_20211201_v01.cdf?N_elec')
@@ -92,10 +97,16 @@ lfr_density = synchronize(Bmag, lfr_density)
 span_density = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?DENS', tr)
 span_density = synchronize(Bmag, span_density)
 
+spc_density = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment', tr)
+spc_density = synchronize(Bmag, span_density)
+
 
 mu = 1.1
+ni = spc_density
 ni = span_density
-ni = lfr_density
+#ni = lfr_density
+
+
 #plot(0, ni)
 #plot(0, Bmag)
 #plot(0, span_density)
@@ -112,7 +123,7 @@ v_r_span = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_
 v_r_span = synchronize(v_alfven, v_r_span)
 v_alfven.putProperty(QDataSet.UNITS, v_r_span.property(QDataSet.UNITS))
 plot(1, v_r_span, color='black', ytitle='(%{UNITS})', legendLabel='v!Br!N')
-plot(0, (abs(v_r_span) / v_alfven)[::20], renderType='series', fillColor='mms_red', ytitle='M!BA!N = v / v!BA!N (%{UNITS})', yrange=[1E-1, 1E1])
+plot(0, (abs(v_r_span) / v_alfven)[::20], renderType='series', fillColor='mms_red', ytitle='M!BA!N = v / v!BA!N', yrange=[1E-1, 1E1])
 
 #####################################
 

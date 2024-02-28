@@ -40,6 +40,7 @@ def getTrimDataSet(ds_string,ds_timerange):
 ########################
 
 import sys
+import java
 
 tr = getParam('timerange','2020-02-10','Timerange over which to generate combined anisotropy measurement')
 version_L0 = getParam('L0Version','0.4.5','Version number of input L0 file')
@@ -79,32 +80,56 @@ mu_0 = PI*4E-7
 mp   = 1.6726E-27
 
 #######################
-
-try:
-    ### IMPORT SUBPROCESSES
-    get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
-    execfile( get_OS_version.toString() )
     
-    getSPCAnisotropyUncertaintyMaps = getFile( 'https://github.com/kpaulson/autoplot/blob/master/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver
+
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
+    
+### IMPORT SUBPROCESSES    
+localGithubDirectory = googleDrive_path+'Software/Autoplot/githubScripts_autoplot/'
+remoteGithubDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
+try:
+    #get_OS_version = getFile( 'https://github.com/kpaulson/autoplot/blob/master/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    #execfile( get_OS_version.toString() )
+    
+    getSPCAnisotropyUncertaintyMaps = getFile( remoteGithubDirectory+'PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
     execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 except:
     print 'Unable to grab scripts from github'
     
     
-    get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
-    execfile( get_OS_version.toString() )
+    #get_OS_version = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+    #execfile( get_OS_version.toString() )
 
-    getSPCAnisotropyUncertaintyMaps = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+    getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
     execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 
-
-OS = get_os_version().split()[0]
-
-if OS == 'mac':
-    googleDrive_directory = 'file:/home/kpaulson/Google Drive File Stream/My Drive/'
-elif OS == 'windows':
-    #googleDrive_directory = 'file:/C:/Users/kpaulson/GoogleDrive/'
-    googleDrive_directory = 'file:/G:/My Drive/'
+############################################################################
+##################            DEFINITIONS        ###########################
+############################################################################
+############################################################################
 
 filename = googleDrive_directory+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/%sL0/v%s/SPC_Anisotropy_$Y-$m-$d_v%s.cdf'%(fullScanDirectory, version_L0,version_L0)
     
@@ -123,6 +148,13 @@ if separatePeaksWithL3Values == True:
     vdfList.append('vdf_a')
 else:
     vdfList.append('vdf_full')
+    
+
+    
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
     
 #This segment should throw an error if the L1 file exists already and is not full of garbage (not the best implementation)
 fileAlreadyExists = False

@@ -43,10 +43,10 @@ def field_aligner( Bx , By , Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_s
         Bz_smooth     = smoothFit(mag_time, Bz,     smooth_points)
         Btotal_smooth = smoothFit(mag_time, Btotal, smooth_points)
     except:
-        Bx_smooth     = smooth(mag_time, Bx,     smooth_points)
-        By_smooth     = smooth(mag_time, By,     smooth_points)
-        Bz_smooth     = smooth(mag_time, Bz,     smooth_points)
-        Btotal_smooth = smooth(mag_time, Btotal, smooth_points)
+        Bx_smooth     = smooth(Bx,     smooth_points)
+        By_smooth     = smooth(By,     smooth_points)
+        Bz_smooth     = smooth(Bz,     smooth_points)
+        Btotal_smooth = smooth(Btotal, smooth_points)
     
     Nx = Bx_smooth / Btotal_smooth
     Ny = By_smooth / Btotal_smooth

@@ -161,7 +161,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             ftr_psi = CurveFitter(LevenbergMarquardtOptimizer())
             #ftr_psi = AbstractCurveFitter(LevenbergMarquardtOptimizer())
             
-            print temp_v_z[r]
+            #print temp_v_z[r]
             for i in xrange(len(temp_v_z[r])):
                 # This weighting uses the normalized VDF data - It isn't working because it loses the weights for some reason (floats->doubles)
                 #ftr_chi.addObservedPoint( int(float(norm_temp_vdf[r][i])*100) , float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]) , float(temp_vz_tanTheta[r][i]))

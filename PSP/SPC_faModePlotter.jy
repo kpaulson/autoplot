@@ -1,0 +1,77 @@
+
+tr = '2023-09-20 through 2023-09-22'
+tr = '2023-12-20 through 2023-12-28'
+
+
+m_p                  = 1.6726231E-24
+q                    = 1.6022E-12
+
+
+spc_fa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2023/09/spp_swp_spc_l2ifa_20230921_v03.cdf'
+spc_fa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2ifa_$Y$m$d_v$v.cdf'
+
+spc_l2 = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+spc_vdf = 'file:/G:/My Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_$Y-$m-$d.cdf'
+
+diffFlux = getDataSet(spc_l2+'?diff_charge_flux_density', tr)
+vdf      = getDataSet(spc_vdf+'?vdf&Y=v_z', tr)
+
+a_current = getDataSet(spc_fa+'?a_current', tr)
+b_current = getDataSet(spc_fa+'?b_current', tr)
+c_current = getDataSet(spc_fa+'?c_current', tr)
+d_current = getDataSet(spc_fa+'?d_current', tr)
+mv_lo     = getDataSet(spc_fa+'?mv_lo',     tr)
+mv_hi     = getDataSet(spc_fa+'?mv_hi',     tr)
+
+measurement_time = getDataSet(spc_fa+'?measurement_time', tr)
+epoch = a_current.property(QDataSet.DEPEND_0)
+
+
+linearTime      = dblarr(len(measurement_time[0,:])*len(measurement_time[:,0]))
+linearCurrent_a = dblarr(len(measurement_time[0,:])*len(measurement_time[:,0]))
+linearCurrent_b = dblarr(len(measurement_time[0,:])*len(measurement_time[:,0]))
+linearCurrent_c = dblarr(len(measurement_time[0,:])*len(measurement_time[:,0]))
+linearCurrent_d = dblarr(len(measurement_time[0,:])*len(measurement_time[:,0]))
+linearMv_lo     = dblarr(len(measurement_time[0,:])*len(measurement_time[:,0]))
+linearMv_hi     = dblarr(len(measurement_time[0,:])*len(measurement_time[:,0]))
+for i in xrange(len(epoch)):
+    linearTime[i*len(measurement_time[0,:]):(i+1)*len(measurement_time[0,:])] = epoch[i]+measurement_time[0,:]
+    linearCurrent_a[i*len(measurement_time[0,:]):(i+1)*len(measurement_time[0,:])] = a_current[i,:]
+    linearCurrent_b[i*len(measurement_time[0,:]):(i+1)*len(measurement_time[0,:])] = b_current[i,:]
+    linearCurrent_c[i*len(measurement_time[0,:]):(i+1)*len(measurement_time[0,:])] = c_current[i,:]
+    linearCurrent_d[i*len(measurement_time[0,:]):(i+1)*len(measurement_time[0,:])] = d_current[i,:]
+    linearMv_lo[i*len(measurement_time[0,:]):(i+1)*len(measurement_time[0,:])] = mv_lo[i,:]
+    linearMv_hi[i*len(measurement_time[0,:]):(i+1)*len(measurement_time[0,:])] = mv_hi[i,:]
+
+totalCurrent = linearCurrent_a + linearCurrent_b + linearCurrent_c + linearCurrent_d
+
+v_z = sqrt( (2./m_p) * q*(linearMv_lo + (linearMv_hi-linearMv_lo)/2.) ) / 1.E5   # in km/s
+v_z_lo = sqrt( (2./m_p) * q*(linearMv_lo) ) / 1.E5   # in km/s
+v_z_hi = sqrt( (2./m_p) * q*(linearMv_hi) ) / 1.E5   # in km/s
+v_z.putProperty(QDataSet.NAME,'v_z')
+v_z.putProperty(QDataSet.LABEL,'v!Bz!N (km/s)')
+windowWidths = sqrt( (2./m_p) * q*(linearMv_hi-linearMv_lo)/2.) / 1.E5
+vdf_fa = totalCurrent/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values. Need to figure this out at some point. conversion to NYs?
+vdf_fa.putProperty(QDataSet.DEPEND_1,v_z)
+
+numberOfLines = 20
+setLayoutOverplot(numberOfLines+1)
+
+plot(0, vdf, ytitle='Vz (km/s)', ztitle='VDF!C(cm!U-3!N km!U-1!N s)')
+for i in xrange(numberOfLines):
+    plot(i+1, linearTime, v_z_lo+(i*(v_z_hi-v_z_lo)/numberOfLines), vdf_fa)
+    #plot(1, linearTime, linearMv_hi, linearCurrent_a)
+
+vdf_fa_smooth = smooth(vdf_fa, 25)
+badPoints = where(gt(vdf_fa/vdf_fa_smooth, 1.4))
+goodPoints = where(lt(vdf_fa/vdf_fa_smooth, 1.4))
+
+
+plot(numberOfLines+1, linearTime, vdf_fa, ytitle='VDF!C(cm!U-3!N km!U-1!N s)')
+plot(numberOfLines+2, linearTime[goodPoints], vdf_fa[goodPoints], ytitle='VDF!C(cm!U-3!N km!U-1!N s)')
+
+print mode(diff(linearTime))
+stop
+print a_current[0,:]
+print measurement_time[0,:]
+plot(measurement_time[0,:], a_current[0,:])

@@ -1,14 +1,48 @@
 from org.das2.datum import TimeUtil
-timerange = getParam('timerange','2020-01-30','timerange of flags to generate (typically daily files)')
+timerange = getParam('timerange','2020-09-30','timerange of flags to generate (typically daily files)')
 fileType  = getParam('file type', 'sf00', 'Which type of span file do you want to generate peak files for?', ['sf00', 'sf0a', 'af00', 'af0a'])
 
 #tr = timerange
 writeStuff = True
 checkPrevious = True
+    
+    
+############################################################################
+##################       Directory Locator       ###########################
+############################################################################
+############################################################################
+    
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver
 
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
+
+    
+    
+############################################################################
+##################          Main Script          ###########################
+############################################################################
+############################################################################
 
 trs = generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
+    print tr
 
     tr_year = TimeUtil.fromDatum(datum(tr))[0]
     tr_month = TimeUtil.fromDatum(datum(tr))[1]
@@ -16,8 +50,8 @@ for tr in trs:
         tr_month = '0'+str(tr_month)
     tr_day = TimeUtil.fromDatum(datum(tr))[2]
     
-    spaniPeakObservation_directory = 'G:/My Drive/Research/PSP/SPAN/SPANi/PeakObservation_Files/%s/%s/%s/'%(fileType, tr_year, tr_month)
-    outputFile = 'SPANi_peakObservationFlags_%s_%s.txt?header=rich'%(fileType,tr)
+    spaniPeakObservation_directory = googleDrive_path+'Research/PSP/SPAN/SPANi/PeakObservation_Files/%s/%s/%s/'%(fileType, tr_year, tr_month)
+    outputFile = 'SPANi_peakObservationFlags_%s_%s.txt'%(fileType,tr)
     
     fileAlreadyExists = False
     if checkPrevious==True:
@@ -33,8 +67,12 @@ for tr in trs:
             print 'File already exists for %s'%(tr)
             raise fileAlreadyExistsException  
     
-        w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(fileType, fileType)
+        if OS == 'mac' or OS == 'linux':
+            w3sweap_SPAN_L3_file = '/psp/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(fileType, fileType)
+        elif OS == 'windows':
+            w3sweap_SPAN_L3_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_%s/$Y/$m/psp_swp_spi_%s_L3_mom_$Y$m$d_v$v.cdf'%(fileType, fileType)
         
+        #print 'using SPAN eflux:',w3sweap_SPAN_L3_file+'?EFLUX_VS_PHI'
         eflux_vs_phi = getDataSet(w3sweap_SPAN_L3_file+'?EFLUX_VS_PHI',tr)
         phi_vals = getDataSet(w3sweap_SPAN_L3_file+'?PHI_VALS',tr)
         time = eflux_vs_phi.property(QDataSet.DEPEND_0)
@@ -67,8 +105,9 @@ for tr in trs:
         
         if writeStuff == True:
             mkdir(spaniPeakObservation_directory)
-        
-            formatDataSet(peakObservationFlag,spaniPeakObservation_directory+'SPANi_peakObservationFlags_%s_%s.txt?header=rich'%(fileType,tr))
+            
+            print 'Writing to:',spaniPeakObservation_directory+outputFile
+            formatDataSet(peakObservationFlag, spaniPeakObservation_directory+outputFile+'?header=rich')
             
     except:
         continue

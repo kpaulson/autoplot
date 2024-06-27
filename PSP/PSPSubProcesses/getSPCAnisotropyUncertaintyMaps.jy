@@ -15,12 +15,16 @@ def getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS):
         deltaMinus  = rank2 array of binned values of lower bounds of probable anisotropy
     '''
     
+    
     if OS == 'mac' or OS == 'linux':
-        UncertaintyMapFile = '/home/kpaulson/MyDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        googleDrive_path = '/home/kpaulson/MyDrive/'
     elif OS == 'windows':
-        UncertaintyMapFile = 'file:///g:/My Drive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
+        googleDrive_path = 'G:/My Drive/'
+    
+    UncertaintyMapFile = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/UncertaintyMaps/Anisotropy_DELTA_PLUS-MINUS.cdf'
     
     anisotropy_deltaPlus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_PLUS')
+    #print 'GOT PLUS MAP'
     anisotropy_deltaMinus = getDataSet(UncertaintyMapFile+'?Anisotropy DELTA_MINUS')
 
     deltaPlus      = anisotropy_deltaPlus[:,2]

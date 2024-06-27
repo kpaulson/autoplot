@@ -74,7 +74,7 @@ perihelion_15 = '2023-03-05 to 2023-03-16'
 perihelion_16 = '2023-06-17 to 2023-06-27'
 perihelion_17 = '2023-09-22 to 2023-10-03'
 perihelion_18 = '2023-12-24 to 2024-01-01'
-perihelion_19 = '2023-09-22 to 2023-10-03'
+perihelion_19 = '2024-03-26 to 2024-04-04'
 #tr = '2022-02-22 to 2022-02-28'
 #tr = '2022-02-22 to 2022-02-28'
 #tr = '2022-02-22 to 2022-02-28'
@@ -85,7 +85,7 @@ perihelion_19 = '2023-09-22 to 2023-10-03'
 perihelionList_4 = [perihelion_07, perihelion_08, perihelion_09, perihelion_10]
 perihelionList_5 = [perihelion_11]
 
-tr = perihelion_18
+tr = perihelion_13
 
 if tr in perihelionList_4:
     lfr_density = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l3/rfs_lfr_qtn/psp_fld_l3_rfs_lfr_qtn_20210109_20211201_v01.cdf?N_elec')
@@ -104,7 +104,7 @@ spc_density = synchronize(Bmag, span_density)
 mu = 1.1
 ni = spc_density
 ni = span_density
-#ni = lfr_density
+ni = lfr_density
 
 
 #plot(0, ni)

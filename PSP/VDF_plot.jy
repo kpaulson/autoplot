@@ -36,6 +36,14 @@ def getSPCData(cfa_sweap_file, tr):
     return(spc_a, spc_b, spc_c, spc_d, mv_lo, mv_hi, spc_a_DELTA_VAR, 
            spc_b_DELTA_VAR, spc_c_DELTA_VAR, spc_d_DELTA_VAR, 
            mv_lo_DELTA_VAR, mv_hi_DELTA_VAR)
+           
+def convertTstoTrues(parameterInput):
+    if parameterInput == 'T':
+        parameterInput = True
+    elif parameterInput == 'F':
+        parameterInput = False
+    return(parameterInput)
+
 
 OS = get_os_version().split()[0]
 if OS == 'mac' or OS == 'linux':
@@ -53,29 +61,23 @@ timerange             = getParam('timerange','2023-07-01','Iteration Timerange')
 checkForPreviousFiles = getParam('checkPrevious','T','If previous copies of VDF file exist, then skip to next day',['T','F'])
 onlyUsePrivateSPC     = getParam('non-publicSPCFiles','T','Skip looking at the public SPC directory and use private files (requires password)?',['T','F'])
 writeStuff            = getParam('writeStuff','T','Write out cdf and png of SPC vdf data to local directory?',['T','F'])
+plotStuff             = getParam('plotStuff','F','Plot daily vdfs to the screen as we go?',['T','F'])
 
 manuallyRemoveFullScans = False
 calculateVDFUncertainty = False
-
-
-if onlyUsePrivateSPC == 'T':
-    onlyUsePrivateSPC = True
-elif onlyUsePrivateSPC == 'F':
-    onlyUsePrivateSPC = False
-
-if checkForPreviousFiles == 'T':
-    checkForPreviousFiles = True
-elif checkForPreviousFiles == 'F':
-    checkForPreviousFiles = False
     
 if writeStuff == 'T':
-    writeStuff = True
     outputDirectory = getParam('ouputDirectory',googleDrive_path+'Research/PSP/SPC/VDF/','Local directory in which to write vdf cdf')
 elif writeStuff == 'F':
-    writeStuff = False
     outputDirectory = googleDrive_path+'tmp/'
 
+    
+onlyUsePrivateSPC      = convertTstoTrues(onlyUsePrivateSPC)
+checkForPreviousFiles  = convertTstoTrues(checkForPreviousFiles)
+writeStuff             = convertTstoTrues(writeStuff)
+plotStuff              = convertTstoTrues(plotStuff)
 
+# Constants
 m_p                  = 1.6726231E-24
 q                    = 1.6022E-12
 
@@ -100,12 +102,15 @@ hostName = socket.gethostname()
 
 trs= generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
-    time_begin_tr = TimeUtil.now()    
+    time_begin_tr = TimeUtil.now()  
+    year  = tr[0:4]
+    #year = tr    
     
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
         
-    outputFile = outputDirectory+'Files/SPC_VDF_%s.cdf'%tr
+    mkdir(outputDirectory+'Files/%s/'%(year))
+    outputFile = outputDirectory+'Files/%s/SPC_VDF_%s.cdf'%(year,tr)
     
     fileAlreadyExists = False
     if checkForPreviousFiles == True:
@@ -123,6 +128,8 @@ for tr in trs:
         if fileAlreadyExists == True:
             print 'File already exists for %s'%(tr)
             raise fileAlreadyExistsException
+        else:
+            print 'Starting %s'%(tr)
         
         if hostName in serverList:
             try:
@@ -159,7 +166,7 @@ for tr in trs:
                     raise java.io.FileNotFoundExceptiontry
             
             
-        print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
+        print '    Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
         time_last = TimeUtil.now()
         #spc_list = [spc_a,spc_b,spc_c,spc_d]
         
@@ -169,7 +176,7 @@ for tr in trs:
         try:
             spc_a = trim(spc_a,tr)
         except:
-            print 'resorting the data since the time is non-monotonic'
+            print '    resorting the data since the time is non-monotonic'
             spc_time = spc_a.property(QDataSet.DEPEND_0)
             print spc_time[0]
             s = sort(spc_time)
@@ -225,7 +232,7 @@ for tr in trs:
             mv_lo_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
             mv_hi_DELTA_VAR.putProperty(QDataSet.DEPEND_0, spc_time)
             
-            print 'Resorting data took:',TimeUtil.now()-time_begin_tr
+            print '    Resorting data took:',TimeUtil.now()-time_begin_tr
             time_last = TimeUtil.now()
             
             spc_a = trim(spc_a,tr)
@@ -300,12 +307,13 @@ for tr in trs:
         #plot(1,U)
         #plot(2,V)
         
-        print 'Calculating Flow Angles took:',TimeUtil.now()-time_last
+        print '    Calculating Flow Angles took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
         v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
         v_z.putProperty(QDataSet.NAME,'v_z')
         v_z.putProperty(QDataSet.LABEL,'v!Bz!N (km/s)')
+        v_z.putProperty(QDataSet.DEPEND_0, mv_lo.property(QDataSet.DEPEND_0))
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         vdf = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values. Need to figure this out at some point. conversion to NYs?
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
@@ -361,36 +369,37 @@ for tr in trs:
         V.putProperty(QDataSet.DEPEND_1,v_z)
         pinch.putProperty(QDataSet.DEPEND_1,v_z)
         
-        print 'Defining VDF took:',TimeUtil.now()-time_last
+        print '    Defining VDF took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
-        #setLayoutOverplot(2)
-        try:
-            #load('https://github.com/kpaulson/autoplot/blob/master/PSP/VAPs/SPC_VDF_stack.vap')
-            saying = CHEESE
-        except:
+        if plotStuff:
+            #setLayoutOverplot(2)
             try:
-                #load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
-                load(googleDrive_path+'Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
+                #load('https://github.com/kpaulson/autoplot/blob/master/PSP/VAPs/SPC_VDF_stack.vap')
+                saying = CHEESE
             except:
-                continue
-        waitUntilIdle()
-        
-        plot(0,vdf,zlog=True,xrange=tr, zrange=[0.05,20], ytitle='Vz (km/s)', ztitle='VDF!C(cm!U-3!N km!U-1!N s)', title='PSP SPC VDF %s'%(timerange))
-        
-        
-        #dom.plotElements[0].controller.renderer.setRebinner(org.das2.graph.SpectrogramRenderer.RebinnerEnum.lanlNearestNeighbor)
-        plot(1,v_z[r],renderType='scatter')
-        #plot(2,vdf_DELTA_VAR)
-        
-#        testIndex = 400
-#        testSlice = vdf[testIndex,:]
-#        testSlice.putProperty(QDataSet.DELTA_PLUS,vdf_DELTA_VAR[testIndex,:])
-#        testSlice.putProperty(QDataSet.DELTA_MINUS,vdf_DELTA_VAR[testIndex,:])
-        #plot(3,testSlice,xrange=[0,800])
-        plot(2,U,zrange=[-18,18], ytitle='Vz (km/s)', ztitle='sc_x deflect!C(degrees)')
-        plot(3,V,zrange=[-18,18], ytitle='Vz (km/s)', ztitle='sc_y deflect!C(degrees)')
-        plot(4,pinch,zrange=[-9,9], ytitle='Vz (km/s)', ztitle='pinch')
+                try:
+                    #load('/Users/kpaulson/GoogleDrive/Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
+                    load(googleDrive_path+'Research/PSP/SPC/VDF/SPC_VDF_stack.vap')
+                except:
+                    continue
+            waitUntilIdle()
+            
+            plot(0,vdf,zlog=True,xrange=tr, zrange=[0.05,20], ytitle='Vz (km/s)', ztitle='VDF!C(cm!U-3!N km!U-1!N s)', title='PSP SPC VDF %s'%(timerange))
+            
+            
+            #dom.plotElements[0].controller.renderer.setRebinner(org.das2.graph.SpectrogramRenderer.RebinnerEnum.lanlNearestNeighbor)
+            plot(1,v_z[r],renderType='scatter')
+            #plot(2,vdf_DELTA_VAR)
+            
+    #        testIndex = 400
+    #        testSlice = vdf[testIndex,:]
+    #        testSlice.putProperty(QDataSet.DELTA_PLUS,vdf_DELTA_VAR[testIndex,:])
+    #        testSlice.putProperty(QDataSet.DELTA_MINUS,vdf_DELTA_VAR[testIndex,:])
+            #plot(3,testSlice,xrange=[0,800])
+            plot(2,U,zrange=[-18,18], ytitle='Vz (km/s)', ztitle='sc_x deflect!C(degrees)')
+            plot(3,V,zrange=[-18,18], ytitle='Vz (km/s)', ztitle='sc_y deflect!C(degrees)')
+            plot(4,pinch,zrange=[-9,9], ytitle='Vz (km/s)', ztitle='pinch')
         
         
         U.putProperty(QDataSet.UNITS,spc_a.property(QDataSet.UNITS))
@@ -408,7 +417,7 @@ for tr in trs:
 #        plot(4,spc_a.property(QDataSet.DEPEND_0),v_z,pinch/diag)
 
         waitUntilIdle()
-        if writeStuff == True:
+        if writeStuff:
             writeToPng(outputDirectory+'Plots/SPC_VDF_%s.png'%tr)
             
             vdf.putProperty(  QDataSet.NAME,'vdf')
@@ -432,8 +441,9 @@ for tr in trs:
             
             formatDataSet(MODE_FLAG,outputFile+'?append=T')
             
-            print 'Writing VDF cdf took:',TimeUtil.now()-time_last
+            print '    Writing VDF cdf took:',TimeUtil.now()-time_last
             time_last = TimeUtil.now()
+            print 'successfully finished %s'%tr
     except:
         if fileAlreadyExists == False:
             print 'vdf processing failed for %s'%tr

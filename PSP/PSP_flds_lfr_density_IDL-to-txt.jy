@@ -3,9 +3,10 @@ idl_file2 = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/LFRV1-V2Ne_Tc_Thk_mimo_
 
 ne_files_dir = 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/'
 idl_sav_files = [ne_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2022-12-04_2022-12-20.sav',
-                 ne_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2023-03-07_2023-03-24.sav']
+                 ne_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2023-03-07_2023-03-24.sav',
+                 ne_files_dir+'LFRV1-V2Ne_Tc_Thk_mimo_2023-12-20_2024-01-07.sav',]
 ne_csv_files = [ne_files_dir+'ENC16_QTN_Ne.csv']
-       
+ne_tplotsav_files = [ne_files_dir+'ENC19_LFR_QTN_Density.sav']
 
 ne = getDataSet('vap+sav:file:///'+idl_file+'?LFR.N_E.DAT')
 #ne2 = getDataSet('vap+sav:file:///'+idl_file2+'?DENSTOT')
@@ -30,6 +31,15 @@ for ne_file in ne_csv_files:
     
     ne = concatenate(ne, ne2)
     time = concatenate(time, time2)
+
+for ne_file in ne_tplotsav_files:
+    ne3 = getDataSet(ne_file+'?Y&X=X&xunits=t1970')
+    time3 = ne3.property(QDataSet.DEPEND_0)
+    #time3 = getDataSet(ne_file+'?Time')
+    #time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+    
+    ne = concatenate(ne, ne3)
+    time = concatenate(time, time3)
 
 ne.putProperty(QDataSet.DEPEND_0, time)
 plot(ne)

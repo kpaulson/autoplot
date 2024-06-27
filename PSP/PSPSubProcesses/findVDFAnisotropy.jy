@@ -21,7 +21,6 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
         
     TODO: Add function to throw out fit if the distance between two vdf peaks is further apart than a thermal width of that vdf (so we aren't drawing a line between two vdfs, and instead are only drawing lines across a combined vdf)
     TODO: Add an outlier removal filter to compare each pixel across the 4 plates and throw out the "salt and pepper" noise
-    TODO: Use SPC L3 fit product to throw out noise values on low and high energy ends.
     '''
     #minNormalizedFluxValue = 0.5 #affixed in input parameters (I think?...)
     #plotFitsAndPauseALot = True

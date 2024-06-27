@@ -9,7 +9,7 @@ timerange        = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange ov
 
 freq_min         = getParam('minFrequency',   0.1,  'Lower frequency bound of analysis (Hz)')
 freq_max         = getParam('maxFrequency',   32.,   'Upper frequency bound of analysis (Hz)')
-window           = getParam('windowWidth',    1024, 'Number of points in fft window', [256, 512, 1024, 2048, 4096, 8192, 16384])
+window           = getParam('windowWidth',    1024, 'Number of points in fft window', [256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536])
 slide            = getParam('slideFactor',    8,    'Reciprocal of fraction of non-overlap between neighboring windows')
 trend_seconds    = getParam('trendSeconds',   60,   'Number of seconds used to identify the background magnetic field')
 poynting_min     = getParam('poyntingMin',    1E-6, 'Minimum Poynting Flux value to be plotted (filters out noise)')

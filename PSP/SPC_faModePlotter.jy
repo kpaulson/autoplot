@@ -1,17 +1,43 @@
 
 tr = '2023-09-20 through 2023-09-22'
 tr = '2023-12-20 through 2023-12-28'
+tr = '2024-03-24 through 2024-04-04' # Encounter 19
+tr = '2018-11-04'
+tr = '2024-03-27'
 
 
 m_p                  = 1.6726231E-24
 q                    = 1.6022E-12
 
 
-spc_fa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/2023/09/spp_swp_spc_l2ifa_20230921_v03.cdf'
-spc_fa = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2ifa_$Y$m$d_v$v.cdf'
+def get_os_version():
+    '''
+    Basic subprocess that should print out the operating system version. Mostly helpful
+    for scripts looking for files in a different directory structure on windows vs mac.
+    Easiest application:
+        print get_os_version().split()[0]
+    '''
+    import sys
+    ver = sys.platform.lower()
+    if ver.startswith('java'):
+        import java.lang
+        ver = java.lang.System.getProperty("os.name").lower()
+    return ver
+       
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+    dataSource       = '/psp/'
+elif OS == 'windows':
+    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+    googleDrive_path = 'G:/My Drive/'
+    dataSource       = 'http://w3sweap.cfa.harvard.edu/'
 
-spc_l2 = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-spc_vdf = 'file:/G:/My Drive/Research/PSP/SPC/VDF/Files/SPC_VDF_$Y-$m-$d.cdf'
+spc_fa = dataSource+'data/sci/sweap/spc/L2/2023/09/spp_swp_spc_l2ifa_20230921_v03.cdf'
+spc_fa = dataSource+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2ifa_$Y$m$d_v$v.cdf'
+
+spc_l2 = dataSource+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+spc_vdf = googleDrive_path+'Research/PSP/SPC/VDF/Files/SPC_VDF_$Y-$m-$d.cdf'
 
 diffFlux = getDataSet(spc_l2+'?diff_charge_flux_density', tr)
 vdf      = getDataSet(spc_vdf+'?vdf&Y=v_z', tr)

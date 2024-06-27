@@ -7,7 +7,7 @@
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')#
 #timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
-timerange = getParam('timerange','2020-01-27','Iteration Timerange')
+timerange = getParam('timerange','2023-09-26','Iteration Timerange')
 version = getParam('version','0.4.5','Version number to be appended to filenames')
 
 #separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
@@ -21,6 +21,7 @@ version = getParam('version','0.4.5','Version number to be appended to filenames
 skipPreviousFiles                   = getParam('skipPreviousFiles','T','Look for previously generated files and skip analysis if found',['T','F'])
 separatePeaksWithL3Values           = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
 writeStuff                          = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
+maskNoiseWithL3Fits                 = getParam('maskNoiseWithL3Fits','T','Use the single maxwellian fits to isolate "good" data',['T','F'])
 useVDFFluxForWeights                = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
 useLocalSubprocesses                = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
 conflateAndDownsampleSpectra        = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
@@ -29,7 +30,8 @@ if usePreviouslyDownsampledData == 'F':
     spc_mode                        = getParam('spcInstrumentMode', 'fullScan', 'Use data from Peak Tracking (default) or Full Scan mode?', ['peakTrack', 'fullScan'])
 runSpectraDownsamplerIfFileNotFound = getParam('runSpectraDownsamplerIfFileNotFound','F','If no downsampled file exists, should this code try to generate one?',['T','F'])
 analyzingTimeWidthComparisons       = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
-
+useLocalCachedMagFiles              = getParam('useLocalCacheMagFile', 'F', 'Use the local cached magnetic field values instead of hitting up the servers?', ['T', 'F'])
+use4SaPerCycMagFiles                = getParam('use4SaPerCycMagFiles', 'F', 'Use the higher-cadence magnetic field values instead of 60s? - you should change "trend_seconds"', ['T', 'F'])
 
 m_p                  = 1.6726231E-24
 q                    = 1.6022E-12
@@ -62,7 +64,8 @@ def convertTstoTrues(parameterInput):
 
 useLocalSubprocesses                = convertTstoTrues(useLocalSubprocesses)  
 usePreviouslyDownsampledData        = convertTstoTrues(usePreviouslyDownsampledData)   
-writeStuff                          = convertTstoTrues(writeStuff)   
+writeStuff                          = convertTstoTrues(writeStuff)    
+maskNoiseWithL3Fits                 = convertTstoTrues(maskNoiseWithL3Fits)   
 useVDFFluxForWeights                = convertTstoTrues(useVDFFluxForWeights)   
 conflateAndDownsampleSpectra        = convertTstoTrues(conflateAndDownsampleSpectra)   
 analyzingTimeWidthComparisons       = convertTstoTrues(analyzingTimeWidthComparisons)   
@@ -70,51 +73,8 @@ separatePeaksWithL3Values           = convertTstoTrues(separatePeaksWithL3Values
 plotFitsAndPauseALot_yn             = convertTstoTrues(plotFitsAndPauseALot_yn)   
 skipPreviousFiles                   = convertTstoTrues(skipPreviousFiles)   
 runSpectraDownsamplerIfFileNotFound = convertTstoTrues(runSpectraDownsamplerIfFileNotFound)  
-
-# if useLocalSubprocesses == 'T':
-    # useLocalSubprocesses = True
-# elif useLocalSubprocesses == 'F':
-    # useLocalSubprocesses = False
-    
-# if usePreviouslyDownsampledData == 'T':
-    # usePreviouslyDownsampledData = True
-# elif usePreviouslyDownsampledData == 'F':
-    # usePreviouslyDownsampledData = False
-    
-# if writeStuff == 'T':
-    # writeStuff = True
-# elif writeStuff == 'F':
-    # writeStuff = False
-    
-# if useVDFFluxForWeights == 'T':
-    # useVDFFluxForWeights = True
-# elif useVDFFluxForWeights == 'F':
-    # useVDFFluxForWeights = False
-    
-# if conflateAndDownsampleSpectra == 'T':
-    # conflateAndDownsampleSpectra = True
-# elif conflateAndDownsampleSpectra == 'F':
-    # conflateAndDownsampleSpectra = False
-    
-# if analyzingTimeWidthComparisons == 'T':
-    # analyzingTimeWidthComparisons = True
-# elif analyzingTimeWidthComparisons == 'F':
-    # analyzingTimeWidthComparisons = False
-    
-# if separatePeaksWithL3Values == 'T':
-    # separatePeaksWithL3Values = True
-# elif separatePeaksWithL3Values == 'F':
-    # separatePeaksWithL3Values = False
-    
-# if plotFitsAndPauseALot_yn == 'T':
-    # plotFitsAndPauseALot = True
-# elif plotFitsAndPauseALot_yn == 'F':
-    # plotFitsAndPauseALot = False
-    
-# if skipPreviousFiles == 'T':
-    # skipPreviousFiles = True
-# elif skipPreviousFiles == 'F':
-    # skipPreviousFiles = False
+useLocalCachedMagFiles              = convertTstoTrues(useLocalCachedMagFiles)  
+use4SaPerCycMagFiles                = convertTstoTrues(use4SaPerCycMagFiles)  
     
 serverList = ['fc.cfa.harvard.edu', 'nanook']
     
@@ -143,7 +103,20 @@ if OS == 'mac' or OS == 'linux':
 elif OS == 'windows':
     #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
     googleDrive_path = 'G:/My Drive/'
+    
+import socket
+hostName = socket.gethostname()
 
+w3sweapDirectory = 'http://w3sweap.cfa.harvard.edu/'
+sweap_spc_L3_filename = 'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+cfa_sweap_filename    = 'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+
+if hostName == 'nanook' or hostName == 'fc.cfa.harvard.edu':
+    sweap_spc_L3_file = '/psp/'+'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+    cfa_sweap_file    = '/psp/'+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+else:
+    sweap_spc_L3_file = w3sweapDirectory+'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+    cfa_sweap_file    = w3sweapDirectory+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
     
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -152,9 +125,6 @@ elif OS == 'windows':
 
 import sys
 import java
-
-import socket
-hostName = socket.gethostname()
 
 ### IMPORT SUBPROCESSES
 localGithubDirectory = googleDrive_path+'Software/Autoplot/githubScripts_autoplot/'
@@ -328,7 +298,9 @@ for tr in trs:
     
     fileAlreadyExists = False
     time_begin_tr = TimeUtil.now() 
-    timeTitle = str(tr)    
+    timeTitle = str(tr)   
+    year = tr[0:4]
+    output_folder = output_folder + '%s/'%year
     
     if lt(datumRange(timerange).width(), datumRange(tr).width()):
         tr = timerange
@@ -407,8 +379,11 @@ for tr in trs:
             except:
                 if runSpectraDownsamplerIfFileNotFound:
                     usePreviouslyDownsampledData = False
-                #raise java.io.FileNotFoundException
-                raise FileNotFoundException
+                print 'SPC File not found for %s'%(timeTitle)
+                exc_type, exc_value, exc_tb = sys.exc_info()
+                print exc_value
+                print exc_tb
+                raise java.io.FileNotFoundException    
                 
         elif usePreviouslyDownsampledData == False:
             monitor.setLabel('Downloading SPC') 
@@ -426,7 +401,7 @@ for tr in trs:
                     noSPCData = None
                     raise java.io.FileNotFoundException
             elif spc_mode == 'fullScan':
-                output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/fullScan/L0/v%s/'%(version)
+                output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/fullScan/L0/v%s/%s/'%(version, year)
                 monitor.setLabel('Downloading SPC FullScan Data') 
                 try:
                     print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(1)'
@@ -522,8 +497,6 @@ for tr in trs:
         U.putProperty(QDataSet.UNITS,Units.degrees)
         V.putProperty(QDataSet.UNITS,Units.degrees)
         
-        
-        
         #Are you measuring the slope near the peak in current or near the peak in the velocity distribution function? 
         #(the VDF goes like current divided by speed time window width in speed units)
         
@@ -532,12 +505,27 @@ for tr in trs:
         
         
         monitor.setLabel('Defining VDF')
+        if False:
+            centerVoltage = (mv_hi+mv_lo)/2.
+            v_z = sqrt( (2./m_p) * q * centerVoltage ) / 1.E5   # in km/s
+            windowWidths = sqrt( (4./m_p) * q * centerVoltage - v_z**2 )
+            
+            
         v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+        #formatDataSet(v_z, '/tmp/tempv_z.cdf')
         windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         vdf_full = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
         vdf_full.putProperty(QDataSet.DEPEND_1,v_z)
         #vdfList.append('vdf_full')
         del(windowWidths,mv_hi)
+        
+        spitOutVDFData = True
+        if spitOutVDFData:
+            vdf_full.putProperty(QDataSet.NAME, 'vdf_full')
+            vdf_full.putProperty(QDataSet.LABEL, 'vdf_full')
+            #vdfBindle = bundle(vdf_full, v_z)
+            mkdir('/tmp/autoplot/anisotropyVDF/')
+            formatDataSet(vdf_full, '/tmp/autoplot/anisotropyVDF/anisotropyVDF%s.cdf'%(timeTitle))
         
         
         # This step is meant to be a further step in removing full scans, but is probably not set properly
@@ -558,9 +546,42 @@ for tr in trs:
         print 'Defining VDF took:',TimeUtil.now()-time_last
         time_last = TimeUtil.now()
         
+        # If we want to mask out instrument noise away from the distribution, we can import the L3 fits to identify "good" data
+        if maskNoiseWithL3Fits:
+            DQF = getDataSet(sweap_spc_L3_file+'?DQF',tr)
+            goodFlags = where(eq(DQF[:,0],0))
+
+            np_fit    = getDataSet(sweap_spc_L3_file+'?np_fit',   tr)#[goodFlags]
+            wp_fit    = getDataSet(sweap_spc_L3_file+'?wp_fit',   tr)#[goodFlags]
+            vp_fit_SC = getDataSet(sweap_spc_L3_file+'?vp_fit_SC',tr)#[goodFlags]
+            vp_fit = magnitude(vp_fit_SC)
+            spc_time = np_fit.property(QDataSet.DEPEND_0)
+            
+            (np_fit, wp_fit, vp_fit) = synchronize(vdf_full, [np_fit, wp_fit, vp_fit])
+            
+            # Define Gaussian parameters
+            cp = wp_fit            
+            ap = np_fit / (cp*sqrt(PI))         
+            bp = vp_fit
+            
+            v_space = copy(v_z)
+            v_space_time = v_space.property(QDataSet.DEPEND_0)
+            vdf_p  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+            v_index = 0
+            for v_index in xrange(len(v_space[0,:])):
+                vdf_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2)))
+            
+            vdf_p.putProperty(QDataSet.DEPEND_0,v_space_time)
+            vdf_p.putProperty(QDataSet.DEPEND_1,v_space)
+            vdf_p.putProperty(QDataSet.VALID_MIN,1E-10)
+            vdf_p.putProperty(QDataSet.VALID_MAX,1E10)
+            
+            vdf_pNormalized = normalize(vdf_p, 1) # If column normalizing is so easy, why do we only normalize within a group of 4 seconds in the workhorse fitting code?
+            bottom = where(lt(vdf_pNormalized, 0.3)) # This value is chosen so we don't throw everything out below one thermal width at this stage, in case there are gradient differences between spectra measurements
+            vdf_full[bottom] = -1
+        
         # If we want to use the peaks as weights in fitting, import L3 data and build model distributions
         if separatePeaksWithL3Values == True:
-            sweap_spc_L3_file = 'http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
             
             DQF = getDataSet(sweap_spc_L3_file+'?DQF',tr)
             goodFlags = where(eq(DQF[:,0],0))
@@ -672,6 +693,7 @@ for tr in trs:
                 psp_ephem_file_local = '/psp/data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
             else:
                 psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+                psp_ephem_file_local = 'G:/Shared drives/PSP_SWEAP/INSTRUMENT/SPC/Operations/data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
             psp_ephem_file = psp_ephem_file_local #Some day I need to figure out how to grab a nonlocal copy of these files
             v_scz = getDataSet(psp_ephem_file+'?SC_VR_kms',tr)
             v_scx = getDataSet(psp_ephem_file+'?SC_VORB_kms',tr)
@@ -679,6 +701,9 @@ for tr in trs:
             u_x = synchronize(v_z,v_scx)
             u_y = synchronize(v_z,v_scy)
             u_z = synchronize(v_z,v_scz)
+            u_x = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
+            u_y = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
+            u_z = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
         except(java.io.FileNotFoundException):
             print 'PSP ephemeris file not found at', psp_ephem_file
             break
@@ -690,7 +715,7 @@ for tr in trs:
         load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
         
         #plot(0,totalFlux)
-        plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF (cm!U-3!N km!U-1!N s)',zlog=True,title='%s-sec downsample,  %s-sec fit'%(smoothSeconds,fitSeconds))
+        plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF!C!C(cm!U-3!N km!U-1!N s)',zlog=True,title='%s-sec downsample,  %s-sec fit'%(smoothSeconds,fitSeconds))
         plot(1,v_z[r_smooth])
         #alreadyPlottedOnce = True
         #stop
@@ -699,35 +724,55 @@ for tr in trs:
         #####
         ##########
         #################
-        
-        # Why was this using the full-resolution data instead of the 1min product? I am smoothing it on that order anyway, this was a dumb choice.
-        try:
-            # First try public 1min data
-            mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
-            mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
-            print 'Used mag data from:',mag_datafile
-        except:
+        if use4SaPerCycMagFiles:
             try:
-                # Then try team 1min data
-                mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
-                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
+            #if True:
+                mag_datafile = '/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
+                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',tr)
                 print 'Used mag data from:',mag_datafile
             except:
+                mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
+                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',tr)
+                print 'Used mag data from:',mag_datafile
+        else:    
+            if useLocalCachedMagFiles:
                 try:
-                    # Then start probing the full-resolution files to see if anything is there
-                    mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-                    mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                    mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+                    mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
+                    print 'Used mag data from:',mag_datafile
+                except:
+                    mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+                    mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
+                    print 'Used mag data from:',mag_datafile
+            else:
+                # Why was this using the full-resolution data instead of the 1min product? I am smoothing it on that order anyway, this was a dumb choice.
+                try:
+                    # First try public 1min data
+                    mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+                    mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
                     print 'Used mag data from:',mag_datafile
                 except:
                     try:
-                        mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-                        mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                        # Then try team 1min data
+                        mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+                        mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
                         print 'Used mag data from:',mag_datafile
                     except:
-                        mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-                        mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
-                        print 'Used mag data from:',mag_datafile
-                
+                        try:
+                            # Then start probing the full-resolution files to see if anything is there
+                            mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+                            mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                            print 'Used mag data from:',mag_datafile
+                        except:
+                            try:
+                                mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+                                mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+                                print 'Used mag data from:',mag_datafile
+                            except:
+                                mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+                                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
+                                print 'Used mag data from:',mag_datafile
+                    
         #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
         mag = trim(mag,tr)
         
@@ -740,6 +785,7 @@ for tr in trs:
         By = mag[:,1]
         Bz = mag[:,2]
         Btotal = magnitude(mag)
+        #plot(6, mag, renderType='series')
         
         # These inputs are arbitrary since we don't really care what the B_perp directions are for now. Does not affect outcome
         TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
@@ -748,6 +794,7 @@ for tr in trs:
         
         
         ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+        #plot(6,Bx)
         
         #################
         ##########
@@ -776,10 +823,12 @@ for tr in trs:
                     epsilonEpoch, anisotropy_chi_deltaPlus,
                     anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
                     anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev) = findVDFAnisotropy(-v_z, vz_tanPhi, vz_tanTheta, 
-                                                 u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, 
-                                                 Ny_temp, Nz_temp)
+                                                 u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, Ny_temp, Nz_temp, 
+                                                 minNormalizedFluxValue=0.5, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
                 plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
                 plot(5,epsilonEpoch,bundle(slopeError_chi,slopeError_psi), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
                 
             elif vdf == 'vdf_p1':
                 vdf_in = vdf_p1
@@ -798,9 +847,11 @@ for tr in trs:
                     epsilonEpoch_p1, anisotropy_chi_deltaPlus_p1, anisotropy_chi_deltaMinus_p1,
                     anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1, anisotropy_chi_standardDev_p1, anisotropy_psi_standardDev_p1) = findVDFAnisotropy(-v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
-                                                 Nx_temp, Ny_temp, Nz_temp)
+                                                 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
                 plot(4,epsilonEpoch_p1,bundle(anisotropy_chi_p1,anisotropy_psi_p1), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
                 plot(5,epsilonEpoch_p1,bundle(slopeError_chi_p1,slopeError_psi_p1), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
                 
             elif vdf == 'vdf_3':
                 vdf_in = vdf_3
@@ -819,9 +870,11 @@ for tr in trs:
                     epsilonEpoch_3, anisotropy_chi_deltaPlus_3, anisotropy_chi_deltaMinus_3,
                     anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3, anisotropy_chi_standardDev_3, anisotropy_psi_standardDev_3) = findVDFAnisotropy(-v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
-                                                 Nx_temp, Ny_temp, Nz_temp)
+                                                 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
                 plot(4,epsilonEpoch_3,bundle(anisotropy_chi_3,anisotropy_psi_3), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
                 plot(5,epsilonEpoch_3,bundle(slopeError_chi_3,slopeError_psi_3), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
                 
             elif vdf == 'vdf_a':
                 vdf_in = vdf_a
@@ -840,10 +893,12 @@ for tr in trs:
                     epsilonEpoch_a, anisotropy_chi_deltaPlus_a, anisotropy_chi_deltaMinus_a,
                     anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a, anisotropy_chi_standardDev_a, anisotropy_psi_standardDev_a) = findVDFAnisotropy(-v_z, vz_tanPhi,
                                                  vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
-                                                 Nx_temp, Ny_temp, Nz_temp)
+                                                 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
                 plot(4,epsilonEpoch_a,bundle(anisotropy_chi_a,anisotropy_psi_a), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
                 plot(5,epsilonEpoch_a,bundle(slopeError_chi_a,slopeError_psi_a), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
                 #plot(6,bundle(anisotropy_chi_a,anisotropy_psi_a),ylog=True)
+                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
         
         
             #Btotal_in = synchronize(chiline,Btotal)
@@ -855,6 +910,7 @@ for tr in trs:
             # ###
             
         if writeStuff == True:
+            mkdir(output_folder)
             if analyzingTimeWidthComparisons == True:
                 output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec_%ssec.cdf'%(timeTitle,version,str(smoothSeconds),str(fitSeconds))
             elif analyzingTimeWidthComparisons == False:

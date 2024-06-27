@@ -1,19 +1,24 @@
 
 
 tr = '2018-11-01 1:00 to 1:15'
-sweap_spc_file = 'http://sweap.cfa.harvard.edu/data/sci/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
-
+tr = '2023-09-25 20:00 to 23:15'
+sweap_spc_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+#                 http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/
 np_fit = getDataSet(sweap_spc_file+'?np_fit',tr)
 wp_fit = getDataSet(sweap_spc_file+'?wp_fit',tr)
 vp_fit_SC = getDataSet(sweap_spc_file+'?vp_fit_SC',tr)
 vp_fit = magnitude(vp_fit_SC)
 spc_time = np_fit.property(QDataSet.DEPEND_0)
 
-
 np1_fit = getDataSet(sweap_spc_file+'?np1_fit',tr)
 wp1_fit = getDataSet(sweap_spc_file+'?wp1_fit',tr)
 vp1_fit_SC = getDataSet(sweap_spc_file+'?vp1_fit_SC',tr)
 vp1_fit = magnitude(vp1_fit_SC)
+
+n3_fit = getDataSet(sweap_spc_file+'?n3_fit',tr)
+w3_fit = getDataSet(sweap_spc_file+'?w3_fit',tr)
+v3_fit_SC = getDataSet(sweap_spc_file+'?v3_fit_SC',tr)
+v3_fit = magnitude(v3_fit_SC)
 
 na_fit = getDataSet(sweap_spc_file+'?na_fit',tr)
 wa_fit = getDataSet(sweap_spc_file+'?wa_fit',tr)
@@ -48,6 +53,10 @@ bp = vp_fit
 cp1 = wp1_fit     
 ap1 = np1_fit / (cp1*sqrt(PI))                
 bp1 = vp1_fit
+
+c3 = w3_fit     
+a3 = n3_fit / (c3*sqrt(PI))                
+b3 = v3_fit
 
 #ca = wa_fit/(2.*sqrt(2*log(2)))
 #aa = na_fit/(ca*sqrt(2*PI))
@@ -86,9 +95,10 @@ if plot_VDF ==True:
         minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
         fitSeconds           = 5     # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
         
-        cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+        cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
         
         try:
+            diff_charge_flux_density = getDataSet(cfa_sweap_file+'?diff_charge_flux_density&where=MODE_FLAG.eq(0)',tr)
             spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
             spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
             spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
@@ -100,6 +110,7 @@ if plot_VDF ==True:
             noSPCData = None
             raise java.io.FileNotFoundException
         
+        diff_charge_flux_density = trim(diff_charge_flux_density,tr)
         spc_a = trim(spc_a,tr)
         spc_b = trim(spc_b,tr)
         spc_c = trim(spc_c,tr)
@@ -112,28 +123,35 @@ if plot_VDF ==True:
         del(spc_a,spc_b,spc_c,spc_d)
         
         totalFlux = sum(spc_list)
+        totalFlux = diff_charge_flux_density
 
-        v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
-        windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
+        #v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+        #windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
         
-        v_z_a = sqrt( (2./m_a) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
-        windowWidths_a = sqrt( (2./m_a) * q*(mv_hi-mv_lo)/2.) / 1.E5
+        centerVoltage = (mv_hi+mv_lo)/2.
+        v_z = sqrt( (2./m_p) * q * centerVoltage ) / 1.E5   # in km/s
+        windowWidths = sqrt( (4./m_p) * q * centerVoltage - v_z**2 ) / 1E5
         
-        vdf = totalFlux/(v_z*windowWidths) * 1.66E3
+        #v_z_a = sqrt( (2./m_a) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+        #windowWidths_a = sqrt( (2./m_a) * q*(mv_hi-mv_lo)/2.) / 1.E5
+        
+        v_z_a = sqrt( (2./m_a) * q * centerVoltage ) / 1.E5   # in km/s
+        windowWidths_a = sqrt( (4./m_a) * (2*q) * centerVoltage - v_z_a**2 ) / 1E5
+        
+        vdf = totalFlux/(v_z*windowWidths) * 0.7E4#* 1.66667E4 #/ 1.4
         vdf.putProperty(QDataSet.DEPEND_1,v_z)
         del(windowWidths,mv_hi)
         
         #plot(1,vdf*1.66E3,ytitle='SPC VDF',zrange=[1E-1,1E1],zlog=True)
-        plot(1,vdf,ytitle='SPC VDF',zrange=[1E-1,1E1],zlog=True)
+        plot(1,vdf,ytitle='SPC VDF', zrange=[1E-1,1E1], zlog=True, renderType='spectrogram>rebin=lanlNearestNeighbor' )
 #        stop
-        
-
        
 #v_space = linspace(200,800,60)
 #peak_p = dblarr(len(np_fit),len(v_space))
 
 (ap,bp,cp) = synchronize(v_z,[ap,bp,cp])
 (ap1,bp1,cp1) = synchronize(v_z,[ap1,bp1,cp1])
+(a3,b3,c3) = synchronize(v_z,[a3,b3,c3])
 (aa,ba,ca) = synchronize(v_z,[aa,ba,ca])
 
 
@@ -141,6 +159,7 @@ v_space = copy(v_z)
 v_space_time = v_space.property(QDataSet.DEPEND_0)
 peak_p  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
 peak_p1 = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+peak_3  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
 peak_a  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
 v_index = 0
 for v_index in xrange(len(v_space[0,:])):
@@ -149,9 +168,10 @@ for v_index in xrange(len(v_space[0,:])):
     #peak_p1[:,v_index] = ap1*exp(-((v_space[:,v_index] - bp1)**2 / (2*cp1**2)))
     #peak_a[:,v_index]  = aa*exp(-((v_space_a[:,v_index] - ba)**2 / (2*ca**2)))
     
-    peak_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2)))
+    peak_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2 )))
     peak_p1[:,v_index] = ap1*exp(-((v_space[:,v_index]   - bp1)**2 / (cp1**2)))
-    peak_a[:,v_index]  = aa *exp(-((v_space[:,v_index] - ba )**2 / (ca**2)))
+    peak_3[:,v_index]  = a3 *exp(-((v_space[:,v_index]   - b3 )**2 / (c3**2 )))
+    peak_a[:,v_index]  = aa *exp(-((v_space[:,v_index]   - ba )**2 / (ca**2 )))
     #v_index+=1
 
 peak_p.putProperty(QDataSet.DEPEND_0,v_space_time)
@@ -164,22 +184,34 @@ peak_p1.putProperty(QDataSet.DEPEND_1,v_space)
 peak_p1.putProperty(QDataSet.VALID_MIN,1E-10)
 peak_p1.putProperty(QDataSet.VALID_MAX,1E10)
 
+peak_3.putProperty(QDataSet.DEPEND_0,v_space_time)
+peak_3.putProperty(QDataSet.DEPEND_1,v_space)
+peak_3.putProperty(QDataSet.VALID_MIN,1E-10)
+peak_3.putProperty(QDataSet.VALID_MAX,1E10)
+
 peak_a.putProperty(QDataSet.DEPEND_0,v_space_time)
 peak_a.putProperty(QDataSet.DEPEND_1,v_space)
 peak_a.putProperty(QDataSet.VALID_MIN,0)
 peak_a.putProperty(QDataSet.VALID_MAX,1E20)
 
-model_vdf = peak_p + peak_p1 + peak_a
-protons  = peak_p + peak_p1
+model_vdf  = peak_p1 + peak_3 + peak_a
+protons    = peak_p1 + peak_3
+singlePop  = peak_p
 background = vdf-model_vdf
 
-#plot(0,model_vdf,ytitle='Model VDF',zrange=[1E-1,1E1],zlog=True) 
-#plot(0,peak_p,ytitle='peak_p') 
-plot(0,protons,ytitle='peak_p + peak_p1',zrange=[1E-1,1E1],zlog=True) 
+#plot(0,model_vdf,ytitle='Model VDF',zrange=[1E-1,1E1],zlog=True, renderType='spectrogram>rebin=lanlNearestNeighbor') 
+plot(0,peak_p,ytitle='peak_p',zrange=[1E-1,1E1],zlog=True, renderType='spectrogram>rebin=lanlNearestNeighbor') 
+#plot(0,protons,ytitle='model!Cpeak_p1 + peak_3',zrange=[1E-1,1E1],zlog=True, renderType='spectrogram>rebin=lanlNearestNeighbor') 
 #plot(v_space)
-#plot(2,peak_a)        
-#plot(2,vdf/peak_p,ytitle='VDF/peak_p',zrange=[1E-1,1E1],zlog=True)
-plot(2,vdf/(model_vdf),ytitle='VDF/(peak_p + peak_p1)',zrange=[1E-1,1E1],zlog=True)
-#plot(3,vdf-peak_p,ytitle='vdf-peak_p')
-plot(3,vdf-(background+protons),ytitle='vdf-(peak_p + peak_p1)',zrange=[-5,5],zlog=False)
-#plot(3,vdf - model_vdf,ytitle='vdf-model_vdf',zrange=[-5,5],zlog=False)
+#plot(2,peak_a, renderType='spectrogram>rebin=lanlNearestNeighbor' )        
+plot(2,vdf/peak_p,ytitle='VDF/peak_p',zrange=[0.5,2],zlog=True, renderType='spectrogram>rebin=lanlNearestNeighbor')
+#plot(2,vdf/(model_vdf),ytitle='VDF/(model_vdf)',zrange=[0.5,2],zlog=True, renderType='spectrogram>rebin=lanlNearestNeighbor')
+#plot(3,vdf-peak_p,ytitle='vdf-peak_p', renderType='spectrogram>rebin=lanlNearestNeighbor' )
+#plot(3,vdf-(background+protons),ytitle='vdf-(peak_p + peak_p1)',zrange=[-5,5],zlog=False, renderType='spectrogram>rebin=lanlNearestNeighbor')
+plot(3,vdf-(peak_p),ytitle='vdf-(peak_p)',zrange=[-1,1],zlog=False, renderType='spectrogram>rebin=lanlNearestNeighbor')
+#plot(3,vdf - model_vdf,ytitle='vdf-model_vdf',zrange=[-1,1],zlog=False, renderType='spectrogram>rebin=lanlNearestNeighbor')
+
+dom.plots[0].colortable.APL_RAINBOW_BLACK0
+dom.plots[1].colortable.APL_RAINBOW_BLACK0
+dom.plots[2].colortable.APL_RAINBOW_BLACK0
+dom.plots[3].colortable.APL_RAINBOW_BLACK0

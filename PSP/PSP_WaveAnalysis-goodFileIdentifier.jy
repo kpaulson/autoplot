@@ -1,0 +1,143 @@
+
+
+today = str(TimeUtil.now())[0:10]
+#timerange   = getParam('timerange',str(datumRange(str(datum(today)-datum('5 days'))+' to '+str(datum(today)))),'Timerange over which to calculate Wave Parameters')
+#timerange   = getParam('timerange',str(datumRange(str(datum(str(TimeUtil.now())[0:10])-datum('5 days'))+' to '+str(datum(str(TimeUtil.now())[0:10])))),'Timerange over which to calculate Wave Parameters')
+timerange    = getParam('timerange','2022-01-02','Timerange over which to calculate Wave Parameters')
+
+version = '1.3'  # Version of WaveAnalysis files to scan through
+outputDirectory = 'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version)
+
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
+def get_os_version():
+	'''
+	Basic subprocess that should print out the operating system version. Mostly helpful
+	for scripts looking for files in a different directory structure on windows vs mac.
+	Easiest application:
+		print get_os_version().split()[0]
+	'''
+	import sys
+	ver = sys.platform.lower()
+	if ver.startswith('java'):
+		import java.lang
+		ver = java.lang.System.getProperty("os.name").lower()
+	return ver
+	   
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+	googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+	#googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+	googleDrive_path = 'G:/My Drive/'
+		
+	
+waveAnalysisFiles_directory = googleDrive_path + outputDirectory
+	
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+
+# ###
+# ### SPLIT EVERYTHING INTO 6-HOUR CHUNKS (ALA FIELDS DATA)
+# ###
+
+trs= generateTimeRanges('$Y-$m-$d $(H,span=6):00 ',timerange)
+tr_titles= generateTimeRanges('$Y-$m-$d_$(H,span=6)00 ',timerange)
+#dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',timerange)
+#monitor.finished()
+#monitor.started()
+monitor.setLabel('PSP Wave Analysis')
+
+if lt(datumRange(timerange).width(), datum('6 hr') ):
+	trs = [str(trs[0])]  # [str(generateTimeRanges('$Y-$m-$d $(H,span=6):00 ',timerange)[0])]
+	
+trCompletedList = None
+trCompletedFile = waveAnalysisFiles_directory+'psp_waveAnalysis_completedTimeranges.txt' 
+trTEMPFile      = waveAnalysisFiles_directory+'TEMP_psp_waveAnalysis_completedTimeranges.txt'
+
+try:
+	f = open(trCompletedFile, 'r')
+	#trCompletedList = f.readlines().splitlines()
+	trCompletedList = f.readlines()
+	f.close()
+	#trCompletedListOG = trCompletedList.copy()
+except:
+	print 'No Completed File List Found in %s'%(waveAnalysisFiles_directory)
+for i in xrange(len(trCompletedList)):
+	trCompletedList[i] = trCompletedList[i].strip('\n')
+
+trCompletedListNew = []
+monitor.setTaskSize(len(trs))
+index = 0
+for tr in trs:
+	tr = str(tr)+' to '+str(tr+datum('6 hr'))
+	print ''
+	print tr
+	
+	# Roll back to the original timerange in the case where timerange < 6 hours
+	if lt(datumRange(timerange).width(), datumRange(tr).width()):
+		tr = timerange
+	
+	# Stop running the code if dates are in the future   
+	if gt(datumRange(tr).max(), TimeUtil.now()):
+		print '*** %s occurs in the future, killing script'%tr
+		break
+
+	outputSubDirectory = str(datumRange(tr).min())[0:4]+'/'+str(datumRange(tr).min())[5:7]+'/'
+	mkdir(waveAnalysisFiles_directory+outputSubDirectory)
+	outputFile = waveAnalysisFiles_directory+outputSubDirectory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
+			
+	# Perform check to see if the waveAnalysis has already been generated or if there is a known reason for failed processing
+	fileAlreadyExists         = False
+	print '    Checking existence of:',outputFile
+	if tr_titles[index] in trCompletedList:
+		print '    Timerange already in list, moving on'
+		index += 1
+		continue
+	else:
+		try: # This had to be turned into a try/except because the newer versions of the files properly set Epoch='Bfield_time'
+			TEMP_epoch = getDataSet(outputFile+'?Epoch')
+		except:
+			try:
+				TEMP_epoch = getDataSet(outputFile+'?Bfield_time')
+			except:
+				print '    No file found for timerange'
+				index += 1
+				continue
+		if ne( long(mode(copy(TEMP_epoch))), 0):
+			print '    Adding timerange to list'
+			trCompletedListNew.append(tr_titles[index])
+			fileAlreadyExists = True
+
+	f = open(trTEMPFile, 'a')
+	for trCompleted in trCompletedList:
+		f.write('\n%s'%trCompleted)
+	f.close()
+	index += 1
+	
+trCompletedList = trCompletedList + trCompletedListNew
+trCompletedList.sort()
+
+print 'Writing new timerange list'
+f = open(trCompletedFile, 'w')
+for trCompleted in trCompletedList[0]:
+		f.write('%s'%trCompleted)
+for trCompleted in trCompletedList[1:]:
+		#print 'write'
+		#print trCompleted
+		f.write('\n%s'%trCompleted)
+f.close()
+
+import os
+try:
+	os.remove(trTEMPFile)
+except:
+	pass
+				  

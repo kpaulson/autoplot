@@ -1,0 +1,153 @@
+#tr = '2024-06-15 through 2024-07-15'
+#tr = '2023-12-15 through 2024-01-15'
+
+doItManually = False # Left over from manual command files, should just drop this section.
+orbitNumber = getParam('orbitNumber', 20, 'Which orbit do you want to plot SPC commands for?', range(1,25))
+
+periheliaList = ['2018-11-05',
+                 '2019-04-04',
+                 '2019-09-01',
+                 '2020-01-29',
+                 '2020-06-07',
+                 '2020-09-27',
+                 '2021-01-17',
+                 '2021-04-29',
+                 '2021-08-09',
+                 '2021-11-21',
+                 '2022-02-25',
+                 '2022-06-01',
+                 '2022-09-06',
+                 '2022-12-11',
+                 '2023-03-17',
+                 '2023-06-22',
+                 '2023-09-27',
+                 '2023-12-29',
+                 '2024-03-30',
+                 '2024-06-30',
+                 '2024-09-30',
+                 '2024-12-24',
+                 '2025-03-22',
+                 '2025-06-19']
+
+tr = datumRange(str(datum(periheliaList[orbitNumber-1])-datum('14 days'))+' to '+str(datum(periheliaList[orbitNumber-1])+datum('14 days')))
+
+import socket
+hostName = socket.gethostname()
+serverList = ['fc.cfa.harvard.edu', 'nanook']
+
+if hostName in serverList:
+    operationsDirectory  = '/home/kpaulson/sharedDrive_PSP-SWEAP/INSTRUMENT/SPC/Operations/'
+    googleDrive_personal = '/home/kpaulson/MyDrive/'
+elif hostName == 'SI393828':
+    operationsDirectory = 'G:/Shared drives/PSP_SWEAP/INSTRUMENT/SPC/Operations/'
+    googleDrive_personal = 'G:/My Drive/'
+
+if doItManually:
+    spc_fluxAngleModeEvents_file = googleDrive_personal+'Research/PSP/SPC/FluxAngleMode/psp_spc_fluxAngleModeEvents_encounter%s.txt'%(orbitNumber)
+    #spc_fluxAngleModeEvents_file = 'file:/G:/My Drive/Research/PSP/SPC/FluxAngleMode/psp_spc_fluxAngleModeEvents_encounter18.txt'
+    
+    events_fluxAngle = getDataSet(spc_fluxAngleModeEvents_file + '?column=field0')
+else:
+    sweap_commandList = getDataSet(operationsDirectory+'encounterPlanning/SWEAP Telemetry Worksheet - Working - $x_Orbit%s.csv?time=field3&timeFormat=$Y-$m-$d+$H:$M:$S&column=Parker_Solar_Probe_Ephemeris_and_Telemetry_Values'%(orbitNumber))
+    sweap_commandList.putProperty(QDataSet.NAME, None)
+    eventTime = sweap_commandList.property(QDataSet.DEPEND_0)
+    eventTime.putProperty(QDataSet.NAME, None)
+        
+    fluxAngles = where(eq(sweap_commandList, 'SPC flux-angle'))
+    shortCals  = where(eq(sweap_commandList, 'SPC short cal'))
+    superFast  = where(eq(sweap_commandList, 'SPC to SuperFast Proton Rate'))
+    turnOnAttempts = where(eq(sweap_commandList, 'Re-enable SPC startup and run SPC Encounter setup and startup').or(eq(sweap_commandList, 'Run SPC Encounter setup and startup')).or(eq(sweap_commandList, 'Run 1kV SPC Encounter setup and startup')))
+    
+    for i in fluxAngles:
+        eventTimeBegin = eventTime[i]
+        eventTimeEnd = eventTime[i] + datum('7 min')
+        eventTimerange = datumRange(str(eventTimeBegin)+' to '+str(eventTimeEnd))
+        if 'events_fluxAngle' not in locals():
+            events_fluxAngle = createEvent(eventTimerange, 0xFF0000, 'SPC flux-angle')
+        elif 'events_fluxAngle' in locals():
+            events_fluxAngle = append(events_fluxAngle, createEvent(eventTimerange, 0xFF0000, 'SPC flux-angle'))
+    
+    for i in shortCals:
+        eventTimeBegin = eventTime[i]
+        eventTimeEnd = eventTime[i] + datum('10 min')
+        eventTimerange = datumRange(str(eventTimeBegin)+' to '+str(eventTimeEnd))
+        if 'events_shortCal' not in locals():
+            events_shortCal = createEvent(eventTimerange, 0x0000FF, 'SPC calibration')
+        elif 'events_shortCal' in locals():
+            events_shortCal = append(events_shortCal, createEvent(eventTimerange, 0x0000FF, 'SPC calibration'))
+    
+    for i in superFast:
+        eventTimeBegin = eventTime[i]
+        eventTimeEnd = eventTime[i] + datum('20 min')
+        eventTimerange = datumRange(str(eventTimeBegin)+' to '+str(eventTimeEnd))
+        if 'events_superFast' not in locals():
+            events_superFast = createEvent(eventTimerange, 0x00FF00, 'SPC SuperFast')
+        elif 'events_superFast' in locals():
+            events_superFast = append(events_superFast, createEvent(eventTimerange, 0x00FF00, 'SPC SuperFast'))
+            
+    for i in turnOnAttempts:
+        eventTimeBegin = eventTime[i]
+        eventTimeEnd = eventTime[i] + datum('20 min')
+        eventTimerange = datumRange(str(eventTimeBegin)+' to '+str(eventTimeEnd))
+        if 'events_turnOnAttmepts' not in locals():
+            events_turnOnAttmepts = createEvent(eventTimerange, 0xF0F0F0, 'SPC SuperFast')
+        elif 'events_turnOnAttmepts' in locals():
+            events_turnOnAttmepts = append(events_turnOnAttmepts, createEvent(eventTimerange, 0xF0F0F0, 'SPC Turn-On Attempts'))
+
+spc_ephemFile = operationsDirectory+'data/sci/sweap/spc/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+spc_lon = toRadians(getDataSet(spc_ephemFile + '?CARR_LON', tr))
+spc_lat = getDataSet(spc_ephemFile + '?CARR_LAT', tr)
+spc_rau = getDataSet(spc_ephemFile + '?SC_R_AU', tr)*215.
+
+spc_lon = trim(spc_lon, tr)
+spc_lat = trim(spc_lat, tr)
+spc_rau = trim(spc_rau, tr)
+perihelionDistance = min(spc_rau)
+
+def syncOrInterp(eventData, ephemData):
+    try:
+        downsampledEphem = synchronize(eventData, ephemData)
+    except:
+        ephemToFluxAngle = findex(ephemData.property(QDataSet.DEPEND_0), eventData[:,0])
+        downsampledEphem = interpolate(ephemData, ephemToFluxAngle)
+    return(downsampledEphem)     
+
+if 'events_fluxAngle' in locals():
+    spc_lon_events_fluxAngle = syncOrInterp(events_fluxAngle, spc_lon)
+    spc_lat_events_fluxAngle = syncOrInterp(events_fluxAngle, spc_lat)
+    spc_rau_events_fluxAngle = syncOrInterp(events_fluxAngle, spc_rau)
+
+if 'events_shortCal' in locals():
+    spc_lon_events_shortCal = syncOrInterp(events_shortCal, spc_lon)
+    spc_lat_events_shortCal = syncOrInterp(events_shortCal, spc_lat)
+    spc_rau_events_shortCal = syncOrInterp(events_shortCal, spc_rau)
+
+if 'events_superFast' in locals():   
+    spc_lon_events_superFast = syncOrInterp(events_superFast, spc_lon)
+    spc_lat_events_superFast = syncOrInterp(events_superFast, spc_lat)
+    spc_rau_events_superFast = syncOrInterp(events_superFast, spc_rau)
+
+if 'events_turnOnAttmepts' in locals():   
+    spc_lon_events_turnOnAttmepts = syncOrInterp(events_turnOnAttmepts, spc_lon)
+    spc_lat_events_turnOnAttmepts = syncOrInterp(events_turnOnAttmepts, spc_lat)
+    spc_rau_events_turnOnAttmepts = syncOrInterp(events_turnOnAttmepts, spc_rau)
+
+setLayoutOverplot(10)
+
+plot(0, spc_rau*cos(spc_lon), spc_rau*sin(spc_lon), lineWidth=3., renderType='orbitPlot', legendLabel='PSP Orbit', title='PSP/SPC Orbit %s Command Planning'%(orbitNumber))
+if 'events_fluxAngle' in locals(): 
+    plot(1, spc_rau_events_fluxAngle*cos(spc_lon_events_fluxAngle), spc_rau_events_fluxAngle*sin(spc_lon_events_fluxAngle), color='red', renderType='scatter', symbolSize=10, legendLabel='Flux Angle Mode')
+#plot(1, spc_rau_events_fluxAngle[:,0]*cos(spc_lon_events_fluxAngle[:,0]), spc_rau_events_fluxAngle[:,0]*sin(spc_lon_events_fluxAngle[:,0]), color='red', renderType='scatter', symbolSize=8, legendLabel='Flux Angle!CMode Events')
+if 'events_shortCal' in locals(): 
+    plot(2, spc_rau_events_shortCal*cos(spc_lon_events_shortCal), spc_rau_events_shortCal*sin(spc_lon_events_shortCal), color='cyan', renderType='scatter', symbolSize=8, legendLabel='Calibration')
+if 'events_superFast' in locals():  
+    plot(3, spc_rau_events_superFast*cos(spc_lon_events_superFast), spc_rau_events_superFast*sin(spc_lon_events_superFast), color='green', renderType='scatter', symbolSize=14, legendLabel='Superfast Mode')
+if 'events_turnOnAttmepts' in locals():  
+    plot(4, spc_rau_events_turnOnAttmepts*cos(spc_lon_events_turnOnAttmepts), spc_rau_events_turnOnAttmepts*sin(spc_lon_events_turnOnAttmepts), color='magenta', renderType='scatter', symbolSize=14, legendLabel='Turn-On Attempts')
+
+
+plot(5, circle(1.), color='orange', lineWidth=10., xtitle='(rs)', ytitle='(rs)')
+plot(6, circle(perihelionDistance), color='gray', lineWidth=1., xtitle='(rs)', ytitle='(rs)', legendLabel='%s rs!C(Perihelion)'%(round(perihelionDistance,1)))
+plot(7, circle(53.75), color='gray', lineWidth=2., xtitle='(rs)', ytitle='(rs)', lineStyle='dashes', legendLabel='0.25 AU!C(Encounter)')
+
+bind(dom.plots[0].xaxis, 'scale', dom.plots[0].yaxis, 'scale')

@@ -1,0 +1,291 @@
+############################################################################
+##################            VARIABLES          ###########################
+############################################################################
+############################################################################
+
+
+#timerange = '2018-10-25'
+#timerange = '2018-11-01 to 2018-11-05'
+timerange             = getParam('timerange', '2020-02-10','Timerange over which to isolate and total EMIC wave power')
+checkForPreviousFiles = getParam('checkPrevious','T', 'If previous copies of L1 file exist, then skip to next day',['T','F'])
+writeStuff            = getParam('writeFiles',   'T', 'Write out the L1 files with this version of the code?',['T','F'])
+plotStuff             = getParam('savePlots',    'T', 'Write out plot pngs?',['T','F'])
+writeAttempts         = getParam('writeAttempts',  1, 'How many times try to write file before moving on (set to 0 to turn this off)')
+
+
+fileVersion = '1.3'
+
+
+if checkForPreviousFiles == 'T':
+	checkForPreviousFiles = True
+elif checkForPreviousFiles == 'F':
+	checkForPreviousFiles = False
+	
+if writeStuff == 'T':
+	writeStuff = True
+elif writeStuff == 'F':
+	writeStuff = False
+	
+if plotStuff == 'T':
+	plotStuff = True
+elif plotStuff == 'F':
+	plotStuff = False
+
+##############
+			
+bottomTrimIndex            = 0
+min_coherency              = 0.8
+max_waveNormal             = 25
+maxLefthandedness          = -0.8
+minRighthandedness         = 0.8
+timeAxis_smoothpoints      = 2
+frequencyAxis_smoothpoints = 20
+			
+##############
+
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
+import sys
+
+def get_os_version():
+	'''
+	Basic subprocess that should print out the operating system version. Mostly helpful
+	for scripts looking for files in a different directory structure on windows vs mac.
+	Easiest application:
+		print get_os_version().split()[0]
+	'''
+	import sys
+	ver = sys.platform.lower()
+	if ver.startswith('java'):
+		import java.lang
+		ver = java.lang.System.getProperty("os.name").lower()
+	return ver
+	   
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+	googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+	#googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+	googleDrive_path = 'G:/My Drive/'
+		
+wavePower_directory = googleDrive_path + 'Research/PSP/WaveAnalysis/WavePower/%s/'%(fileVersion)
+	
+waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/$Y/$m/'%(fileVersion)
+waveAnalysis_file = waveAnalysis_directory+'PSP_WaveAnalysis_$Y-$m-$d_$(H,span=6)00_v%s.cdf'%(fileVersion)
+
+scrollingPlots = True
+# I DON'T EVEN REMEMBER WHAT THE WHOLE SCROLLING PLOTS THING WAS FOR. MAYBE AN ANNIMATED PLOTTING THING?
+#if scrollingPlots == True:
+#    dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',timerange)
+#    #dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',timerange)
+#    monitor.started()
+#    monitor.setLabel('PSP Polarization')
+#    monitor.setTaskSize(len(dds))
+#
+##    for ind in xrange(len(dds)):
+##
+##        #totalPowerLeft  = None
+##        #totalPowerRight = None
+##        #totalpower_perp = None
+##        monitor.setTaskProgress(ind)
+##        monitor.setProgressMessage('Downloading Data')
+##
+##        if ind < len(dds)-1:
+##            if dds[ind][9:11] == 18:
+##                tr = dds[ind]+' to '+str( datum(dds[ind]) + dataset('6hr') )
+##            else:
+##                tr = dds[ind]+' to '+dds[ind+1]
+
+
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+
+trCompletedList = None
+trCompletedFile = wavePower_directory+'psp_wavePower_completedTimeranges.txt' 
+try:
+	f = open(trCompletedFile, 'r')
+	#trCompletedList = f.readlines().splitlines()
+	trCompletedList = f.readlines()
+	f.close()
+	#trCompletedListOG = trCompletedList.copy()
+except:
+	print 'No Completed File List Found in %s'%(wavePower_directory)
+for i in xrange(len(trCompletedList)):
+	trCompletedList[i] = trCompletedList[i].strip('\n')
+
+for day in trs:
+	print day
+	dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',day)
+	#dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',day)
+	monitor.started()
+	monitor.setLabel('PSP Polarization')
+	monitor.setTaskSize(len(dds))
+	
+	year = str(day)[0:4]
+	month = str(day)[5:7]
+	outputDirectory = wavePower_directory+'%s/%s/'%(year, month)
+	mkdir(outputDirectory)
+	outputFile = outputDirectory+'PSP_wavePower_%s_v%s.cdf'%(day, fileVersion)
+	
+	# Initialize datasets and indices
+	totalPowerLeft  = None
+	totalPowerRight = None
+	totalpower_perp = None
+	ind = 0    
+	fileAlreadyExists = False
+	
+	try:
+		if checkForPreviousFiles == True:
+			print '    Checking existence of:',outputFile
+			if day in trCompletedList:
+				print '    Timerange already in list, moving on'
+				fileAlreadyExists = True
+			else:
+				try:
+					TEMP_epoch = getDataSet(outputFile+'?epoch')
+					if ne( long(mode(copy(TEMP_epoch))), 0):
+						print '  **File already exists for %s'%(day)
+						fileAlreadyExists = True
+					else:
+						print '  **Reprocessing file for %s'%(day)
+				except:
+					fileAlreadyExists = False
+					
+		if fileAlreadyExists == True:
+			raise fileAlreadyExistsException
+		elif fileAlreadyExists == False:
+			for dd in dds:
+				#print 'dd:',dd
+				monitor.setTaskProgress(ind) 
+				monitor.setProgressMessage('Downloading Data')
+				tr = str(datum(dd))+' to '+str(datum(dd)+datum('6 hr'))
+				
+				try:
+					#print waveAnalysis_file
+					power_perp   = getDataSet(waveAnalysis_file+'?B_power_perp',tr)
+					try: # Old files didn't have the "_b" suffix, so need to hold on to this clause until they are all replaced
+						coherency    = getDataSet(waveAnalysis_file+'?coherency_b',tr)
+						ellipticity  = getDataSet(waveAnalysis_file+'?ellipticity_b',tr)
+						waveNormal   = getDataSet(waveAnalysis_file+'?wave_normal_b',tr)
+					except:
+						coherency    = getDataSet(waveAnalysis_file+'?coherency',tr)
+						ellipticity  = getDataSet(waveAnalysis_file+'?ellipticity',tr)
+						waveNormal   = getDataSet(waveAnalysis_file+'?wave_normal',tr)
+					
+					power_perp  = power_perp[:,bottomTrimIndex:]
+					coherency   = coherency[:,bottomTrimIndex:]
+					ellipticity = ellipticity[:,bottomTrimIndex:]
+					waveNormal  = waveNormal[:,bottomTrimIndex:]
+					
+					timeAxis = power_perp.property(QDataSet.DEPEND_0)
+					frequencyAxis = power_perp.property(QDataSet.DEPEND_1)
+					
+					coherency_smoothedFrequency   = smooth2d(coherency,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+					waveNormal_smoothedFrequency  = smooth2d(waveNormal,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+					ellipticity_smoothedFrequency = smooth2d(ellipticity,timeAxis_smoothpoints,frequencyAxis_smoothpoints)
+					
+					subset_incoherent = where(le(coherency_smoothedFrequency,min_coherency))
+					subset_abbynormal = where(ge(waveNormal_smoothedFrequency,max_waveNormal))
+					subset_fill = where(eq(valid(coherency_smoothedFrequency),0))
+					subset_badWave = where(le(coherency_smoothedFrequency,min_coherency).or(ge(waveNormal_smoothedFrequency,max_waveNormal)))
+					#subset_badWave = where(le(coherency_smoothedFrequency,min_coherency).or(ge(waveNormal_smoothedFrequency,max_waveNormal)).or(eq(valid(coherency_smoothedFrequency),0)))
+					#subset_badWave = where(le(coherency,min_coherency).or(ge(waveNormal,max_waveNormal)))
+					
+					power_perp[subset_incoherent] = 0
+					power_perp[subset_abbynormal] = 0
+					#power_perp[subset_badWave] = 0
+					
+					# This next pass to exclude points where coherency is fill should be rolled into the where statement above, but the or thing doesn't seem to work right.
+					power_perp[subset_fill] = 0
+					
+					notLeftHanded  = where(ge(ellipticity_smoothedFrequency,maxLefthandedness))
+					notRightHanded = where(le(ellipticity_smoothedFrequency,minRighthandedness))
+					#ellipticity[notLeftHanded] = 0
+					#plot(ellipticity)
+					#stop
+					
+					power_perp_left = copy(power_perp)
+					power_perp_left[notLeftHanded] = 0
+					power_perp_right = copy(power_perp)
+					power_perp_right[notRightHanded] = 0
+					
+					
+					Power      = total(power_perp,1) * putProperty(mean(diff(frequencyAxis)), QDataSet.UNITS, None)
+					PowerLeft  = total(power_perp_left,1) * putProperty(mean(diff(frequencyAxis)), QDataSet.UNITS, None)
+					PowerRight = total(power_perp_right,1) * putProperty(mean(diff(frequencyAxis)), QDataSet.UNITS, None)
+					#bindle = bundle(totalPowerRight,totalPowerLeft,totalPower)
+					#plot(3,timeAxis,bindle,ylog=True)
+					
+					totalPowerLeft  = append(totalPowerLeft,PowerLeft)
+					totalPowerRight = append(totalPowerRight,PowerRight)
+					totalpower_perp = append(totalpower_perp,Power)
+					print '    Processing waveAnalysis file %s of 4'%(ind+1) 
+					
+					ind = ind+1
+				except:
+					#print 'oops'
+					ind = ind+1
+					continue
+				
+				
+		if plotStuff == True:
+			setLayoutOverplot(2)
+			plot(0,totalPowerLeft,ylog=True,color='blue')
+			plot(1,totalPowerRight,ylog=True,color='red')
+		
+			plot(2,totalpower_perp,zlog=True)
+		
+		if writeStuff == True:
+			
+			timeAxis = totalpower_perp.property(QDataSet.DEPEND_0)
+			timeAxis.putProperty(QDataSet.NAME,'epoch')
+			totalPowerLeft.putProperty(QDataSet.NAME,'wavePower_LH')
+			totalPowerLeft.putProperty(QDataSet.UNITS, Units.lookupUnits('nt!U2!N'))
+			totalPowerLeft.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity below %s (Left-handed), coherency above %s, and wave normal angle below %s degrees.'%(maxLefthandedness,min_coherency,max_waveNormal))
+			totalPowerRight.putProperty(QDataSet.NAME,'wavePower_RH')
+			totalPowerRight.putProperty(QDataSet.UNITS, Units.lookupUnits('nt!U2!N'))
+			totalPowerRight.putProperty(QDataSet.TITLE,'EMIC Wave Power observed by PSP with Ellipticity above %s (Right-handed), coherency above %s, and wave normal angle below %s degrees.'%(minRighthandedness,min_coherency,max_waveNormal))
+			
+			bindle = bundle(totalPowerLeft,totalPowerRight)
+			bindle.putProperty(QDataSet.DEPEND_0,timeAxis)
+			
+			if writeAttempts > 0:
+				try:
+					for i in xrange(writeAttempts):
+						formatDataSet(bindle,outputFile+'?bundle=T')
+						
+						print '    writeAttempt:',i+1
+						fileAlreadyExists = False
+						try:
+							TEMP_epoch = getDataSet(outputFile+'?epoch')
+							if ne( long(mode(copy(TEMP_epoch))), 0):
+								fileAlreadyExists = True
+						except:
+							fileAlreadyExists = False
+						if fileAlreadyExists == True:
+							raise fileAlreadyExistsException
+				except:
+					pass
+				
+			else:
+				formatDataSet(bindle,outputFile+'?bundle=T')
+				
+			print '    Successfully wrote file for %s'%day
+		
+	except:
+		if fileAlreadyExists == False:
+			print '  **Something went wrong with file for %s'%day
+			exc_type, exc_value, exc_tb = sys.exc_info()
+			print '   *%s'%exc_value
+			print '   *%s'%exc_tb
+		elif fileAlreadyExists == True:
+			pass
+	

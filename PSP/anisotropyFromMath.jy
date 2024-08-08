@@ -209,11 +209,11 @@ except:
     smoothAndDownsampleSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
     execfile( smoothAndDownsampleSPCByVoltage.toString() )
        
-from org.apache.commons.math.optimization.fitting import CurveFitter
-from org.apache.commons.math.optimization.fitting import ParametricRealFunction
-from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
-from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
-from org.apache.commons.math.stat.regression      import SimpleRegression
+# from org.apache.commons.math.optimization.fitting import CurveFitter
+# from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+# from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
+# from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+# from org.apache.commons.math.stat.regression      import SimpleRegression
 
 #addToSearchPath(sys.path, str(googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar'), monitor)
 
@@ -221,18 +221,18 @@ from org.apache.commons.math.stat.regression      import SimpleRegression
 #from org.apache.commons.math3.fitting import SimpleCurveFitter
 #from org.apache.commons.math3.fitting.leastsquares import LevenbergMarquardtOptimizer as LMO
 #from org.apache.commons.math3.fitting.leastsquares import GaussNewtonOptimizer
-#from org.apache.commons.math3.analysis import ParametricUnivariateFunction
+# #from org.apache.commons.math3.analysis import ParametricUnivariateFunction
 
-class LinFit(ParametricRealFunction):
-#class LinFit(ParametricUnivariateFunction):
-    def value(self, x, params):
-        a = params[0]
-        b = params[1]
-        return (a*x + b)
-    def gradient(self, x, params):
-        a = params[0]
-        b = params[1]
-        return [x,1]
+# class LinFit(ParametricRealFunction):
+# #class LinFit(ParametricUnivariateFunction):
+    # def value(self, x, params):
+        # a = params[0]
+        # b = params[1]
+        # return (a*x + b)
+    # def gradient(self, x, params):
+        # a = params[0]
+        # b = params[1]
+        # return [x,1]
 
 
 ############################################################################

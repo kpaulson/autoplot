@@ -151,19 +151,23 @@ last = TimeUtil.now()
 
 r = where( valid(B_input[:,1]).eq(0) )
 temp_Bx = copy(B_input[:,1])
+temp_Bx = putProperty(copy(B_input[:,1]), QDataSet.UNITS, Units.nT)
 temp_Bx[r] = datum('-9999.999 nT')
 #temp_Bx[r] = putProperty(dataset('-9999.999'), QDataSet.UNITS, Units.nT)
 
 r = where( valid(B_input[:,2]).eq(0) )
 temp_By = copy(B_input[:,2])
+temp_By = putProperty(copy(B_input[:,2]), QDataSet.UNITS, Units.nT)
 temp_By[r] = datum('-9999.999 nT')
 
 r = where( valid(B_input[:,3]).eq(0) )
 temp_Bz = copy(B_input[:,3])
+temp_Bz = putProperty(copy(B_input[:,3]), QDataSet.UNITS, Units.nT)
 temp_Bz[r] = datum('-9999.999 nT')
 
 r = where( valid(B_input[:,0]).eq(0) )
 temp_Btot = copy(B_input[:,0])
+temp_Btot = putProperty(copy(B_input[:,0]), QDataSet.UNITS, Units.nT)
 temp_Btot[r] = datum('-9999.999 nT')
 
 fgm = bundle(temp_Bx,temp_By,temp_Bz,temp_Btot)

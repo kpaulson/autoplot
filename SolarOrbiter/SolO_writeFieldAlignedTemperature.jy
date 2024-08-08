@@ -1,8 +1,10 @@
 
-timerange   = getParam('timerange', '2022-01-22', 'date of analysis')
-plotStuff   = getParam('plotStuff','T','Plot dataset',['T','F'])
-writeStuff  = getParam('writeStuff','F','Write dataset out to cdf file',['T','F'])
-inverter    = getParam('matrixInverter', 'transpose', 'What algorithm should be used for the inversion of the rotation matrix? (R^-1)', ['lowerUpperDecomposition', 'RealMatrixInverse', 'transpose'])
+timerange             = getParam('timerange', '2022-01-08', 'date of analysis')
+plotStuff             = getParam('plotStuff','T','Plot dataset',['T','F'])
+writeStuff            = getParam('writeStuff','F','Write dataset out to cdf file',['T','F'])
+inverter              = getParam('matrixInverter', 'transpose', 'What algorithm should be used for the inversion of the rotation matrix? (R^-1)', ['lowerUpperDecomposition', 'RealMatrixInverse', 'transpose'])
+useFullPressureTensor = getParam('usePressureTensor','T','Use the full pressure tensor instead of the diagonal temperature elements',['T','F'])
+coordSystem           = getParam('coordinateSystem', 'rtn', 'Which coordinate system do you want the original data in?', ['rtn', 'srf'])
 
 outputDirectory = 'Research/SolarOrbiter/SWA-PAS/fieldAlignedTemperature_Files/'
 #tr = '2022-03-25'
@@ -15,8 +17,9 @@ def convertTstoTrues(parameterInput):
     return(parameterInput)
     
     
-plotStuff  = convertTstoTrues(plotStuff)
-writeStuff = convertTstoTrues(writeStuff)
+plotStuff             = convertTstoTrues(plotStuff)
+writeStuff            = convertTstoTrues(writeStuff)
+useFullPressureTensor = convertTstoTrues(useFullPressureTensor)
 
 ############################################################################
 ##################            IMPORTS            ###########################
@@ -236,18 +239,30 @@ def rotateTensor(Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz, T_rtn):
         rotationMatrix_to_mag.setEntry(2,0,Qx[i].value())
         rotationMatrix_to_mag.setEntry(2,1,Qy[i].value())
         rotationMatrix_to_mag.setEntry(2,2,Qz[i].value())
+       
         
+        if len(T_rtn[0,:]) == 3:
+            T_tensor_rtn.setEntry(0,0,T_rtn[i,0].value())  # Tr  0   0
+            T_tensor_rtn.setEntry(1,1,T_rtn[i,1].value())  # 0   Tt  0
+            T_tensor_rtn.setEntry(2,2,T_rtn[i,2].value())  # 0   0   Tn
+        elif len(T_rtn[0,:]) == 6:
+            T_tensor_rtn.setEntry(0,0,T_rtn[i,0].value())  # Trr  Trt  Trn
+            T_tensor_rtn.setEntry(1,1,T_rtn[i,1].value())  # Trt  Ttt  Ttn
+            T_tensor_rtn.setEntry(2,2,T_rtn[i,2].value())  # Trn  Ttn  Tnn
+            T_tensor_rtn.setEntry(0,1,T_rtn[i,3].value())
+            T_tensor_rtn.setEntry(0,2,T_rtn[i,4].value())
+            T_tensor_rtn.setEntry(1,2,T_rtn[i,5].value())
+            T_tensor_rtn.setEntry(1,0,T_rtn[i,3].value())
+            T_tensor_rtn.setEntry(2,0,T_rtn[i,4].value())
+            T_tensor_rtn.setEntry(2,1,T_rtn[i,5].value())
         
-        T_tensor_rtn.setEntry(0,0,T_rtn[i,0].value())  # Tr  0   0
-        T_tensor_rtn.setEntry(1,1,T_rtn[i,1].value())  # 0   Tt  0
-        T_tensor_rtn.setEntry(2,2,T_rtn[i,2].value())  # 0   0   Tn
         
         # Tmag = R Trtn R^-1
         try:
             if inverter == 'lowerUpperDecomposition':
                 solver = LUDecompositionImpl(rotationMatrix_to_mag).getSolver()
                 rotationMatrix_to_mag_inverse = solver.getInverse()
-            elif inverter == 'RealMatrixInverse':
+            elif inverter == 'RealMatrixInverse': # Someting is wrong here, I get negative values
                 rotationMatrix_to_mag_inverse = RealMatrix.inverse(rotationMatrix_to_mag)
             elif inverter == 'transpose':
                 # inverse of a rotation matrix is just its transpose
@@ -283,7 +298,7 @@ for tr in trs:
         day   = tr[8:10]
 
         # GET BFIELD DATA
-        b_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_MAG-RTN-NORMAL-1-MINUTE&filter=solo&id=B_RTN', tr)
+        b_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_MAG-%s-NORMAL&id=B_%s'%(coordSystem.upper(), coordSystem.upper()), tr)
         #b_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_MAG-RTN-NORMAL&filter=solo&id=B_RTN', tr)
         b_time = b_rtn.property(QDataSet.DEPEND_0)
         
@@ -318,7 +333,21 @@ for tr in trs:
             stop
         
         # GET TEMP DATA
-        T_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&filter=solo&id=TxTyTz_RTN', tr)
+        if useFullPressureTensor == True:
+            P_rtn   = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&id=P_%s'%(coordSystem.upper()), tr)
+            density = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&id=N', tr)
+            
+            boltzmannK = 1.380649E-23
+            evToK      = 11606.
+            T_rtn = P_rtn / (density * boltzmannK * evToK)
+            badPoints = where(eq(valid(T_rtn), 0))
+            T_rtn[badPoints] = 0
+        else:
+            T_rtn = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&id=TxTyTz_%s'%(coordSystem.upper()), tr)
+            
+        qualityFactor = getDataSet('vap+cdaweb:ds=SOLO_L2_SWA-PAS-GRND-MOM&id=quality_factor', tr)
+        unbadPoints = where(gt(qualityFactor, -1))# where(gt(qualityFactor, 0))
+        T_rtn = T_rtn[unbadPoints,:]
         time = T_rtn.property(QDataSet.DEPEND_0)
         
         ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = synchronize(T_rtn, ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ))
@@ -339,6 +368,10 @@ for tr in trs:
         Tp.putProperty(QDataSet.VALID_MIN, 0)
         Tq.putProperty(QDataSet.VALID_MIN, 0)
         
+        Tn.putProperty(QDataSet.VALID_MAX, 1E10)
+        Tp.putProperty(QDataSet.VALID_MAX, 1E10)
+        Tq.putProperty(QDataSet.VALID_MAX, 1E10)
+        
         if False:
             ## ROTATE TEMP DATA
             ( Tn , Tp , Tq ) = rotateVector( T_rtn[:,0] , T_rtn[:,1] , T_rtn[:,2] , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz )
@@ -357,9 +390,9 @@ for tr in trs:
         Tp.putProperty(QDataSet.NAME, 'T_perp1')
         Tq.putProperty(QDataSet.NAME, 'T_perp2')
         
-        Tn.putProperty(QDataSet.LABEL, 'T_||')
-        Tp.putProperty(QDataSet.LABEL, 'T_&perp;1')
-        Tq.putProperty(QDataSet.LABEL, 'T_&perp;2')
+        Tn.putProperty(QDataSet.LABEL, 'T!B||!N')
+        Tp.putProperty(QDataSet.LABEL, 'T!B&perp;1!N')
+        Tq.putProperty(QDataSet.LABEL, 'T!B&perp;2!N')
         
         Tn.putProperty(QDataSet.UNITS, Units.eV)
         Tp.putProperty(QDataSet.UNITS, Units.eV)
@@ -368,8 +401,10 @@ for tr in trs:
         if plotStuff:
             plot(0, time, T_rtn, renderType='series')
             plot(1, time, bundle(Tn, Tp, Tq), yrange=[0, 15], renderType='series')
-            plot(2, time, Tp/Tq, renderType='series', ylog=True, yrange=[0.1,10])
-            plot(3, time, ((Tp+Tq)/2)/Tn, renderType='series', ylog=True, yrange=[0.1,10])
+            #plot(1, time, bundle(Tn, Tp, Tq), renderType='series')
+            plot(2, time, Tp/Tq, renderType='series', ylog=True, yrange=[0.1,10], ytitle='T!B&perp;1!N / T!B&perp;2!N')
+            plot(3, time, ((Tp+Tq)/2.)/Tn, renderType='series', ylog=True, yrange=[0.1,10], ytitle='T!B&perp;avg!N / T!B||!N')
+            plot(4, b_time, b_rtn, ytitle='Bfield')
         
             #plot(3, time, Tp, legendLabel='Tp', renderType='series')
             #plot(4, time, Tq, legendLabel='Tq', renderType='series')

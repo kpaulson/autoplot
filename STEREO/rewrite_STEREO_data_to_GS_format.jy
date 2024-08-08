@@ -112,7 +112,8 @@ except:
     Vn = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_PLA_1DMAX_1MIN&id=proton_Vn_RTN&timerange=%s'%(stereo_sc,timerange)),timerange)
     V_time = Vp.property(QDataSet.DEPEND_0)
     
-    pos_input = trim(getDataSet('http://www.srl.caltech.edu/STEREO2/Position/%s/position_%s_$Y_HEE.txt?time=field0&rank2=field4-field6&timeFormat=$Y+$j+$S&timerange=%s'%(stereo_sc_label,stereo_sc_label,timerange)),timerange)
+    #pos_input = trim(getDataSet('http://www.srl.caltech.edu/STEREO2/Position/%s/position_%s_$Y_HEE.txt?time=field0&rank2=field4-field6&timeFormat=$Y+$j+$S&timerange=%s'%(stereo_sc_label,stereo_sc_label,timerange)),timerange)
+    pos_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L3_WAV_LFR&filter=stereo&id=SC_POS_HEE'%(stereo_sc), timerange), timerange)
     #pos_input = trim(getDataSet('vap+cdaweb:ds=ST%s_L2_MAGPLASMA_1M&id=HEE&timerange=%s'%(stereo_sc,timerange)),timerange) # HEE coordinate position in AU
     pos_x = unbundle(pos_input,0) # HEEx is Sun-Earth line
     pos_y = unbundle(pos_input,1) # HEEy
@@ -147,7 +148,7 @@ temp_upsampled = filterAndUpscale(temp_input,B_input)
 
 
 plot(1,temp_upsampled)
-stop
+#stop
 # Rename data variables, reassign fill values
 
 last = TimeUtil.now()
@@ -216,7 +217,7 @@ if write_output=='T':
         # ###
         
         sc = 'ST%s'%stereo_sc
-        stereo_data_directory = 'D:/Research/Solar Wind Projects/2012 Hu Reconstruction Codes/gs_code_v1_windows/STEREODATA/merged_mag_plasma/'
+        stereo_data_directory = 'G:/My Drive/Research/GradShafranovReconstruction/gs_code_kp/STEREODATA/merged_mag_plasma/'
         stereo_data_file = '%s_%s_merged.txt'%(sc,dd)
         
         formatDataSet(output,stereo_data_directory+stereo_data_file+'?format=9.4f&tformat=milliseconds')

@@ -1,0 +1,40 @@
+import java
+
+arrayOfPlots = dom.getPlots()
+numberOfPlots = len(arrayOfPlots)
+listOfPanels = list(xrange(numberOfPlots+1))[1:]
+#print listOfPanels
+
+currentTimerange = dom.getTimeRange()
+
+arrayOfPlotElements = dom.getPlotElements()
+numberOfPlotElements = len(arrayOfPlotElements)
+
+#timerangeOfHighlight = getParam('timerange', str(dom.getTimeRange()),'Timerange of the intended highlight')
+timerangeOfHighlight = getParam('timerange', str(currentTimerange),'Timerange of the intended highlight')
+whichPlots = getParam('howMany','all','Which panels do you want to add the highlight to?', ['all', 'top', 'single'])
+if whichPlots == 'single':
+    whichPanel = getParam('whichPanel',0,'Which individual panel did you want to add a highlihgt to?',listOfPanels)
+titleOfHighlight = getParam('annotation', 'temp message', 'What annotation do you want displayed on hover?')
+colorOfHighlight = getParam('color', 'red', 'what color do you want to highlight to be?', ['red', 'dark green', 'blue', 'white', 'black', 'magenta'])
+
+try:
+    eventHighlight = createEvent(timerangeOfHighlight, colorOfHighlight, titleOfHighlight)
+except:
+    eventHighlight = createEvent(datumRange(timerangeOfHighlight), colorFromString(colorOfHighlight).getRGB()+0x40000000, titleOfHighlight)
+    
+
+index = 0
+if whichPlots == 'all':
+    panelList = listOfPanels
+elif whichPlots == 'top':
+    panelList = [0]    
+elif whichPlots == 'single':
+    panelList = [whichPanel-1]
+    #panelList = list()
+    #panelList.append(whichPanel)    
+
+for plotNumber in panelList:
+    print plotNumber
+    plot(int(numberOfPlotElements+index), eventHighlight, overplotOf=dom.plots[int(plotNumber)])
+    index = index+1

@@ -8,7 +8,7 @@
 
 # Variable timestamp input
 #timerange = getParam('timerange','2018-11-11 12:00 to 2018-11-12 12:00','Timerange of PSP Data')
-timerange = getParam('timerange','2020-06-12 to 2020-06-14','Timerange of PSP Data')
+timerange = getParam('timerange','2023-09-23 through 2023-09-25','Timerange of PSP Data')
 dd = timerange[0:10]
 
 downsampleSeconds = getParam('downsampleSeconds',10.,'Number of seconds in new time cadence for desired output dataset (linear interpolation)')
@@ -16,11 +16,17 @@ downsampleSeconds = getParam('downsampleSeconds',10.,'Number of seconds in new t
 
 write_output = getParam('writeOutput','T','Do you want to write the current setup to the GS directory?',['T','F']) 
 
-#Full cadence magnetic field:
-#B_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_rtn',timerange)
-mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
-#mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
-B_input = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange) 
+useFullCadenceField = False
+if useFullCadenceField:
+    #Full cadence magnetic field:
+    #B_input = getDataSet('http://sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf?psp_fld_mag_rtn',timerange)
+    mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
+    #mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_RTN/$Y/$m/psp_fld_l2_mag_RTN_$Y$m$d$(H,span=6)_v$v.cdf'
+    B_input = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_RTN',timerange) 
+else:
+    #Reduced cadence magnetic field:
+    mag_L2_file_berkeley = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
+    B_input = getDataSet(mag_L2_file_berkeley+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',timerange)
 
 #B_input = smooth(B_input,downsamplePoints)[::downsamplePoints,:]
 B_mag = magnitude(B_input)

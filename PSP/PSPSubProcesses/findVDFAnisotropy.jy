@@ -28,6 +28,23 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
     verbose = False
     writeOutFitPoints = True
     
+    from org.apache.commons.math.optimization.fitting import CurveFitter
+    from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+    from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
+    from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+    from org.apache.commons.math.stat.regression      import SimpleRegression
+
+
+    class LinFit(ParametricRealFunction):
+    #class LinFit(ParametricUnivariateFunction):
+        def value(self, x, params):
+            a = params[0]
+            b = params[1]
+            return (a*x + b)
+        def gradient(self, x, params):
+            a = params[0]
+            b = params[1]
+            return [x,1]
     
     def get_os_version():
         '''
@@ -64,6 +81,8 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
     TEMP_anisotropy_chi    = None
     TEMP_anisotropy_psi    = None
     time_last = TimeUtil.now()
+    
+    vdf_full_in = normalize(vdf_full_in, 1)
     
     if ge(fitSeconds,1.):
         dds= generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(fitSeconds),tr)
@@ -119,6 +138,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             
             #totalFlux_dd = trim(totalFlux,tr_dds)
             vdf_dd = trim(vdf_full_in,tr_dds)
+            #vdf_dd = normalize(vdf_dd, 1)  # Normalize above instead
             
             Nx_temp_dd = trim(Nx_temp_in,tr_dds)
             Ny_temp_dd = trim(Ny_temp_in,tr_dds)
@@ -175,16 +195,15 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
             if vdf_label[0:4] == 'WIND':
                 temp_vdf.putProperty(QDataSet.VALID_MIN,1E-13)
             temp_vdf.putProperty(QDataSet.VALID_MAX,1E4)  #Arbitrarily-chosen upper limit
-            #norm_temp_totalFlux = normalize(temp_totalFlux)
-            norm_temp_vdf = normalize(temp_vdf)
-            r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
-            
+            #norm_temp_vdf = normalize(temp_vdf)
+            norm_temp_vdf = copy(temp_vdf)
+            #r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)))  # Removes points from the measurement below a particular threschhold
+            r = where(ge(temp_vdf,minFluxValueForFit).and(valid(temp_vdf)).and(valid(temp_v_z)).and(valid(temp_vz_tanTheta)).and(valid(temp_vz_tanPhi)))  # Removes points from the measurement below a particular threschhold
             
             # These two lines below should create a step function on the normalized weights such that anything less than 0.5 (minNormalizedFluxValue) goes to 0. The idea is that this will only fit the points that are above half the max of the peak
             blackoutNormalized = where(lt(norm_temp_vdf,minNormalizedFluxValue))
-            norm_temp_vdf[blackoutNormalized] = 0.0001
-            temp_vdf[blackoutNormalized] = 0.0001
-                #plot(norm_temp_vdf[r]*100,xrange=[0,600],renderType='scatter')
+            norm_temp_vdf[blackoutNormalized] = 0.0000001
+            temp_vdf[blackoutNormalized] = 0.0000001
             
             try:
                 if verbose == True:
@@ -216,7 +235,7 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                         norm_temp_vdf[r][i] = 1.
                         point_weight = 1.
                     else:    
-                        point_weight = int((float(norm_temp_vdf[r][i])*10000))
+                        point_weight = int((float(norm_temp_vdf[r][i])*100))
                     
                     point_weights = concatenate(point_weights, point_weight)  
                     
@@ -228,9 +247,8 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                         
                     chi_point = WeightedObservedPoint(point_weight, float(temp_v_z[r][i]*temp_Nx_temp_dd[r][i]), float(temp_vz_tanTheta[r][i]))
                     psi_point = WeightedObservedPoint(point_weight, float(temp_v_z[r][i]*temp_Ny_temp_dd[r][i]), float(temp_vz_tanPhi[r][i]))
-                    #print 'chi_point_weight',chi_point.getWeight()
-                    #print 'psi_point_weight',psi_point.getWeight()
-                    if float(norm_temp_vdf[r][i]) >= minNormalizedFluxValue:
+
+                    if ge(float(norm_temp_vdf[r][i]), minNormalizedFluxValue):
                         ftr_chi.addObservedPoint( chi_point )
                         ftr_psi.addObservedPoint( psi_point )
                     
@@ -255,24 +273,14 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 temp_v_z.putProperty(        QDataSet.LABEL, 'vz')
                 temp_vz_tanTheta.putProperty(QDataSet.LABEL, 'vz_tanTheta')
                 temp_vz_tanPhi.putProperty(  QDataSet.LABEL, 'vz_tanPhi')
-                #print 'Made it to bundling'
-                #print 'point_weights:',point_weights
-                #print 'temp_Nx_temp_dd:',temp_Nx_temp_dd[r]
-                #print 'temp_Ny_temp_dd:',temp_Ny_temp_dd[r]
+                
                 bindle = bundle(point_weights, temp_Nx_temp_dd[r], temp_Ny_temp_dd[r])
-                #print bindle
                 bindle = bundle(bindle, temp_v_z[r], temp_vz_tanTheta[r], temp_vz_tanPhi[r])
-                #bindle.putProperty
-                #print 'temp_v_z:',temp_v_z[r]
-                #print 'temp_vz_tanTheta:',temp_vz_tanTheta[r]
-                #print 'temp_vz_tanPhi:',temp_vz_tanPhi[r]
-                #print bindle
-                #print dds_title[ind]
+                
                 fitPointOutputDirectory = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/anisotropyFits/%s/fitData/'%(dds_title[ind][0:10])
-                #print 'fitPointOutputDirectory:',fitPointOutputDirectory
                 mkdir(fitPointOutputDirectory)
                 fitPointOutputFile = 'spcAnisotropy_fitData_normalizedMasked_%s.txt'%(dds_title[ind][:19])
-                #print 'fitPointOutputFile:',fitPointOutputFile
+                
                 formatDataSet(bindle, fitPointOutputDirectory+fitPointOutputFile)
                 
                 
@@ -398,8 +406,10 @@ def findVDFAnisotropy(v_z_in, vz_tanPhi_in, vz_tanTheta_in, u_x_in, u_y_in, u_z_
                 plot(6,temp_v_z[r]*temp_Ny_temp_dd[r],temp_vz_tanPhi[r]   ,norm_temp_vdf[r],renderType='colorScatter',ztitle='VDF Normalized',symbolSize=5)
                 #plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle=tr_dds,title='r!U2!N = '+str(round(temp_rSquared_chi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_chi,4))+'     Slope = '+str(round(result_chi[0],4))+'     SlopeError = '+str(round(temp_slopeError_chi,4)),symbolSize=0,lineWidth=2,ytitle='V!Bx')
                 #plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N!C'+tr_dds,title='r!U2!N = '+str(round(temp_rSquared_psi,4))+'     &Chi;!U2!Bred.!N = '+str(round(temp_chiSquaredReduced_psi,4))+'     Slope = '+str(round(result_psi[0],4))+'     SlopeError = '+str(round(temp_slopeError_psi,4)),symbolSize=0,lineWidth=2,ytitle='V!By')
-                plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N*B!Bx!N (nT km s!U-1!N)',title='Slope = '+str(round(result_chi[0],4))+'     Nx = '+str(round(mean(Nx_temp_dd),2))+'     Ny = '+str(round(mean(Ny_temp_dd),2))+'     Nz = '+str(round(Nz_temp_dd,2))+'     SlopeError = '+str(round(temp_slopeError_chi,4))+'     Anisotropy!B&Chi;!N = '+str(round(plot_anisotropy_chi,3))+' &plusmn; ['+str(round(anisotropy_chi_deltaPlus,3))+','+str(round(anisotropy_chi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!Bx!N (km s!U-1!N)')
-                plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N*B!By!N (nT km s!U-1!N)!C!C'+tr_dds,title='Slope = '+str(round(result_psi[0],4))+'     Nx = '+str(round(mean(Nx_temp_dd),2))+'     Ny = '+str(round(mean(Ny_temp_dd),2))+'     Nz = '+str(round(Nz_temp_dd,2))+'     SlopeError = '+str(round(temp_slopeError_psi,4))+'     Anisotropy!B&Psi;!N = '+str(round(plot_anisotropy_psi,3))+' &plusmn; ['+str(round(anisotropy_psi_deltaPlus,3))+','+str(round(anisotropy_psi_deltaMinus,3))+']',symbolSize=0,lineWidth=2,ytitle='V!By!N (km s!U-1!N)')
+                chiFit_title = 'Slope = '+str(round(result_chi[0],4))+'     Nx = '+str(round(mean(Nx_temp_dd),2))+'     Ny = '+str(round(mean(Ny_temp_dd),2))+'     Nz = '+str(round(Nz_temp_dd,2))+'     SlopeError = '+str(round(temp_slopeError_chi,4))+'     Anisotropy!B&Chi;!N = '+str(round(plot_anisotropy_chi,3))+' &plusmn; ['+str(round(anisotropy_chi_deltaPlus,3))+','+str(round(anisotropy_chi_deltaMinus,3))+']'
+                psiFit_title = 'Slope = '+str(round(result_psi[0],4))+'     Nx = '+str(round(mean(Nx_temp_dd),2))+'     Ny = '+str(round(mean(Ny_temp_dd),2))+'     Nz = '+str(round(Nz_temp_dd,2))+'     SlopeError = '+str(round(temp_slopeError_psi,4))+'     Anisotropy!B&Psi;!N = '+str(round(plot_anisotropy_psi,3))+' &plusmn; ['+str(round(anisotropy_psi_deltaPlus,3))+','+str(round(anisotropy_psi_deltaMinus,3))+']'
+                plot(5,xx_x,(result_chi[0]*xx_x + result_chi[1]),color='red',xtitle='V!Bz!N*B!Bx!N (nT km s!U-1!N)',title=chiFit_title,symbolSize=0,lineWidth=2,ytitle='V!Bx!N (km s!U-1!N)',xrange=[min(temp_v_z[r]*temp_Nx_temp_dd[r]),max(temp_v_z[r]*temp_Nx_temp_dd[r])], yrange=[min(temp_vz_tanTheta[r]),max(temp_vz_tanTheta[r])])
+                plot(7,xx_y,(result_psi[0]*xx_y + result_psi[1]),color='red',xtitle='V!Bz!N*B!By!N (nT km s!U-1!N)!C!C'+tr_dds,title=psiFit_title,symbolSize=0,lineWidth=2,ytitle='V!By!N (km s!U-1!N)',xrange=[min(temp_v_z[r]*temp_Ny_temp_dd[r]),max(temp_v_z[r]*temp_Ny_temp_dd[r])], yrange=[min(temp_vz_tanPhi[r]),max(temp_vz_tanPhi[r])])
                 #plot(8,trim(Nz_temp,tr_dds),title=Nz_temp_dd)
                 
 #                    psiline_temp = putProperty(copy(psiline),QDataSet.DEPEND_0,epsilonEpoch)

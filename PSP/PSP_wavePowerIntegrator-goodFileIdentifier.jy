@@ -1,0 +1,138 @@
+
+
+today = str(TimeUtil.now())[0:10]
+#timerange   = getParam('timerange',str(datumRange(str(datum(today)-datum('5 days'))+' to '+str(datum(today)))),'Timerange over which to calculate Wave Parameters')
+#timerange   = getParam('timerange',str(datumRange(str(datum(str(TimeUtil.now())[0:10])-datum('5 days'))+' to '+str(datum(str(TimeUtil.now())[0:10])))),'Timerange over which to calculate Wave Parameters')
+timerange    = getParam('timerange','2022-01-02','Timerange over which to check for integrated wavePower files.')
+
+fileVersion = '1.3'  # Version of WaveAnalysis files to scan through
+
+
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
+def get_os_version():
+	'''
+	Basic subprocess that should print out the operating system version. Mostly helpful
+	for scripts looking for files in a different directory structure on windows vs mac.
+	Easiest application:
+		print get_os_version().split()[0]
+	'''
+	import sys
+	ver = sys.platform.lower()
+	if ver.startswith('java'):
+		import java.lang
+		ver = java.lang.System.getProperty("os.name").lower()
+	return ver
+	   
+OS = get_os_version().split()[0]
+if OS == 'mac' or OS == 'linux':
+	googleDrive_path = '/home/kpaulson/MyDrive/'
+elif OS == 'windows':
+	#googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+	googleDrive_path = 'G:/My Drive/'
+		
+wavePower_directory = googleDrive_path + 'Research/PSP/WaveAnalysis/WavePower/%s/'%(fileVersion)
+		
+############################################################################
+#################            BEGIN SCRIPT        ###########################
+############################################################################
+############################################################################
+
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+	
+trCompletedList = None
+trCompletedFile = wavePower_directory+'psp_wavePower_completedTimeranges.txt' 
+trTEMPFile      = wavePower_directory+'TEMP_psp_wavePower_completedTimeranges.txt'
+
+try:
+	f = open(trCompletedFile, 'r')
+	#trCompletedList = f.readlines().splitlines()
+	trCompletedList = f.readlines()
+	f.close()
+	#trCompletedListOG = trCompletedList.copy()
+except:
+	print 'No Completed File List Found in %s'%(wavePower_directory)
+for i in xrange(len(trCompletedList)):
+	trCompletedList[i] = trCompletedList[i].strip('\n')
+
+trCompletedListNew = []
+
+for day in trs:
+	print ''
+	print day
+	dds= generateTimeRanges('$Y$m$d $(H,span=6):00 ',day)
+	#dds= generateTimeRanges('$Y$m$d $(H,span=24):00 ',day)
+	monitor.started()
+	monitor.setLabel('Checking %s'%(day))
+	monitor.setTaskSize(len(dds))
+	
+	year = str(day)[0:4]
+	month = str(day)[5:7]
+	outputDirectory = wavePower_directory+'%s/%s/'%(year, month)
+	mkdir(outputDirectory)
+	outputFile = outputDirectory+'PSP_wavePower_%s_v%s.cdf'%(day, fileVersion)
+	
+	waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/$Y/$m/'%(fileVersion)
+	waveAnalysis_file = waveAnalysis_directory+'PSP_WaveAnalysis_$Y-$m-$d_$(H,span=6)00_v%s.cdf'%(fileVersion)
+	
+	# Initialize datasets and indices
+	totalPowerLeft  = None
+	totalPowerRight = None
+	totalpower_perp = None
+	ind = 0    
+	fileAlreadyExists = False
+	print '    Checking existence of:',outputFile
+	try:
+		if day in trCompletedList:
+			print '    Timerange already in list, moving on'
+			continue
+		else:
+			try:
+				#print outputFile+'?epoch'
+				TEMP_epoch = getDataSet(outputFile+'?epoch')
+				if ne( long(mode(copy(TEMP_epoch))), 0):
+					print '  **File already exists for %s'%(day)
+					trCompletedListNew.append(day)
+					fileAlreadyExists = True
+					#raise fileAlreadyExistsException
+				else:
+					print '  **Reprocessing file for %s'%(day)
+			except:
+				print '   No file found for %s'%(day)
+				fileAlreadyExists = False
+
+		f = open(trTEMPFile, 'a')
+		f.write('\n%s'%day)
+#		for trCompleted in trCompletedList:
+#			f.write('\n%s'%trCompleted)
+		f.close()
+		index += 1
+		
+		if fileAlreadyExists == True:
+			raise fileAlreadyExistsException
+			
+	except:
+		continue
+		
+trCompletedList = trCompletedList + trCompletedListNew
+trCompletedList.sort()
+
+print 'Writing new timerange list'
+f = open(trCompletedFile, 'w')
+for trCompleted in trCompletedList[0]:
+		f.write('%s'%trCompleted)
+for trCompleted in trCompletedList[1:]:
+		#print 'write'
+		#print trCompleted
+		f.write('\n%s'%trCompleted)
+f.close()
+
+import os
+try:
+	os.remove(trTEMPFile)
+except:
+	pass
+		

@@ -1,0 +1,107 @@
+
+#trs = ['2020-01-27']
+timerange = '2020-01-29'
+timerange = '2022-09-05 through 2022-09-06'
+hours = 3
+
+
+
+vdc_file = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/dfb_wf_vdc/$Y/$m/psp_fld_l2_dfb_wf_vdc_$Y$m$d$(H,span=6)_v$v.cdf'
+sqtn_file = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l3/sqtn_rfs_V1V2/$Y/$m/psp_fld_l3_sqtn_rfs_V1V2_$Y$m$d_v$(v,sep).cdf'
+ephem_file = 'file:///G:/Shared drives/PSP_SWEAP/INSTRUMENT/SPC/Operations/data/sci/sweap/spc/EPHEMERIS/spp_swp_spc_hourlyephem_$Y.cdf'
+    
+
+trs = generateTimeRanges('$Y-$m-$d $(H,span=%s):00'%(hours), timerange)
+
+slopes = None
+intercepts = None
+for tr in trs:
+  #try:
+    tr = str(tr)+' to '+str(tr+datum('%s hr'%(hours)))
+    # Get Data
+    v1 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V1dc', tr)
+    v2 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V2dc', tr)
+    v3 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V3dc', tr)
+    v4 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V4dc', tr)
+    #v5 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V5dc', tr)
+    #v_avg = (v1+v2+v3+v4+v5)/5.
+    v_avg = (v1+v2+v3+v4)/4.
+    v_avg.putProperty(QDataSet.DEPEND_0, v1.property(QDataSet.DEPEND_0))
+    
+    
+    ne = trim(getDataSet(sqtn_file+'?electron_density', tr), tr)
+    Te = trim(getDataSet(sqtn_file+'?electron_core_temperature', tr), tr)
+    
+    r_au = getDataSet(ephem_file+'?SC_R_AU', tr)
+    
+    
+    # Sync and filter data
+    v_avg = synchronize(ne, v_avg)
+    r_m   = synchronize(ne, r_au) * 14959787069100 
+    ne    = ne # convert into #/m^3
+    
+    logStuff = log(ne*(r_m**2)*(Te**(0.5)))
+    
+    validPoints = where(valid(logStuff).and(valid(v_avg)))
+    
+    # linfit Data
+    
+    # Vs = A*ln(nR^2T^(0.5)) + B
+    from org.virbo.dsutil import LinFit
+    
+    lf= LinFit(logStuff[validPoints], v_avg[validPoints])
+    
+    try:
+        intercept = lf.getA()
+        slope     = lf.getB()
+        
+        slopes = concatenate(slopes, slope)
+        intercepts = concatenate(intercepts, intercept)
+    except:
+        slopes = concatenate(slopes, -1E38)
+        intercepts = concatenate(intercepts, -1E38)
+        
+    slopes.putProperty(QDataSet.VALID_MIN, -100)
+    slopes.putProperty(QDataSet.VALID_MAX,  100)
+    intercepts.putProperty(QDataSet.VALID_MIN, -10000)
+    intercepts.putProperty(QDataSet.VALID_MAX,  10000)  
+    print tr
+    print 'slope:', slope
+    print 'intercept:', intercept
+    
+    xx = linspace(min(logStuff[validPoints]), max(logStuff[validPoints]), 2)
+    
+    plot(0, logStuff[validPoints], v_avg[validPoints], renderType='scatter', symbolSize=4.)
+    plot(1, xx, xx*slope + intercept, color='red', lineWidth=4)
+    
+    #sleep(3000)
+  #except:    
+
+trs_mids = dataset(trs) + datum('%s hr'%(hours/2.))
+
+plot(2, trs_mids, slopes, legendLabel='slopes')
+plot(3, trs_mids, intercepts, legendLabel='intercepts')
+
+slopes.putProperty(QDataSet.DEPEND_0, dataset(trs))
+intercepts.putProperty(QDataSet.DEPEND_0, dataset(trs))
+
+tr = timerange
+v1 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V1dc', tr)
+v2 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V2dc', tr)
+v3 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V3dc', tr)
+v4 = getDataSet(vdc_file+'?psp_fld_l2_dfb_wf_V4dc', tr)
+v_avg = (v1+v2+v3+v4)/4.
+v_avg.putProperty(QDataSet.DEPEND_0, v1.property(QDataSet.DEPEND_0))
+
+Te = trim(getDataSet(sqtn_file+'?electron_core_temperature', tr), tr)
+Te = synchronize(v_avg, Te)
+        
+r_au = getDataSet(ephem_file+'?SC_R_AU', tr)
+r_m  = synchronize(v_avg, r_au) * 14959787069100 
+    
+slopesHigh     = synchronize(v_avg, slopes)
+interceptsHigh = synchronize(v_avg, intercepts)
+
+# go backwards to solve for density
+n_scpot = exp((v_avg-interceptsHigh)/slopesHigh) / ((r_m**2)*(Te**(0.5)))
+plot(4, n_scpot)

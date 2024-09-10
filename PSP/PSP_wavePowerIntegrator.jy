@@ -72,7 +72,7 @@ elif OS == 'windows':
 	#googleDrive_path = '/Users/kpaulson/GoogleDrive/'
 	googleDrive_path = 'G:/My Drive/'
 		
-wavePower_directory = googleDrive_path + 'Research/PSP/WaveAnalysis/WavePower/%s/'%(fileVersion)
+wavePower_directory = googleDrive_path + 'Research/PSP/WaveAnalysis/WavePower/v%s/'%(fileVersion)
 	
 waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/$Y/$m/'%(fileVersion)
 waveAnalysis_file = waveAnalysis_directory+'PSP_WaveAnalysis_$Y-$m-$d_$(H,span=6)00_v%s.cdf'%(fileVersion)
@@ -154,6 +154,12 @@ for day in trs:
 					if ne( long(mode(copy(TEMP_epoch))), 0):
 						print '  **File already exists for %s'%(day)
 						fileAlreadyExists = True
+						try:
+							f = open(trCompletedFile, 'a')
+							f.write('\n%s'%day)
+							f.close()
+						except:
+							pass
 					else:
 						print '  **Reprocessing file for %s'%(day)
 				except:
@@ -272,11 +278,18 @@ for day in trs:
 							fileAlreadyExists = False
 						if fileAlreadyExists == True:
 							raise fileAlreadyExistsException
-				except:
+				except: 
 					pass
 				
 			else:
 				formatDataSet(bindle,outputFile+'?bundle=T')
+				
+			try:
+				f = open(trCompletedFile, 'a')
+				f.write('\n%s'%day)
+				f.close()
+			except:
+				pass
 				
 			print '    Successfully wrote file for %s'%day
 		

@@ -10,6 +10,7 @@ ne_csv_files = [ne_files_dir+'ENC16_QTN_Ne.csv']
 ne_tplotsav_files = []#[ne_files_dir+'ENC19_LFR_QTN_Density.sav']
 
 ne = getDataSet('vap+sav:file:///'+idl_file+'?LFR.N_E.DAT')
+Te = getDataSet('vap+sav:file:///'+idl_file+'?LFR.T_C.DAT')
 #ne2 = getDataSet('vap+sav:file:///'+idl_file2+'?DENSTOT')
 
 time = getDataSet('vap+sav:file:///'+idl_file+'?LFR.EPOCH.DAT')
@@ -19,19 +20,27 @@ time.putProperty(QDataSet.UNITS, Units.cdfTT2000)
 
 for ne_file in idl_sav_files:
     ne2 = getDataSet('vap+sav:file:///'+ne_file+'?DENSTOT')
+    try:
+        Te2 = getDataSet('vap+sav:file:///'+ne_file+'?TCTOT')
+    except:
+        Te2 = getDataSet('vap+sav:file:///'+ne_file+'?TCORE')
     time2 = getDataSet('vap+sav:file:///'+ne_file+'?EPOCHL2')
     time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
     
     ne = concatenate(ne, ne2)
+    Te = concatenate(Te, Te2)
     time = concatenate(time, time2)
-
-for ne_file in ne_csv_files:
-    ne2 = getDataSet(ne_file+'?Ne')
-    time2 = getDataSet(ne_file+'?Time')
-    #time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
     
-    ne = concatenate(ne, ne2)
-    time = concatenate(time, time2)
+if False:
+    for ne_file in ne_csv_files:
+        ne2 = getDataSet(ne_file+'?Ne')
+        Te2 = ones(len(ne2))*(-1)
+        time2 = getDataSet(ne_file+'?Time')
+        #time2.putProperty(QDataSet.UNITS, Units.cdfTT2000)
+        
+        ne = concatenate(ne, ne2)
+        Te = concatenate(Te, Te2)
+        time = concatenate(time, time2)
 
 for ne_file in ne_tplotsav_files:
     ne3 = getDataSet(ne_file+'?Y&X=X&xunits=t1970')
@@ -43,7 +52,9 @@ for ne_file in ne_tplotsav_files:
     time = concatenate(time, time3)
 
 ne.putProperty(QDataSet.DEPEND_0, time)
+Te.putProperty(QDataSet.DEPEND_0, time)
 plot(ne)
+plot(1, Te)
 
 
 ne.putProperty(QDataSet.NAME, 'electronDensity')
@@ -51,5 +62,13 @@ ne.putProperty(QDataSet.LABEL, 'n!Be!N')
 ne.putProperty(QDataSet.UNITS, Units.pcm3)
 ne.putProperty(QDataSet.TITLE, 'Electron number density derived from FIELDS LFR QTN data product')
 
+Te.putProperty(QDataSet.NAME, 'electronTemperatureCore')
+Te.putProperty(QDataSet.LABEL, 'T!Be!N')
+Te.putProperty(QDataSet.UNITS, Units.kelvin)
+Te.putProperty(QDataSet.TITLE, 'Electron Temperature derived from FIELDS LFR QTN data product')
 
-formatDataSet(ne, 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt?header=rich')
+
+#formatDataSet(ne, 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt?header=rich')
+bindle = bundle(ne, Te)
+bindle.putProperty(QDataSet.DEPEND_0, time)
+formatDataSet(bindle, 'G:/My Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt?header=rich')

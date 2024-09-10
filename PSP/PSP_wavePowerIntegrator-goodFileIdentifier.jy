@@ -34,7 +34,7 @@ elif OS == 'windows':
 	#googleDrive_path = '/Users/kpaulson/GoogleDrive/'
 	googleDrive_path = 'G:/My Drive/'
 		
-wavePower_directory = googleDrive_path + 'Research/PSP/WaveAnalysis/WavePower/%s/'%(fileVersion)
+wavePower_directory = googleDrive_path + 'Research/PSP/WaveAnalysis/WavePower/v%s/'%(fileVersion)
 		
 ############################################################################
 #################            BEGIN SCRIPT        ###########################

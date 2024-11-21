@@ -5,7 +5,7 @@
 generatingTotalErrorMap = False
 generatingDeltaPlusMinusMaps = False
 RunningSingleCase = True
-RunningDoubleCase = True
+RunningDoubleCase = False
 
 plotVzObservedVDF = True
 UseRealisticGaussians = True

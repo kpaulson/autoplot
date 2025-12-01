@@ -1,71 +1,13 @@
 
 au = 149597870.700  # 1AU in km
 
-
-#lfr_density_file = 'G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.idl'
-#
-#
-#lfr_density = getDataSet('vap+idlsav:file:///'+lfr_density_file+'?LFR.N_E.DAT')
-#lfr_epoch   = getDataSet('vap+idlsav:file:///'+lfr_density_file+'?LFR.EPOCH.DAT')
-
-#lfr_density_file = 'file:///G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.csv'
-#psp_ephemeris_file = 'file:/G:/My Drive/Research/PSP/Ephemeris/dailyFiles/PSP_ephemeris_$Y-$m-$d.cdf'
-#
-#
-#
-#lfr_epoch   = getDataSet(lfr_density_file+'?column=field0')
-#lfr_density = getDataSet(lfr_density_file+'?column=field1')
-#lfr_density_lowerBound = getDataSet(lfr_density_file+'?column=field2')
-#lfr_density_upperBound = getDataSet(lfr_density_file+'?column=field3')
-#
-#lfr_epoch.putProperty(QDataSet.UNITS, Units.cdfTT2000)
-#
-#lfr_density.putProperty(QDataSet.DEPEND_0, lfr_epoch)
-#
-#### Rename everything to match Mike's variables so that I can just copy his script.
-#
-#ep = lfr_epoch
-#n = lfr_density
-#nlow = lfr_density_lowerBound
-#nhigh = lfr_density_upperBound
-
-
-#plot(n)
-
-
-
-#####################################
-
-#####################################
-
-#####################################
-
-# From NRL Formulary:
-#     v_alfven = 2.18e11 * mu^-(1/2) * ni^-(1/2) * B   in cm/sec
-# where
-#     B is in Gauss
-#     mu is the reduced particle mass normalized to mp
-
-
-#lfr_density_file = 'file:///G:/My Drive/Research/PSP/AlfvenPointCrossings/spp_fld_lfr_mission_density.csv'
-
-#lfr_epoch   = getDataSet(lfr_density_file+'?column=field0')
-#lfr_density = getDataSet(lfr_density_file+'?column=field1')
-#
-#lfr_epoch.putProperty(QDataSet.UNITS, Units.cdfTT2000)
-#lfr_density.putProperty(QDataSet.DEPEND_0, lfr_epoch)
-
-lfr_density_file = 'file:/G:/My%20Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt'
-
-lfr_density = getDataSet(lfr_density_file+'?depend0=field0&column=electronDensity')
-
 #plot(lfr_density)
 #stop
 
-perihelion_07 = '2021-01-15 through 2021-01-21'
-perihelion_08 = '2021-04-24 through 2021-05-04'
-perihelion_09 = '2021-08-04 through 2021-08-14'
-perihelion_10 = '2021-11-19 through 2021-11-25'
+perihelion_07 = '2021-01-15 to 2021-01-22'
+perihelion_08 = '2021-04-24 to 2021-05-05'
+perihelion_09 = '2021-08-04 to 2021-08-15'
+perihelion_10 = '2021-11-19 to 2021-11-26'
 perihelion_11 = '2022-02-22 to 2022-03-02' # Perihelion
 perihelion_12 = '2022-05-25 to 2022-06-06'
 perihelion_13 = '2022-09-01 to 2022-09-11'
@@ -75,56 +17,149 @@ perihelion_16 = '2023-06-17 to 2023-06-27'
 perihelion_17 = '2023-09-22 to 2023-10-03'
 perihelion_18 = '2023-12-24 to 2024-01-01'
 perihelion_19 = '2024-03-26 to 2024-04-04'
-#tr = '2022-02-22 to 2022-02-28'
-#tr = '2022-02-22 to 2022-02-28'
-#tr = '2022-02-22 to 2022-02-28'
+perihelion_20 = '2024-06-26 to 2024-07-04'
+perihelion_21 = '2024-09-26 to 2024-10-06'
+perihelion_22 = '2024-12-21 to 2024-12-29'
+perihelion_23 = '2025-03-19 to 2025-03-29'
+perihelion_24 = '2025-06-14 to 2025-06-24'
+perihelion_25 = '2025-09-11 to 2025-09-21'
 
-#perihelionList1 = [perihelion01]
-#perihelionList2 = [perihelion02, perihelion03]
+encounterList = [perihelion_07, perihelion_08, perihelion_09, perihelion_10, perihelion_11,
+                 perihelion_12, perihelion_13, perihelion_14, perihelion_15, perihelion_16,
+                 perihelion_17, perihelion_18, perihelion_19, perihelion_20, perihelion_21,
+                 perihelion_22, perihelion_23, perihelion_24, perihelion_25]
 
-perihelionList_4 = [perihelion_07, perihelion_08, perihelion_09, perihelion_10]
-perihelionList_5 = [perihelion_11]
+encounterList = [perihelion_25]
 
-tr = perihelion_13
+tr = getParam('timerange',perihelion_25,'what timerange are we looking for?', encounterList)
+plotVsLongitude = getParam('plotVsLongitude', False, 'Plot as a functiong of longitude instead of time?', [True,False])
+useGoodSPAN = getParam('useGoodSPAN', False, 'Should we only plot data where SPAN FOV is good (mostly when using SPANi density)', [True,False])
+whichDensity = getParam('whichDensity', 'spani', 'Which source of density data should we use?', ['lfr', 'spani', 'spc'])
 
-if tr in perihelionList_4:
-    lfr_density = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l3/rfs_lfr_qtn/psp_fld_l3_rfs_lfr_qtn_20210109_20211201_v01.cdf?N_elec')
-
-Bfield = getDataSet('http://research.ssl.berkeley.edu/data/spp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf?psp_fld_l2_mag_SC_4_Sa_per_Cyc', tr)
-Bmag = magnitude(Bfield)*1e-5  # magnitude of B in Gauss
-lfr_density = synchronize(Bmag, lfr_density)
-
-span_density = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?DENS', tr)
-span_density = synchronize(Bmag, span_density)
-
-spc_density = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment', tr)
-spc_density = synchronize(Bmag, span_density)
+#if True:
+for tr in encounterList:
 
 
-mu = 1.1
-ni = spc_density
-ni = span_density
-ni = lfr_density
-
-
-#plot(0, ni)
-#plot(0, Bmag)
-#plot(0, span_density)
-#stop
-
-
-v_alfven = 2.18e11 * mu**(-1./2.) * ni**(-1./2.) * Bmag * 1e-5    # in km/sec
-
-plot(2, smooth(v_alfven, 25), color='blue', legendLabel='v!BA!N')
-#plot(1, smooth(-v_alfven, 25), color='blue')
-
-v_r_span = getDataSet('http://w3sweap.cfa.harvard.edu/data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?VEL_RTN_SUN[:,0]', tr)
-
-v_r_span = synchronize(v_alfven, v_r_span)
-v_alfven.putProperty(QDataSet.UNITS, v_r_span.property(QDataSet.UNITS))
-plot(1, v_r_span, color='black', ytitle='(%{UNITS})', legendLabel='v!Br!N')
-plot(0, (abs(v_r_span) / v_alfven)[::20], renderType='series', fillColor='mms_red', ytitle='M!BA!N = v / v!BA!N', yrange=[1E-1, 1E1])
-
+    serverList = ['fc.cfa.harvard.edu', 'nanook']
+    import socket
+    hostName = socket.gethostname()
+           
+    if hostName in serverList:
+        googleDrive_path = '/home/kpaulson/MyDrive/'
+        sweap_path  = '/psp/'
+        fields_path = sweap_path
+        ephem_path  = sweap_path
+    else:
+        googleDrive_path = 'G:/My Drive/'
+        sweap_path  = 'http://w3sweap.cfa.harvard.edu/'
+        fields_path = 'http://research.ssl.berkeley.edu/data/spp/'
+        ephem_path  = 'file:/G:/Shared drives/PSP_SWEAP/INSTRUMENT/SPC/Operations/'
+    
+    outputDirectory = googleDrive_path+'Research/PSP/SPAN/SPANi/SPANi_alfvenMachNumber/'
+    mkdir(outputDirectory)
+    
+    lfr_density_file = 'file:/G:/My%20Drive/Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.txt'
+    #lfr_density_file = googleDrive_path+'Research/PSP/FIELDS/LFR_Density/spp_fld_lfr_mission_density.cdf'
+    
+    lfr_density = getDataSet(lfr_density_file+'?electronDensity')
+    
+    lfr_density = getDataSet('G:/My Drive/Research/PSP/FIELDS/LFR_Density/'+'ENC25_QTN.csv'+'?time=field0&column=field1&timeFormat=$Y-$m-$d/$H:$M:$S')
+    
+    #perihelionList1 = [perihelion01]
+    #perihelionList2 = [perihelion02, perihelion03]
+    #perihelionList3 = [perihelion04, perihelion05, perihelion06]
+    perihelionList_4 = [perihelion_07, perihelion_08, perihelion_09, perihelion_10]
+    perihelionList_5 = [perihelion_11]
+    
+    #tr = perihelion_22
+    
+    #if tr in perihelionList_4:
+    #    lfr_density = getDataSet(fields_path+'data/sci/fields/l3/rfs_lfr_qtn/psp_fld_l3_rfs_lfr_qtn_20210109_20211201_v01.cdf?N_elec')
+    
+    Bfield = getDataSet(fields_path+'data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf?psp_fld_l2_mag_SC_4_Sa_per_Cyc', tr)
+    Bmag = magnitude(Bfield)*1e-5  # magnitude of B in Gauss
+    time = Bmag.property(QDataSet.DEPEND_0)
+    lfr_density = synchronize(Bmag, lfr_density)
+    
+    span_density = getDataSet(sweap_path+'data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?DENS', tr)
+    #useGoodSPAN = True  # Now this is a param flag above
+    if useGoodSPAN:
+        span_FOV = getDataSet(googleDrive_path+'Research/PSP/SPAN/SPANi/PeakObservation_Files/sf00/$Y/$m/SPANi_peakObservationFlags_sf00_$Y-$m-$d.txt?depend0=Epoch&column=VDF_Peak_Obs', tr)
+        goodFOV = where(eq(span_FOV,0.))
+        span_density = span_density[goodFOV]
+    span_density = synchronize(Bmag, span_density)
+        
+    
+    spc_density = getDataSet(sweap_path+'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?np_moment', tr)
+    spc_density = synchronize(Bmag, span_density)
+    
+    
+    mu = 1.1
+    if whichDensity == 'spc':
+        ni = spc_density
+    if whichDensity == 'spani':
+        ni = span_density
+    if whichDensity == 'lfr':
+        ni = lfr_density
+    
+    #plotVsLongitude = False
+    carringtonLongitude = getDataSet(ephem_path+'data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf?CARR_LON', tr)
+    carringtonLongitude.putProperty(QDataSet.VALID_MAX, 360)
+    carringtonLongitude.putProperty(QDataSet.VALID_MIN, -360)
+    negs = where(lt(carringtonLongitude,0))
+    carringtonLongitude[negs] = carringtonLongitude[negs]+360
+    carringtonLongitude = synchronize(Bmag, carringtonLongitude)
+    goodLon = where(valid(carringtonLongitude))
+    
+    v_alfven = 2.18e11 * mu**(-1./2.) * ni**(-1./2.) * Bmag * 1e-5    # in km/sec
+    
+    #plot(1, smooth(-v_alfven, 25), color='blue')
+    
+    v_r_span = getDataSet(sweap_path+'data/sci/sweap/spi/L3/spi_sf00/$Y/$m/psp_swp_spi_sf00_L3_mom_$Y$m$d_v$v.cdf?VEL_RTN_SUN[:,0]', tr)
+    
+    v_r_span = synchronize(v_alfven, v_r_span)
+    v_alfven.putProperty(QDataSet.UNITS, v_r_span.property(QDataSet.UNITS))
+    
+    time = v_r_span.property(QDataSet.DEPEND_0)
+    
+    machNumberDownsample = 5
+    
+    if plotVsLongitude:
+        plot(0, carringtonLongitude[goodLon][::machNumberDownsample], (abs(v_r_span) / v_alfven)[goodLon][::machNumberDownsample], time[goodLon][::machNumberDownsample], renderType='series', fillColor='mms_red', ytitle='M!BA!N = v / v!BA!N', yrange=[1E-1, 1E1], ylog=True)
+        plot(0, carringtonLongitude[goodLon][::machNumberDownsample], (abs(v_r_span) / v_alfven)[goodLon][::machNumberDownsample], time[goodLon][::machNumberDownsample], renderType='colorScatter', ytitle='M!BA!N = v / v!BA!N', yrange=[1E-1, 1E1], ylog=True)
+        plot(1, carringtonLongitude[goodLon], v_r_span[goodLon], color='black', ytitle='(%{UNITS})', legendLabel='v!Br!N')
+        plot(2, carringtonLongitude[goodLon], smooth(v_alfven, 25)[goodLon], color='blue', legendLabel='v!BA!N')
+    else:
+        plot(0, (abs(v_r_span) / v_alfven)[::20], renderType='series', fillColor='mms_red', ytitle='M!BA!N = v / v!BA!N', yrange=[1E-1, 1E1], ylog=True)
+        plot(1, v_r_span, color='black', ytitle='(%{UNITS})', legendLabel='v!Br!N')
+        plot(2, smooth(v_alfven, 25), color='blue', legendLabel='v!BA!N', xrange=tr)
+    
+    
+    writeStuff = True
+    if writeStuff:
+        trs= generateTimeRanges('$Y-$m-$d',tr)
+        for tt in trs:
+            print'   ',tt
+            TEMP_v_r_span         = trim(v_r_span, tt)
+            TEMP_v_alfven         = trim(v_alfven, tt)
+            TEMP_alfvenMachNumber = trim(abs(v_r_span) / v_alfven, tt)
+            TEMP_ni               = trim(ni, tt)
+            TEMP_Bmag             = trim(Bmag, tt)
+            TEMP_longitude        = trim(carringtonLongitude, tt) 
+            TEMP_time             = TEMP_v_r_span.property(QDataSet.DEPEND_0)
+            
+            TEMP_v_r_span.putProperty(         QDataSet.NAME, 'vr_span')
+            TEMP_v_alfven.putProperty(         QDataSet.NAME, 'v_alfven')
+            TEMP_alfvenMachNumber.putProperty( QDataSet.NAME, 'alfvenMachNumber')
+            TEMP_ni.putProperty(               QDataSet.NAME, 'density_lfr')
+            TEMP_Bmag.putProperty(             QDataSet.NAME, 'Bmag')
+            TEMP_longitude.putProperty(        QDataSet.NAME, 'longitude') 
+            
+            bindle = bundle(TEMP_v_r_span, TEMP_v_alfven, TEMP_alfvenMachNumber, TEMP_ni)
+            bindle = bundle(bindle, TEMP_Bmag, TEMP_longitude)
+            bindle.putProperty(QDataSet.DEPEND_0, TEMP_time)
+            
+            formatDataSet(bindle, outputDirectory+'psp_alfvenMachNumber_%s.cdf?bundle=T'%(tt))
 #####################################
 
 #####################################

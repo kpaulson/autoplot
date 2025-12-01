@@ -1,3 +1,4 @@
 import sys
-addToSearchPath(sys.path,'/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/jar/commons-math3-3.6.1.jar',monitor)
+addToSearchPath(sys.path,'G:/My Drive/Research/Data/AutoplotCache/jar/commons-math3-3.6.1.jar',monitor)
+addToSearchPath(sys.path,'G:/My Drive/Research/Data/AutoplotCache/jar/commons-math-4.0-beta1/commons-math4-core-4.0-beta1.jar',monitor)
 print 'apache math3 loaded!'

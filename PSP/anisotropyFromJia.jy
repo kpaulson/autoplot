@@ -1,11 +1,13 @@
 
 
 # Timerange
-tr_dd = getParam('timerange','2019-04-04','Iteration Timerange')
-fitSeconds = getParam('fitSeconds',60,'Width of window in seconds over which to compare Br/B and Tp')
+timerange         = getParam('timerange','2024-01-01','Iteration Timerange')
+fitSeconds        = getParam('fitSeconds',60,'Width of window in seconds over which to compare Br/B and Tp')
+skipPegasus       = getParam('skipPegasus',False,'Do you want to ignore the local mirror (because something is mounted wrong)?',[True,False])
+skipPreviousFiles = getParam('skipPrevious',True,'Look for previously generated files and skip analysis if found',[True,False])
+
 pauseAndPlotIndex = 500
 
-outputDirectory = 'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/'
 
 # SI Constants
 k    = 1.3807E-23
@@ -14,6 +16,27 @@ mp   = 1.6726E-27
 
 inputGuessParams = [float(rand(1)[0]),float(rand(1)[0])] 
 
+############################################################################
+##################            IMPORTS            ###########################
+############################################################################
+############################################################################
+
+serverList = ['fc.cfa.harvard.edu', 'nanook']
+import socket
+hostname = socket.gethostname()
+	   
+if hostname in serverList:
+	googleDrive_path = '/home/kpaulson/MyDrive/'
+	if hostname == 'fc.cfa.harvard.edu':
+		pegasusPath = '/mnt/nanook/'
+	elif hostname == 'nanook':
+		pegasusPath = '/Volumes/Pegasus/'
+else:
+	#googleDrive_path = '/Users/kpaulson/GoogleDrive/'
+	googleDrive_path = 'G:/My Drive/'
+
+if skipPegasus:
+	pegasusPath = 'tmp/'
 
 from org.apache.commons.math.optimization.fitting import CurveFitter
 from org.apache.commons.math.optimization.fitting import ParametricRealFunction
@@ -21,94 +44,167 @@ from org.apache.commons.math.optimization.general import LevenbergMarquardtOptim
 from org.apache.commons.math.stat.regression      import SimpleRegression
 
 class LinFit(ParametricRealFunction):
-    def value(self, x, params):
-        a = params[0]
-        b = params[1]
-        return (a*x + b)
-    def gradient(self, x, params):
-        a = params[0]
-        b = params[1]
-        return [x,1]
-        
-#mag_file = 'http://w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-mag_file = 'C:/Users/kpaulson/GoogleDrive/Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-        
-spc_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
-print mag_file+'?psp_fld_mag_rtn'
-mag_rtn = getDataSet(mag_file+'?psp_fld_mag_rtn',tr_dd)
-mag_rtn = trim(mag_rtn,tr_dd)
+	def value(self, x, params):
+		a = params[0]
+		b = params[1]
+		return (a*x + b)
+	def gradient(self, x, params):
+		a = params[0]
+		b = params[1]
+		return [x,1]
 
-mag_r = mag_rtn[:,0]
-mag_total = magnitude(mag_rtn)
+trCompletedList = None
+output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/BRotation/%s_secondFit/'%(fitSeconds)
+trCompletedFile = output_folder+'psp_spc_anisotropy_BRotation_%ssecondFit_completedTimeranges.txt'%(fitSeconds)
+try:
+	f = open(trCompletedFile, 'r')
+	trCompletedList = f.readlines()
+	f.close()
+except:
+	print 'No Completed File List Found in %s'%(output_folder)
+for i in xrange(len(trCompletedList)):
+	trCompletedList[i] = trCompletedList[i].strip('\n')
+
+trs= generateTimeRanges('$Y-$m-$d',timerange)
+
+for tr_dd in trs:
+	print ''
+	print tr_dd
+	timeTitle = tr_dd
+	year = tr_dd[0:4]
+	outputDirectory = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/BRotation/%s_secondFit/%s/'%(fitSeconds,year)
+	outputFilename  = 'SPC_Anisotropy_BRotation_%s_%ssecondFit.cdf'%(tr_dd,fitSeconds)
+	mkdir(outputDirectory)
+
+	# Look for previous instances of the file and skip rather than overwrite
+	fileAlreadyExists = False
+	TEMP_epoch = None
+	if skipPreviousFiles: 
+		if timeTitle in trCompletedList:
+			print '    Date Found in CompletedFiles List'
+			fileAlreadyExists = True
+		else:
+			try:
+				TEMP_epoch = getDataSet(outputDirectory+outputFilename+'?Epoch')
+			except:
+				fileAlreadyExists = False
+			try:
+				if ne( long(mode(copy(TEMP_epoch))), 0):
+					print '    Preexisting File found for %s'%tr_dd
+					fileAlreadyExists = True
+					try:
+						f = open(trCompletedFile, 'a')
+						f.write('\n%s'%timeTitle)
+						f.close()
+						print '    Wrote timerange to CompletedFiles List'
+					except:
+						pass
+			except:
+				pass
+
+	
+	# Run the big routine    
+	try:
+		if fileAlreadyExists:
+			print '  File already exists, moving on...'
+			continue
+		if hostname in serverList:
+			spc_file     = '/psp/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+			mag_datafile = '/psp/data/sci/fields/l2/mag_RTN_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_RTN_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
+		else:
+			spc_file     = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+			mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_RTN_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_RTN_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
+		
+		mag_rtn = getDataSet(mag_datafile+'?psp_fld_l2_mag_RTN_4_Sa_per_Cyc',tr_dd)
+		mag_rtn = trim(mag_rtn,tr_dd)
+
+		mag_r = mag_rtn[:,0]
+		mag_total = magnitude(mag_rtn)
 
 
-DQF = getDataSet(spc_file+'?DQF',tr_dd)
-wp = getDataSet(spc_file+'?wp_moment',tr_dd)
-goodData = where(eq(DQF[:,0],0))
-wp = wp[goodData]
+		DQF = getDataSet(spc_file+'?DQF',tr_dd)
+		wp  = getDataSet(spc_file+'?wp_fit',tr_dd)
+		goodData = where(eq(DQF[:,0],0))
+		wp = wp[goodData]
 
 
-anisotropyJia = None
-TperpJia      = None
+		anisotropyJia = None
+		TperpJia      = None
 
-ind = 0
-monitor.started()
-tr_fit_times = generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(fitSeconds),tr_dd)
-monitor.setTaskSize(len(tr_fit_times)-1)
-for tr_fit_time in tr_fit_times:
-    tr_fit_timerange = timegen(tr_fit_time,'%s sec'%fitSeconds,2)
-    tr_fit_timerange = str(tr_fit_timerange[0])+' to '+str(tr_fit_timerange[1])
-    #print tr_fit_timerange
-    
-    monitor.setTaskProgress(ind)
-    monitor.setLabel('Linear Fits') 
-    
-    mag_r_fit = trim(mag_r,tr_fit_timerange)
-    mag_total_fit = trim(mag_total,tr_fit_timerange)
-    BrB2_ratio = (mag_r_fit/mag_total_fit)**2
-    BrB2_ratio.putProperty(QDataSet.NAME,'B!Br!N/|B|')
+		ind = 0
+		monitor.started()
+		tr_fit_times = generateTimeRanges('$Y-$m-$d $H:$M:$(S,span=%s)'%(fitSeconds),tr_dd)
+		monitor.setTaskSize(len(tr_fit_times)-1)
+		for tr_fit_time in tr_fit_times:
+			tr_fit_timerange = timegen(tr_fit_time,'%s sec'%fitSeconds,2)
+			tr_fit_timerange = str(tr_fit_timerange[0])+' to '+str(tr_fit_timerange[1])
+			#print tr_fit_timerange
+			
+			monitor.setTaskProgress(ind)
+			monitor.setLabel('Linear Fits') 
+			
+			mag_r_fit = trim(mag_r,tr_fit_timerange)
+			mag_total_fit = trim(mag_total,tr_fit_timerange)
+			BrB2_ratio = (mag_r_fit/mag_total_fit)**2
+			BrB2_ratio.putProperty(QDataSet.NAME,'B!Br!N/|B|')
 
-    wp_fit = synchronize(mag_total_fit,wp)
-    Tp = 0.5*((wp_fit*1E3)**2)*(mp/k)
-    Tp.putProperty(QDataSet.NAME,'Tp')
-    Tp.putProperty(QDataSet.UNITS,Units.kelvin)
-    
-    
-    f = LinFit()
-                    
-    ftr_BrB2_Tp = CurveFitter(LevenbergMarquardtOptimizer())
-    for i in xrange(len(mag_total_fit)):
-        if valid(BrB2_ratio[i]) and valid(Tp[i]):
-            ftr_BrB2_Tp.addObservedPoint( 1. , float(BrB2_ratio[i]) , float(Tp[i]) )
-                           
-    result_BrB2_Tp = ftr_BrB2_Tp.fit(f,inputGuessParams)
-    anisotropy = 1 - ( result_BrB2_Tp[0] / (result_BrB2_Tp[0]+result_BrB2_Tp[1]) )
-    
-    fitLine_xaxis = linspace(min(BrB2_ratio),max(BrB2_ratio),100)
-    fitLine = fitLine_xaxis*result_BrB2_Tp[0] + result_BrB2_Tp[1]
-    
-    lineSlope_title    = round(result_BrB2_Tp[0],2)
-    anisotropy_title   = round(anisotropy,2)
-    Tperp_title        = round(result_BrB2_Tp[1],0)
-    plotTitle = 'slope = %s   T!B&perp;!N = %s   anisotropy = %s'%( lineSlope_title , Tperp_title , anisotropy_title )
-        
-    #setLayoutOverplot(2)
-    if mod(ind,pauseAndPlotIndex) == 0:
-        plot(0,BrB2_ratio,Tp,Tp.property(QDataSet.DEPEND_0),renderType='colorScatter',symbolSize=3)
-        plot(1,fitLine_xaxis,fitLine,renderType='series>color=red',lineThick=3,title=plotTitle,ytitle='Tp',xtitle='(Br/B)!U2!N')
-    
-    #sleep(1000)
-    
-    anisotropyJia = concatenate(anisotropyJia,anisotropy)
-    TperpJia      = concatenate(TperpJia,result_BrB2_Tp[1])
-    ind = ind+1
-    
-anisotropyJia.putProperty(QDataSet.NAME,'Anisotropy!BJia!N')
-anisotropyJia.putProperty(QDataSet.SCALE_TYPE,'log')
-anisotropyJia.putProperty(QDataSet.TYPICAL_MAX,10)
-anisotropyJia.putProperty(QDataSet.TYPICAL_MIN,0.1)
-    
-plot(2, dataset(tr_fit_times) , anisotropyJia) 
+			wp_fit = synchronize(mag_total_fit,wp)
+			Tp = 0.5*((wp_fit*1E3)**2)*(mp/k)
+			Tp.putProperty(QDataSet.NAME,'Tp')
+			Tp.putProperty(QDataSet.UNITS,Units.kelvin)
+			
+			
+			f = LinFit()
+							
+			ftr_BrB2_Tp = CurveFitter(LevenbergMarquardtOptimizer())
+			for i in xrange(len(mag_total_fit)):
+				if valid(BrB2_ratio[i]) and valid(Tp[i]):
+					ftr_BrB2_Tp.addObservedPoint( 1. , float(BrB2_ratio[i]) , float(Tp[i]) )
+								   
+			result_BrB2_Tp = ftr_BrB2_Tp.fit(f,inputGuessParams)
+			anisotropy = 1 - ( result_BrB2_Tp[0] / (result_BrB2_Tp[0]+result_BrB2_Tp[1]) )
+			
+			fitLine_xaxis = linspace(min(BrB2_ratio),max(BrB2_ratio),100)
+			fitLine = fitLine_xaxis*result_BrB2_Tp[0] + result_BrB2_Tp[1]
+			
+			lineSlope_title    = round(result_BrB2_Tp[0],2)
+			anisotropy_title   = round(anisotropy,2)
+			Tperp_title        = round(result_BrB2_Tp[1],0)
+			plotTitle = 'slope = %s   T!B&perp;!N = %s   anisotropy = %s'%( lineSlope_title , Tperp_title , anisotropy_title )
+				
+			#setLayoutOverplot(2)
+			if mod(ind,pauseAndPlotIndex) == 0:
+				plot(0,BrB2_ratio,Tp,Tp.property(QDataSet.DEPEND_0),renderType='colorScatter',symbolSize=3)
+				plot(1,fitLine_xaxis,fitLine,renderType='series>color=red',lineThick=3,title=plotTitle,ytitle='Tp',xtitle='(Br/B)!U2!N')
+			
+			#sleep(1000)
+			
+			anisotropyJia = concatenate(anisotropyJia,anisotropy)
+			TperpJia      = concatenate(TperpJia,result_BrB2_Tp[1])
+			ind = ind+1
+		
+		timestamps = dataset(tr_fit_times)
+		
+		anisotropyJia.putProperty(QDataSet.NAME,'SPC Anisotropy!CB-Rotation!N')
+		anisotropyJia.putProperty(QDataSet.SCALE_TYPE,'log')
+		anisotropyJia.putProperty(QDataSet.TYPICAL_MAX,10)
+		anisotropyJia.putProperty(QDataSet.TYPICAL_MIN,0.1)
+		anisotropyJia.putProperty(QDataSet.VALID_MAX,1E2)
+		anisotropyJia.putProperty(QDataSet.VALID_MIN,1E-2)
+		anisotropyJia.putProperty(QDataSet.DEPEND_0, timestamps)
+			
+		plot(2, dataset(tr_fit_times) , anisotropyJia) 
+		
 
-formatDataSet(putProperty(anisotropyJia,QDataSet.DEPEND_0,dataset(tr_fit_times)),outputDirectory+'AnisotropyJia_%s_%s.txt'%(tr_dd,fitSeconds))
-#formatDataSet(putProperty(anisotropyJia,QDataSet.DEPEND_0,dataset(tr_fit_times)),'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/'+'AnisotropyJia_%s_%s.txt'%(tr_dd,fitSeconds))
+		formatDataSet(anisotropyJia, outputDirectory+outputFilename)
+		print '    Successfully wrote to %s'%(outputDirectory+outputFilename)
+		try:
+			f = open(trCompletedFile, 'a')
+			f.write('\n%s'%timeTitle)
+			f.close()
+			print '    Wrote timerange to CompletedFiles List'
+		except:
+			pass
+		#formatDataSet(putProperty(anisotropyJia,QDataSet.DEPEND_0,dataset(tr_fit_times)),'C:/Users/kpaulson/GoogleDrive/Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/Jia/'+'AnisotropyJia_%s_%s.txt'%(tr_dd,fitSeconds))
+	except:
+		print 'Couldn\'t process file for %s'%(tr_dd)

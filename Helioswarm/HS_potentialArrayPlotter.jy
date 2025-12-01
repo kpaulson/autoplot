@@ -1,0 +1,406 @@
+
+
+justReadSlice = True
+sliceAxis_param = getParam('sliceAxis', 'x', 'which axis do you want to slice along (z is normal to collector plates)?', ['x','y','z'])
+
+zHeight = 421 # 104   # suppressor at 104
+xHeight = 100
+yHeight = 100
+if sliceAxis_param == 'x':
+    sliceHeightIndex = getParam('sliceindex', xHeight, 'What index do you want to slice at?')
+elif sliceAxis_param == 'y':
+    sliceHeightIndex = getParam('sliceindex', yHeight, 'What index do you want to slice at?')
+elif sliceAxis_param == 'z':
+    sliceHeightIndex = getParam('sliceindex', zHeight, 'What index do you want to slice at?')
+
+
+simionDirectory = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/01-HSFC-SCIENCE/SIMION/'
+paDirectory = simionDirectory+'5x5Square/'
+paFilename = '5x5Grid_symmetricGround7mm_2gridWire'
+paFilename = '5x5Grid_symmetricGround7mmGridwiseAttempt_2gridWire_smashgrid'
+
+#paDirectory = simionDirectory+'fcp_HVmodulator/2mm_hexGrid/superCropped/'
+#paFilename = 'HSFC-00082178-HVMM-0 - 2gridWires_superCropped'
+#paFilename = 'HSFC-00082178-HVMM-0 - 2gridWires_halfCropped'
+
+# 2025-10-02 prototype model
+#paDirectory = simionDirectory+'fcp_prototype/fcp_prototype_2025-10-02_justGrids_smallHVGrids_widerEntranceModule/'
+#paFilename = 'FCA_justGrids_centerCrop_5033V'
+
+# Pair of 3.4mm hex grids exercise
+paDirectory = simionDirectory+'gridPair_3.4mm/'
+paFilename = 'gridPair_5.1mmSeparation_superCrop'
+
+import re
+match = re.search(r'\d+', paFilename)
+matchV = re.search(r'\d+V', paFilename)
+if match and matchV:
+    HV = int(match.group(0))
+else:
+    HV = 100
+print 'High Voltage Grid:','%sV'%HV
+
+paFile = paDirectory + paFilename + '.patxt'
+
+paTitle= 'Hex Grid triplet from CAD model, 2mm inner circle, Ground Grids 10mm spaced'
+paTitle= 'Potential Field from CAD model, HV Grid at %sV'%(HV)
+
+reflected_x = False
+reflected_y = False
+reflected_z = False
+
+print 'paFile:',paFile
+paFiles = [paFile]
+paFiles.append(paDirectory + 'gridPair_2.7mmSeparation_superCrop' + '.patxt')
+paFiles.append(paDirectory + 'gridPair_3.5mmSeparation_superCrop' + '.patxt')
+paFiles.append(paDirectory + 'gridPair_4.3mmSeparation_superCrop' + '.patxt')
+paFiles.append(paDirectory + 'gridPair_5.9mmSeparation_superCrop' + '.patxt')
+paFiles.append(paDirectory + 'gridPair_6.7mmSeparation_superCrop' + '.patxt')
+paFiles.append(paDirectory + 'gridPair_7.5mmSeparation_superCrop' + '.patxt')
+paFiles.append(paDirectory + 'gridPair_8.3mmSeparation_superCrop' + '.patxt')
+paFiles.append(paDirectory + 'gridPair_9.1mmSeparation_superCrop' + '.patxt')
+
+paFiles = paFiles[1:2]
+
+try:
+    filenameParts = paFile.split('_')
+except:
+    print ''
+
+def find_local_peaks_2d(arr, peaksOrValleys):#, r_min=0, r_max=len(arr), c_min=0, c_max=len(arr[0])):
+    rows = len(arr)
+    cols = len(arr[0])
+    peaks = []
+    r_min=0
+    r_max=len(arr)
+    c_min=0
+    c_max=len(arr[0])
+
+    for r in range(rows):
+        if r > r_min and r < r_max:
+            for c in range(cols):
+                if c > c_min and c < c_max:
+                    is_peak = True
+                    current_val = arr[r][c]
+        
+                    # Define neighbor offsets (including diagonals for a more comprehensive check)
+                    neighbor_offsets = [
+                        (-1, 0), (1, 0), (0, -1), (0, 1),  # Up, Down, Left, Right
+                        (-1, -1), (-1, 1), (1, -1), (1, 1) # Diagonals
+                    ]
+        
+                    for dr, dc in neighbor_offsets:
+                        nr, nc = r + dr, c + dc
+        
+                        # Check if neighbor is within array bounds
+                        if 0 <= nr < rows and 0 <= nc < cols:
+                            if peaksOrValleys == 'valleys':
+                                if arr[nr][nc] < current_val:  # The ">" would be for peaks, the "<" will be for troughs
+                                    is_peak = False
+                                    break # Not a peak, no need to check further neighbors
+                            elif peaksOrValleys == 'peaks':
+                                if arr[nr][nc] > current_val:  # The ">" would be for peaks, the "<" will be for troughs
+                                    is_peak = False
+                                    break # Not a peak, no need to check further neighbors
+        
+                    if is_peak:
+                        peaks.append((r, c, current_val))
+    return peaks
+
+def main(paFile, sliceAxis, sliceHeight, peaksOrValleys='valleys'):
+    if justReadSlice:
+        paData = None
+        paData_counter = 0
+        headerDictionary = {}
+        readingHeader = True
+        
+        file = open(paFile, 'r')
+        
+        #first read header
+        while readingHeader == True:
+            print '\n'
+            for line in file:
+                paFile_lineStrings = line.strip().split(' ')
+                if readingHeader:
+                    print line.strip()
+                    if len(paFile_lineStrings) == 2:
+                        headerDictionary[paFile_lineStrings[0]] = paFile_lineStrings[1]
+                    if len(paFile_lineStrings) > 2:
+                        headerDictionary[paFile_lineStrings[0]] = (paFile_lineStrings[1:])
+                    if line.strip() == 'begin_points':
+                        #print headerDictionary
+                        print ' - Finished reading header - '
+                        readingHeader = False
+                else:
+                    break
+        #print headerDictionary
+        
+        if sliceAxis == 'x':
+            sliceIndex = 0
+            paData = zeros(int(headerDictionary['ny'])*int(headerDictionary['nz']), 5)
+        elif sliceAxis == 'y':
+            sliceIndex = 1
+            #sliceHeight = yHeight
+            paData = zeros(int(headerDictionary['nx'])*int(headerDictionary['nz']), 5)
+        elif sliceAxis == 'z':
+            sliceIndex = 2
+            #sliceHeight = zHeight
+            paData = zeros(int(headerDictionary['nx'])*int(headerDictionary['ny']), 5)
+        
+    #    #Skip to the data of interest - as written reads up to and discards values up to "zHeight"
+    #    zHeight_lineNumber = int(headerDictionary['nx'])*int(headerDictionary['ny'])*zHeight
+    #    skippedLine_counter = 0
+    #    while skippedLine_counter < zHeight_lineNumber - 5:
+    #        for line in file:
+    #            if skippedLine_counter < zHeight_lineNumber:
+    #                #print line
+    #                skippedLine_counter += 1
+    #            else:
+    #                break
+                
+                
+        # Now add data to the array
+        for line in file:
+            paFile_lineStrings = line.strip().split(' ')
+            sliceHeightString = str(int(sliceHeight))
+            readLength = len(paData)-2
+            #if True:#while paData_counter < readLength:
+            try:
+                if paFile_lineStrings[0] == 'end_points':
+                    print 'Reached end of array:',line
+                    break
+                if paFile_lineStrings[sliceIndex] == sliceHeightString:
+                    paFile_lineData = []
+                    for string in paFile_lineStrings:
+                        paFile_lineData.append(float(string))
+                    #print paFile_lineData
+                    paData[paData_counter,:] = dataset(paFile_lineData)
+                    paData_counter += 1
+                if paData_counter == readLength:
+                    break
+            except:
+                print 'something went wrong? - ',paFile_lineStrings
+        file.close()
+        
+    else:
+        paFile = 'vap+txt:file:///' + paFile
+        paData = getDataSet(paFile + '?column=field0-field4&skipLines=17')
+    print 'paData:',paData
+    #stop
+    
+    #paArray_x = getDataSet(paFile + '?column=field0&skipLines=17')
+    #paArray_y = getDataSet(paFile + '?column=field1&skipLines=17')
+    #paArray_z = getDataSet(paFile + '?column=field2&skipLines=17')
+    #paArray_V = getDataSet(paFile + '?column=field4&skipLines=17')
+    #paArray_electrode = getDataSet(paFile + '?column=field3&skipLines=17')
+    
+    try:
+        paArray_x = paData[:,0]*headerDictionary['dx_mm']
+        #plot(0, paData[:,0], color='blue')
+        paArray_y = paData[:,1]*headerDictionary['dy_mm']
+        paArray_z = paData[:,2]*headerDictionary['dz_mm']
+    except:
+        paArray_x = paData[:,0]
+        paArray_y = paData[:,1]
+        paArray_z = paData[:,2]
+    paArray_V = paData[:,4]
+    paArray_electrode = paData[:,3]
+    paArray_electrode.putProperty(QDataSet.VALID_MIN, 1.)
+    
+    if reflected_x and reflected_y:
+        paArray_x = append(paArray_x, append((-1*paArray_x), append(paArray_x, (-1*paArray_x))))
+        paArray_y = append(paArray_y, append(paArray_y, append((-1*paArray_y), (-1*paArray_y))))
+        paArray_z = append(paArray_z, append(paArray_z, append(paArray_z, paArray_z)))
+        paArray_V = append(paArray_V, append(paArray_V, append(paArray_V, paArray_V)))
+    
+    #potentialArrayLink = link(paArray_x, paArray_y, paArray_z ,paArray_V)
+    #potentialArray = zeros(len(paArray_V), len(paArray_V), len(paArray_V), len(paArray_V))
+    #
+    #potentialArray[:,0] = paArray_x
+    #potentialArray[:,1] = paArray_y
+    #potentialArray[:,2] = paArray_z
+    #potentialArray[:,3] = paArray_V
+    #print 'potentialArray:',potentialArray
+    
+    #x_range = [100, 300]
+    #min(paArray_x[0])
+    #for x in paArray_x[0:100]: print x
+    
+    #plot(potentialArray[z_slice,[0,1,3]])
+    sliceData = []
+    if sliceAxis == 'x':
+        if not justReadSlice:
+            x_slice = imin(abs(paArray_x - xHeight))
+            sliceData = x_slice
+        #sliceHeight = xHeight
+        depend_0 = putProperty(paArray_y[sliceData], QDataSet.LABEL, 'n!By!N')
+        depend_1 = putProperty(paArray_z[sliceData], QDataSet.LABEL, 'n!Bz!N')
+        depend_0_length = int(headerDictionary['ny'])
+        depend_1_length = int(headerDictionary['nz'])
+    elif sliceAxis == 'y':
+        if not justReadSlice:
+            y_slice = imin(abs(paArray_y - yHeight))
+            sliceData = y_slice
+        #sliceHeight = yHeight
+        depend_0 = putProperty(paArray_x[sliceData], QDataSet.LABEL, 'n!Bx!N')
+        depend_1 = putProperty(paArray_z[sliceData], QDataSet.LABEL, 'n!Bz!N')
+        depend_0_length = int(headerDictionary['nx'])
+        depend_1_length = int(headerDictionary['nz'])
+    elif sliceAxis == 'z':
+        if not justReadSlice:
+            z_slice = imin(abs(paArray_z - zHeight))
+            sliceData = z_slice
+        #sliceHeight = zHeight
+        depend_0 = putProperty(paArray_x[sliceData], QDataSet.LABEL, 'n!Bx!N')
+        depend_1 = putProperty(paArray_y[sliceData], QDataSet.LABEL, 'n!By!N')
+        depend_0_length = int(headerDictionary['nx'])
+        depend_1_length = int(headerDictionary['ny'])
+    print 'depend_0:',depend_0, depend_0.property(QDataSet.LABEL)
+    print 'depend_1:',depend_1, depend_1.property(QDataSet.LABEL)
+    #plot(depend_0)
+    
+    slicePotential = paArray_V[sliceData]
+    sliceElectrode = paArray_electrode[sliceData]
+        
+    oneThing = False
+    if oneThing:
+        depend_0.putProperty(QDataSet.UNITS, Units.millimeters)
+        depend_1.putProperty(QDataSet.UNITS, Units.millimeters)
+        
+        slicePotential.putProperty(QDataSet.UNITS, Units.eV)
+        slicePotential.putProperty(QDataSet.LABEL, 'Potential at %s=%s for HV=%sV'%(sliceAxis, sliceHeight, HV))
+        slicePotential.putProperty(QDataSet.NAME, 'slicePotential')
+                
+        potentialSlice = link(depend_0, depend_1, slicePotential)
+        electrodeSlice = link(depend_0, depend_1, sliceElectrode)
+    else:
+        ##########################
+        
+        data_points = list(zip(depend_0, depend_1, slicePotential, sliceElectrode))
+        data_points.sort()
+        
+        sorted_potential = [point[2] for point in data_points]
+        sorted_electrode = [point[3] for point in data_points]
+        side_length = depend_1_length
+        total_elements = len(sorted_potential) # Should be depend_0_length*depend_1_length
+    
+        if total_elements != depend_0_length*depend_1_length:
+            raise ValueError("Data cannot be reshaped into a square grid.")
+        
+        potentialSlice = [sorted_potential[i:i + side_length] for i in range(0, total_elements, side_length)]
+        electrodeSlice = [sorted_electrode[i:i + side_length] for i in range(0, total_elements, side_length)]
+        
+        depend_0 = uniqValues(depend_0,sort(depend_0))
+        depend_1 = uniqValues(depend_1,sort(depend_1))
+        
+        depend_0.putProperty(QDataSet.UNITS, Units.millimeters)
+        depend_1.putProperty(QDataSet.UNITS, Units.millimeters)
+        
+        #print potentialSlice
+        potentialSlice = dataset(potentialSlice)
+        electrodeSlice = dataset(electrodeSlice)
+        print 'potentialSlice:',potentialSlice
+        print 'electrodeSlice:',electrodeSlice
+        print 'dep0:',depend_0
+        print 'dep1:',depend_1
+        
+        potentialSlice.putProperty(QDataSet.UNITS, Units.eV)
+        potentialSlice.putProperty(QDataSet.LABEL, 'Potential at %s=%s for HV=%sV'%(sliceAxis, sliceHeight, HV))
+        potentialSlice.putProperty(QDataSet.DEPEND_0, depend_0)
+        potentialSlice.putProperty(QDataSet.DEPEND_1, depend_1)
+        
+        electrodeSlice.putProperty(QDataSet.LABEL, 'array of electrode positions at %s=%s'%(sliceAxis, sliceHeight))
+        electrodeSlice.putProperty(QDataSet.VALID_MIN, 1.)
+        electrodeSlice.putProperty(QDataSet.DEPEND_0, depend_0)
+        electrodeSlice.putProperty(QDataSet.DEPEND_1, depend_1)
+        
+        gridWire = where(eq(electrodeSlice, 1.))
+        
+        gridWire.putProperty(QDataSet.LABEL, 'point is an electrode at %s=%s'%(sliceAxis, sliceHeight))
+       
+        gridLocations_dep0 = uniqValues(gridWire[:,0], sort(gridWire[:,0]))
+        gridLocations_dep1 = uniqValues(gridWire[:,1], sort(gridWire[:,1]))
+        print 'gridLocations_dep0:',gridLocations_dep0
+        print 'gridLocations_dep1:',gridLocations_dep1
+        
+        if ne(len(gridLocations_dep0),0) and ne(len(gridLocations_dep1),0):
+            if len(gridLocations_dep0) < len(gridLocations_dep1):
+                gridLocations_fcAxis = gridLocations_dep0
+                mmArray_fcAxis = depend_0
+            elif len(gridLocations_dep1) <= len(gridLocations_dep0):
+                gridLocations_fcAxis = gridLocations_dep1
+                mmArray_fcAxis = depend_1
+                #for x in gridLocations_dep1: print 'dep1',x,'',depend_1.property(QDataSet.LABEL)+':',depend_1[x]
+            for x in gridLocations_fcAxis: print 'dep1',x,'',mmArray_fcAxis.property(QDataSet.LABEL)+':',mmArray_fcAxis[x]
+            
+            if sliceAxis == 'x':
+                global distanceBetweenGrids
+                mmArray_fcAxis.putProperty(QDataSet.NAME, None)
+                print datum(mmArray_fcAxis[gridLocations_fcAxis[3]])
+                print datum(mmArray_fcAxis[gridLocations_fcAxis[2]])
+                distanceBetweenGrids = datum(mmArray_fcAxis[gridLocations_fcAxis[3]]) - datum(mmArray_fcAxis[gridLocations_fcAxis[2]])
+            print 'Distance between Grids:', distanceBetweenGrids
+            
+            global gridBottomIndex
+            gridBottomIndex = gridLocations_fcAxis[3]
+            gridBottomIndex.putProperty(QDataSet.NAME, None)
+            print 'gridBottomIndex:',gridBottomIndex
+            
+            global gridPlaneAxis
+            gridPlaneAxis = mmArray_fcAxis.property(QDataSet.LABEL)[3:4]
+            print 'gridPlaneAxis:',gridPlaneAxis
+            
+            potentialSlice.putProperty(QDataSet.LABEL, 'Potential at %s=%s for HV=%sV where distance between grids is %smm'%(sliceAxis, sliceHeight, HV, distanceBetweenGrids))
+        
+        ###############################
+        
+    
+    localMinima = find_local_peaks_2d(potentialSlice, peaksOrValleys)
+    print 'localMinima length:',len(localMinima)
+    print 'Local Minima Values:'
+    localMinima = dataset(localMinima)
+    uniqMinima = uniqValues(localMinima[:,2], sort(localMinima[:,2]))
+    #for minimum in uniqMinima[0:5]: print 'Minimumn Voltage:',minimum
+    #print 'Median Minimum:',median(uniqMinima[0:30])
+    
+    global minVoltage
+    #minVoltage = mean(uniqMinima[0:5])
+    minVoltage = median(uniqMinima)
+    
+    print 'potentialSlice:',potentialSlice
+    #formatDataSet(potentialSlice, paFile[:-6]+'_potential_%s-slice_%s'%(sliceAxis, sliceHeight)+'.txt?header=rich')
+    formatDataSet(potentialSlice, paFile[:-6]+'_potential_%s-slice_%s'%(sliceAxis, sliceHeight)+'.cdf')
+    formatDataSet(electrodeSlice, paFile[:-6]+'_potential_%s-slice_%s'%(sliceAxis, sliceHeight)+'.cdf?append=T')
+    try:
+        formatDataSet(gridWire, paFile[:-6]+'_potential_%s-slice_%s'%(sliceAxis, sliceHeight)+'.cdf?append=T')
+    except:
+        print 'failed to write the gridwire subset to the cdf'
+    
+    setLayoutOverplot(3)
+    plot(0, potentialSlice, renderType='spectrogram', title=paFilename+' Grids Separated by %s, min Voltage=%sV'%(distanceBetweenGrids, minVoltage), xtitle='%s (mm)'%(depend_0.property(QDataSet.LABEL)), ytitle='%s (mm)'%(depend_1.property(QDataSet.LABEL)), ztitle='Potential Field at Grid Height (V)')
+    plot(1, electrodeSlice*1E10, renderType='spectrogram', color='black', symbolSize=4)
+    #plot(2, electrodeSlice, renderType='scatter', color='white', symbolSize=2)
+    writeToPng(paFile[:-6]+'_potential_%s-slice_%s'%(sliceAxis, sliceHeight)+'.png')
+    
+    
+    #plot(potentialSlice, renderType='spectrogram', title=paFilename, xtitle='(0.1 mm)', ytitle='(0.1 mm)', ztitle='Potential Field at Grid Height (V)')
+    #plot(potentialSlice, renderType='spectrogram', title=paTitle, xtitle='(0.1 mm)', ytitle='(0.1 mm)', ztitle='Potential Field at Grid Height (V)')
+    #plot(paData[:,4], title='paData')
+    
+    #print min(potentialSlice[])
+
+
+for paFile in paFiles:
+    print '\n'
+    print '***',paFile
+    gridBottomIndex = 0
+    print 'First running analysis on %s at slice %s'%(sliceAxis_param, sliceHeightIndex)
+    main(paFile, sliceAxis_param, sliceHeightIndex)
+    print '\n'
+    print 'Now running analysis on %s at slice %s'%(gridPlaneAxis, gridBottomIndex)
+    main(paFile, gridPlaneAxis, gridBottomIndex)
+    print '\n'
+    gridPlaneAxis = 'y'
+    gridBottomIndex = 7
+    print 'Finally running analysis on the grounded suppressor grid %s at slice %s'%(gridPlaneAxis, gridBottomIndex)
+    main(paFile, gridPlaneAxis, gridBottomIndex, peaksOrValleys='peaks')

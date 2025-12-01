@@ -1,0 +1,78 @@
+trDate = '2024-10-30'
+plotType = getParam('plotType', 'singleColumn', 'which type of plot would you like to look at?', ['singleColumn', '4x4'])
+
+vapDir = 'G:/Shared drives/HelioSwarm/KP_Working/testingTemp/'
+
+testDir = 'G:/Shared drives/HelioSwarm/Lab_Testing/%s/'%(trDate)
+testFile = 'noise_baseline_20241030T1025.csv'
+
+#testDir = 'file:///C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/07-JUNE-2025_Lab_Test_Data/2025-06-16_RebuiltHVCableTest/offset_sweeps/'
+#testFile = '300m_offset_20mVpp_20250616T1439.csv'
+
+#testDir = 'C:/Users/KPaulson/Box/Helioswarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/DEC-2024 lab test data/data/'
+#testFile = 'data_20241205T1240.csv'
+
+def appendMeasurements(sensorGainList, dataLine):
+    for sgIndex in xrange(len(sensorGainList)):
+        sensorGainList[sgIndex] = append(sensorGainList[sgIndex], dataset(dataLine[sgIndex]))
+    return sensorGainList
+    
+    
+### Initialize Variables
+
+a0= a1= a2= a3= b0= b1= b2= b3= c0= c1= c2= c3= d0= d1= d2= d3 = None
+sensorGainList = [a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3]
+time = None
+
+timeFormat = TimeParser.create('$H:$M:$S.$(milli)')
+#offset = putProperty(datum(trDate), QDataSet.UNITS, Units.us2000) # Time offset to account for only listing HH:MM:SS in file
+offset = datum(trDate) # Time offset to account for only listing HH:MM:SS in file
+
+### Start Script
+
+
+#print len(dataArray)
+#dataArray[10]
+
+try:
+    print(testDir+testFile+'?rank2=A0-time')
+    dataArray = getDataSet(testDir+testFile+'?rank2=A0-D3&time=time&timeFormat=$H:$M:$S.$(milli)')
+    time = dataArray.property(QDataSet.DEPEND_0)
+    time.property(QDataSet.UNITS)
+    
+    print time
+    #for i in xrange(len(dataArray)):
+    for i in linspace(1,len(dataArray)-1,len(dataArray)-1):
+        if time[i].value() == -1.0E31:
+            time[i] = time[i-1] + datum('0.00003125 sec') 
+        #print time[i]
+    plot(time)
+    
+    for i in xrange(len(dataArray[0,:])):
+        sensorGainList[i] = dataArray[:,i]
+except:
+    stop
+    f = open(testDir+testFile, 'r')
+
+    dataArray = list()
+    for line in f:
+        row = line.strip().split(',')
+        dataArray.append(row)
+
+    for i in xrange(len(dataArray)):
+        if i==0:
+            sensorGainTitles = dataArray[i]
+        else:
+            if len(dataArray[i]) > len(sensorGainList):  # Case where we see a timestamp
+                sensorGainList = appendMeasurements(sensorGainList, dataArray[i])
+                time = append(time, putProperty(dataset(timeFormat.parse((dataArray[i][-1])).getTime(Units.us2000)), QDataSet.UNITS, Units.us2000) )
+            elif len(dataArray[i]) == len(sensorGainList) and len(time)>0: # Case where we see don't see a timestamp but have seen at least one before
+                sensorGainList = appendMeasurements(sensorGainList, dataArray[i])
+                time = append(time, putProperty(time[-1], QDataSet.UNITS, Units.us2000)+datum('0.00003125 sec') )
+
+#time = time+offset
+                                    
+plot(0, time, sensorGainList[0],  ytitle='A gain0')
+plot(1, time, sensorGainList[4],  ytitle='B gain0')
+plot(2, time, sensorGainList[8],  ytitle='C gain0')
+plot(3, time, sensorGainList[12], ytitle='D gain0')

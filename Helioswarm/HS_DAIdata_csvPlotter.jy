@@ -1,0 +1,623 @@
+
+
+####################################
+#####       PARAMETERS       #######
+####################################
+
+gainStage = 1
+whichCollector = 'A'
+
+calSequence = getParam('calSequence', True, 'Are you trying to plot data from and calculate crosstalk from a cal sequence?', [True, False])
+waveformOrRMS = getParam('waveformOrRMS', 'FFT', 'Plot the full DAI waveform or reduced RMS?', ['waveform', 'RMS', 'FFT'])
+fourCollectorsOrAllgains = getParam('fourCollectorsOrAllgains', 'allGains', 'Plot all collectors at one gain stage or all gains for one collector?', ['fourCollectors', 'allGains'])
+if fourCollectorsOrAllgains == 'fourCollectors':
+    gainStage = getParam('gainStage', 1, 'Which gain do you want to plot?', [0,1,2,3])
+elif fourCollectorsOrAllgains == 'allGains':
+    whichCollector = getParam('whichCollector', 'A', 'Which collector do you want to look at?', ['A', 'B', 'C', 'D', 'ABCD'])
+
+bunchaMunchaCrunchyPlots = getParam('bunchaPlots', False, 'Generate a bunch of plots in one click?', [True, False])
+runAllTheCals = getParam('allCals', False, 'Generate a bunch of calibration plots?', [True, False])
+writeStuff = getParam('writeStuff', False, 'Write out the reduced data?', [True, False])
+
+
+####################################
+#####   INPUT FILE PATTERN   #######
+####################################
+
+# 2025-06-26 Tests
+testingDir = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/07-JUNE-2025_Lab_Test_Data/2025-06-26_DAItest_inTVAC_3x1.6mmHex/'
+testFiles_pattern = r'^test4_offset.*\.csv$'
+
+# 2025-06-18 tests
+testingDir = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/07-JUNE-2025_Lab_Test_Data/2025-06-18_DAItest_inTVAC_1mmHex/Offset Steps/'
+testFiles_pattern = r'^offset_sweep_6_.*\.csv$'
+
+# 2025-07-02 tests
+#testingDir = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/08-JULY-2025_Lab_Test_Data/2025-07-02_tripleStackHex_take2/'
+#testFiles_pattern = r'^Test8_.*\.csv$'
+
+# 2025-07-09 tests
+#testingDir = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/08-JULY-2025_Lab_Test_Data/2025-07-09_tripleHexStack_take3_rebuiltDAI/'
+#testFiles_pattern = r'^test5_.*\.csv$'
+
+# 2025-09-09 HSFC Cal Tests
+testingDir = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/09-SEPT-2025_Lab_Test_Data/2025-09-09_crosstalkCalinrationCircuit_HSFC/'
+testFiles_pattern = r'^%s_.*\.csv$'%(whichCollector)
+#testingDir = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/09-SEPT-2025_Lab_Test_Data/2025-09-10_crosstalkCalibrationCircuit_DAI-SPC/bareDAI/'
+#testFiles_pattern = r'^SA_%s_.*\.csv$'%(whichCollector)
+#testingDir = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/09-SEPT-2025_Lab_Test_Data/2025-09-10_crosstalkCalibrationCircuit_DAI-SPC/DAI-SPCFlightSpare/'
+#testFiles_pattern = r'^SPC_%s_.*\.csv$'%(whichCollector)
+referenceTime = '2025-09-09 14:59'
+numberOfLines = 300
+
+
+####################################
+#####       DEFINITIONS      #######
+####################################
+
+def getSensorIndices(fourCollectorsOrAllgains, gainStage, whichCollector):
+    if fourCollectorsOrAllgains == 'fourCollectors':
+        sensorIndicesGain0 = [0, 4, 8, 12]
+        if gainStage == 0:
+            sensorIndices = sensorIndicesGain0
+        elif gainStage == 1:
+            sensorIndices = [x+1 for x in sensorIndicesGain0]
+        elif gainStage == 2:
+            sensorIndices = [x+2 for x in sensorIndicesGain0]
+        elif gainStage == 3:
+            sensorIndices = [x+3 for x in sensorIndicesGain0]
+    elif fourCollectorsOrAllgains == 'allGains':
+        sensorIndicesCollectorA = [0, 1, 2, 3]
+        if whichCollector == 'A':
+            sensorIndices = sensorIndicesCollectorA
+        elif whichCollector == 'B':
+            sensorIndices = [x+4 for x in sensorIndicesCollectorA]
+        elif whichCollector == 'C':
+            sensorIndices = [x+8 for x in sensorIndicesCollectorA]
+        elif whichCollector == 'D':
+            sensorIndices = [x+12 for x in sensorIndicesCollectorA]
+    if calSequence:
+        if waveformOrRMS == 'RMS':
+            sensorGainDS = sensorGainRMS
+        elif waveformOrRMS == 'FFT':
+            sensorGainDS = sensorGainFFT
+        refSensor_gain = zeros(4)#[0,0,0,0]
+        relSensor_gain = zeros(3,4)#[ [0,0,0,0] , [0,0,0,0] , [0,0,0,0] ]
+        if whichCollector == 'A':
+            refSensor_gain[0] = 0
+            relSensor_gain[0,0] = 4
+            relSensor_gain[1,0] = 8
+            relSensor_gain[2,0] = 12
+        elif whichCollector == 'B':
+            refSensor_gain[0] = 4
+            relSensor_gain[0,0] = 0
+            relSensor_gain[1,0] = 8
+            relSensor_gain[2,0] = 12
+        elif whichCollector == 'C':
+            refSensor_gain[0] = 8
+            relSensor_gain[0,0] = 0
+            relSensor_gain[1,0] = 4
+            relSensor_gain[2,0] = 12
+        elif whichCollector == 'D':
+            refSensor_gain[0] = 12
+            relSensor_gain[0,0] = 0
+            relSensor_gain[1,0] = 4
+            relSensor_gain[2,0] = 8
+            
+        for i in [1,2,3]:
+            refSensor_gain[i] = int(refSensor_gain[0]+i)
+            for j in [0,1,2,3]:
+                relSensor_gain[i-1,j] = int(relSensor_gain[i-1,0]+j)
+            
+        ratio0_gain0 = sensorGainDS[   int(relSensor_gain[0,0])]/sensorGainDS[int(refSensor_gain[0])]
+        ratio1_gain0 = sensorGainDS[   int(relSensor_gain[1,0])]/sensorGainDS[int(refSensor_gain[0])]
+        ratio2_gain0 = sensorGainDS[   int(relSensor_gain[2,0])]/sensorGainDS[int(refSensor_gain[0])]
+        label0_gain0 = '%s/%s'%(header[int(relSensor_gain[0,0])], header[     int(refSensor_gain[0])])
+        label1_gain0 = '%s/%s'%(header[int(relSensor_gain[1,0])], header[     int(refSensor_gain[0])])
+        label2_gain0 = '%s/%s'%(header[int(relSensor_gain[2,0])], header[     int(refSensor_gain[0])])
+
+        ratio0_gain1 = sensorGainDS[   int(relSensor_gain[0,1])]/sensorGainDS[int(refSensor_gain[1])]
+        ratio1_gain1 = sensorGainDS[   int(relSensor_gain[1,1])]/sensorGainDS[int(refSensor_gain[1])]
+        ratio2_gain1 = sensorGainDS[   int(relSensor_gain[2,1])]/sensorGainDS[int(refSensor_gain[1])]
+        label0_gain1 = '%s/%s'%(header[int(relSensor_gain[0,1])], header[     int(refSensor_gain[1])])
+        label1_gain1 = '%s/%s'%(header[int(relSensor_gain[1,1])], header[     int(refSensor_gain[1])])
+        label2_gain1 = '%s/%s'%(header[int(relSensor_gain[2,1])], header[     int(refSensor_gain[1])])
+
+        ratio0_gain2 = sensorGainDS[   int(relSensor_gain[0,2])]/sensorGainDS[int(refSensor_gain[2])]
+        ratio1_gain2 = sensorGainDS[   int(relSensor_gain[1,2])]/sensorGainDS[int(refSensor_gain[2])]
+        ratio2_gain2 = sensorGainDS[   int(relSensor_gain[2,2])]/sensorGainDS[int(refSensor_gain[2])]
+        label0_gain2 = '%s/%s'%(header[int(relSensor_gain[0,2])], header[     int(refSensor_gain[2])])
+        label1_gain2 = '%s/%s'%(header[int(relSensor_gain[1,2])], header[     int(refSensor_gain[2])])
+        label2_gain2 = '%s/%s'%(header[int(relSensor_gain[2,2])], header[     int(refSensor_gain[2])])
+
+        ratio0_gain3 = sensorGainDS[   int(relSensor_gain[0,3])]/sensorGainDS[int(refSensor_gain[3])]
+        ratio1_gain3 = sensorGainDS[   int(relSensor_gain[1,3])]/sensorGainDS[int(refSensor_gain[3])]
+        ratio2_gain3 = sensorGainDS[   int(relSensor_gain[2,3])]/sensorGainDS[int(refSensor_gain[3])]
+        label0_gain3 = '%s/%s'%(header[int(relSensor_gain[0,3])], header[     int(refSensor_gain[3])])
+        label1_gain3 = '%s/%s'%(header[int(relSensor_gain[1,3])], header[     int(refSensor_gain[3])])
+        label2_gain3 = '%s/%s'%(header[int(relSensor_gain[2,3])], header[     int(refSensor_gain[3])])
+        
+            
+        return(bundle(ratio0_gain0, ratio1_gain0, ratio2_gain0), 
+               bundle(ratio0_gain1, ratio1_gain1, ratio2_gain1), 
+               bundle(ratio0_gain2, ratio1_gain2, ratio2_gain2), 
+               bundle(ratio0_gain3, ratio1_gain3, ratio2_gain3), 
+               [label0_gain0, label1_gain0, label2_gain0], 
+               [label0_gain1, label1_gain1, label2_gain1], 
+               [label0_gain2, label1_gain2, label2_gain2], 
+               [label0_gain3, label1_gain3, label2_gain3])
+    else:
+        return(sensorIndices)
+
+def appendMeasurements(sensorGainList, dataLine):
+    for sgIndex in xrange(len(sensorGainList)):
+        sensorGainList[sgIndex] = append(sensorGainList[sgIndex], dataset(dataLine[sgIndex]))
+    return sensorGainList
+    
+def plotStuff(sensorGainList, sensorIndices, fourCollectorsOrAllgains='fourCollectors', waveformOrRMS='RMS'):
+    
+    # Define ranges of y-axes +/- 5% of data height so they can be bound together
+    yMin_waveform = min(min(sensorGainList[sensorIndices[0]]), min(sensorGainList[sensorIndices[1]]), min(sensorGainList[sensorIndices[2]]), min(sensorGainList[sensorIndices[3]]))
+    yMax_waveform = max(max(sensorGainList[sensorIndices[0]]), max(sensorGainList[sensorIndices[1]]), max(sensorGainList[sensorIndices[2]]), max(sensorGainList[sensorIndices[3]]))
+    plotRangeOffset_waveform = 0.05*abs(yMax_waveform-yMin_waveform)
+    yMin_waveform = yMin_waveform - plotRangeOffset_waveform
+    yMax_waveform = yMax_waveform + plotRangeOffset_waveform
+    
+    yMin_RMS = min(min(sensorGainRMS[sensorIndices[0]]), min(sensorGainRMS[sensorIndices[1]]), min(sensorGainRMS[sensorIndices[2]]), min(sensorGainRMS[sensorIndices[3]]))
+    yMax_RMS = max(max(sensorGainRMS[sensorIndices[0]]), max(sensorGainRMS[sensorIndices[1]]), max(sensorGainRMS[sensorIndices[2]]), max(sensorGainRMS[sensorIndices[3]]))
+    plotRangeOffset_RMS = 0.05*(yMax_RMS-yMin_RMS)
+    yMin_RMS = yMin_RMS - plotRangeOffset_RMS
+    yMax_RMS = yMax_RMS + plotRangeOffset_RMS
+    
+    yMin_FFT = min(min(sensorGainFFT[sensorIndices[0]]), min(sensorGainFFT[sensorIndices[1]]), min(sensorGainFFT[sensorIndices[2]]), min(sensorGainFFT[sensorIndices[3]]))
+    yMax_FFT = max(max(sensorGainFFT[sensorIndices[0]]), max(sensorGainFFT[sensorIndices[1]]), max(sensorGainFFT[sensorIndices[2]]), max(sensorGainFFT[sensorIndices[3]]))
+    plotRangeOffset_FFT = 0.05*(yMax_FFT-yMin_FFT)
+    yMin_FFT = yMin_FFT - plotRangeOffset_FFT
+    yMax_FFT = yMax_FFT + plotRangeOffset_FFT
+    
+    #yMin_FFT = min(min(sensorGainFFT[sensorIndices[0]]), min(sensorGainFFT[sensorIndices[1]]), min(sensorGainFFT[sensorIndices[2]]), min(sensorGainFFT[sensorIndices[3]]))
+    #yMax_FFT = max(max(sensorGainFFT[sensorIndices[0]]), max(sensorGainFFT[sensorIndices[1]]), max(sensorGainFFT[sensorIndices[2]]), max(sensorGainFFT[sensorIndices[3]]))
+    #plotRangeOffset_FFT = 0.05*(yMax_FFT-yMin_FFT)
+    yMin_FFT = 1E-4 #yMin_FFT - plotRangeOffset_FFT
+    yMax_FFT = 1E1 #yMax_FFT + plotRangeOffset_FFT
+    
+    # Define ranges of x-axes +/- 5% of data length so they can be bound together
+    if len(sensorGainRMS[sensorIndices[0]]) == len(uniqueOffsets):
+        xMin = min(uniqueOffsets)
+        xMax = max(uniqueOffsets)
+        plotRangeOffset = 0.05*abs(xMax-xMin)
+        xMin = xMin - plotRangeOffset
+        xMax = xMax + plotRangeOffset
+        xAxis_range = [xMin, xMax]
+    elif len(sensorGainRMS[sensorIndices[0]]) == len(uniquePeakToPeak):
+        xMin = min(uniquePeakToPeak)
+        xMax = max(uniquePeakToPeak)
+        plotRangeOffset = 0.05*abs(xMax-xMin)
+        xMin = xMin - plotRangeOffset
+        xMax = xMax + plotRangeOffset
+        xAxis_range = [xMin, xMax]
+        
+    # Define output plot filename and generate plots
+    png_filename = testingDir + str(timeTitle)[:10] + '_' + testFiles_pattern[1:-9] + '_' + fourCollectorsOrAllgains + '_' + waveformOrRMS
+    if len(sensorGainRMS[sensorIndices[0]]) == len(uniqueOffsets):
+        xAxis_title = 'HV offset (V)'
+        xVoltage = uniqueOffsets
+        zVoltage = offset
+        zVoltageString = offsetString
+    elif len(sensorGainRMS[sensorIndices[0]]) == len(uniquePeakToPeak):
+        xAxis_title = 'HV Peak-to-Peak (V)'
+        xVoltage = uniquePeakToPeak
+        zVoltage = peakToPeak
+        zVoltageString = peakToPeakString
+    if calSequence:
+        setLayout(2,2)
+        if len(offset) > 1:
+            #plot(1, xVoltage, gain1, ytitle='Gain 1', symbolSize=4, lineStyle='Solid', legendLabel=['A/B','A/C','A/D'],xlog=True, ylog=True, xrange=xAxis_range, yrange=[0.9,2], title=testFiles_pattern[1:-1])
+            plot1_0 = plot(1, xVoltage, gain1[:,0], ytitle='Gain 1',         symbolSize=4, lineStyle='Solid', color='red',        legendLabel=label1[0],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot1_1 = plot(   xVoltage, gain1[:,1], overplotOf=dom.plots[2], symbolSize=4, lineStyle='Solid', color='blue',       legendLabel=label1[1],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot1_2 = plot(   xVoltage, gain1[:,2], overplotOf=dom.plots[2], symbolSize=4, lineStyle='Solid', color='dark green', legendLabel=label1[2],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1], xtitle='Cal. Amplitude')
+
+            plot0_0 = plot(0, xVoltage, gain0[:,0], ytitle='Gain 0',         symbolSize=4, lineStyle='Solid', color='red',        legendLabel=label0[0],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot0_1 = plot(   xVoltage, gain0[:,1], overplotOf=dom.plots[3], symbolSize=4, lineStyle='Solid', color='blue',       legendLabel=label0[1],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot0_2 = plot(   xVoltage, gain0[:,2], overplotOf=dom.plots[3], symbolSize=4, lineStyle='Solid', color='dark green', legendLabel=label0[2],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1], xtitle='Cal. Amplitude')
+
+            plot2_0 = plot(2, xVoltage, gain2[:,0], ytitle='Gain 2',         symbolSize=4, lineStyle='Solid', color='red',        legendLabel=label2[0],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot2_1 = plot(   xVoltage, gain2[:,1], overplotOf=dom.plots[1], symbolSize=4, lineStyle='Solid', color='blue',       legendLabel=label2[1],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot2_2 = plot(   xVoltage, gain2[:,2], overplotOf=dom.plots[1], symbolSize=4, lineStyle='Solid', color='dark green', legendLabel=label2[2],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1], xtitle='Cal. Amplitude')
+
+            plot3_0 = plot(3, xVoltage, gain3[:,0], ytitle='Gain 3',         symbolSize=4, lineStyle='Solid', color='red',        legendLabel=label3[0],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot3_1 = plot(   xVoltage, gain3[:,1], overplotOf=dom.plots[0], symbolSize=4, lineStyle='Solid', color='blue',       legendLabel=label3[1],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+            plot3_2 = plot(   xVoltage, gain3[:,2], overplotOf=dom.plots[0], symbolSize=4, lineStyle='Solid', color='dark green', legendLabel=label3[2],xlog=True, ylog=True, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1], xtitle='Cal. Amplitude')
+            
+            png_filename = png_filename + '_calSequenceStimulate%s'%(whichCollector)
+    else:
+        if fourCollectorsOrAllgains == 'fourCollectors':
+            setLayout(2,2)
+            if len(offset) > 1:
+                if waveformOrRMS == 'waveform':
+                    plot(1, timeTotal, sensorGainList[sensorIndices[0]], zVoltage, ytitle=header[sensorIndices[0]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False, yrange=[yMin_waveform,yMax_waveform], title=testFiles_pattern[1:-1])
+                    plot(0, timeTotal, sensorGainList[sensorIndices[1]], zVoltage, ytitle=header[sensorIndices[1]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False, yrange=[yMin_waveform,yMax_waveform], title=str(timeTitle)[:-8]+'  All Collectors - Gain %s'%(gainStage))
+                    plot(2, timeTotal, sensorGainList[sensorIndices[2]], zVoltage, ytitle=header[sensorIndices[2]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False, yrange=[yMin_waveform,yMax_waveform], xtitle=xAxis_title)
+                    plot(3, timeTotal, sensorGainList[sensorIndices[3]], zVoltage, ytitle=header[sensorIndices[3]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False, yrange=[yMin_waveform,yMax_waveform], xtitle=xAxis_title)
+                    #plot(1, offset, sensorGainList[sensorIndices[0]], zVoltage, ytitle=header[sensorIndices[0]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', yrange=[yMin_waveform,yMax_waveform], title=testFiles_pattern[1:-1])
+                    #plot(0, offset, sensorGainList[sensorIndices[1]], zVoltage, ytitle=header[sensorIndices[1]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', yrange=[yMin_waveform,yMax_waveform], title=str(timeTitle)[:-8]+'  All Collectors - Gain %s'%(gainStage))
+                    #plot(2, offset, sensorGainList[sensorIndices[2]], zVoltage, ytitle=header[sensorIndices[2]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', yrange=[yMin_waveform,yMax_waveform], xtitle='HV offset (V)')
+                    #plot(3, offset, sensorGainList[sensorIndices[3]], zVoltage, ytitle=header[sensorIndices[3]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', yrange=[yMin_waveform,yMax_waveform], xtitle='HV offset (V)')
+                    dom.plots[0].zaxis.setTickValues(zVoltageString[:-1])
+                    dom.plots[1].zaxis.setTickValues(zVoltageString[:-1])
+                    dom.plots[2].zaxis.setTickValues(zVoltageString[:-1])
+                    dom.plots[3].zaxis.setTickValues(zVoltageString[:-1])
+                if waveformOrRMS == 'RMS':
+                    plot(1, xVoltage, sensorGainRMS[sensorIndices[0]], ytitle=header[sensorIndices[0]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_RMS,yMax_RMS], title=testFiles_pattern[1:-1])
+                    plot(0, xVoltage, sensorGainRMS[sensorIndices[1]], ytitle=header[sensorIndices[1]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_RMS,yMax_RMS], title=str(timeTitle)[:-8]+'  All Collectors - Gain %s - RMS'%(gainStage))
+                    plot(2, xVoltage, sensorGainRMS[sensorIndices[2]], ytitle=header[sensorIndices[2]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_RMS,yMax_RMS], xtitle=xAxis_title)
+                    plot(3, xVoltage, sensorGainRMS[sensorIndices[3]], ytitle=header[sensorIndices[3]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_RMS,yMax_RMS], xtitle=xAxis_title) 
+                if waveformOrRMS == 'FFT':
+                    plot(1, xVoltage, sensorGainFFT[sensorIndices[0]], ytitle=header[sensorIndices[0]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=testFiles_pattern[1:-1])
+                    plot(0, xVoltage, sensorGainFFT[sensorIndices[1]], ytitle=header[sensorIndices[1]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], title=str(timeTitle)[:-8]+'  All Collectors - Gain %s - FFT Magnitude'%(gainStage))
+                    plot(2, xVoltage, sensorGainFFT[sensorIndices[2]], ytitle=header[sensorIndices[2]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], xtitle=xAxis_title)
+                    plot(3, xVoltage, sensorGainFFT[sensorIndices[3]], ytitle=header[sensorIndices[3]], symbolSize=4, lineStyle='Solid', xlog=False, xrange=xAxis_range, yrange=[yMin_FFT,yMax_FFT], xtitle=xAxis_title) 
+                    #dom.plots[0].yaxis.s
+            else:
+                plot(1, timeTotal, sensorGainList[sensorIndices[0]],  ytitle=header[sensorIndices[0]], yrange=[yMin_RMS,yMax_RMS], title=testFiles_pattern[1:-1])
+                plot(0, timeTotal, sensorGainList[sensorIndices[1]],  ytitle=header[sensorIndices[1]], yrange=[yMin_RMS,yMax_RMS], title=str(timeTitle)[:-8]+'  All Collectors - Gain %s'%(gainStage))
+                plot(2, timeTotal, sensorGainList[sensorIndices[2]],  ytitle=header[sensorIndices[2]], yrange=[yMin_RMS,yMax_RMS], xtitle=xAxis_title)
+                plot(3, timeTotal, sensorGainList[sensorIndices[3]],  ytitle=header[sensorIndices[3]], yrange=[yMin_RMS,yMax_RMS], xtitle=xAxis_title)
+            bind( dom.plots[1].xaxis, 'range', dom.plots[0].xaxis, 'range' )
+            bind( dom.plots[2].xaxis, 'range', dom.plots[0].xaxis, 'range' )
+            bind( dom.plots[3].xaxis, 'range', dom.plots[0].xaxis, 'range' )
+            bind( dom.plots[1].yaxis, 'range', dom.plots[0].yaxis, 'range' )
+            bind( dom.plots[2].yaxis, 'range', dom.plots[0].yaxis, 'range' )
+            bind( dom.plots[3].yaxis, 'range', dom.plots[0].yaxis, 'range' )
+            
+            png_filename = png_filename + '_gain%s'%(gainStage)
+        elif fourCollectorsOrAllgains == 'allGains':
+            setLayout(4)
+            #setLayoutOverplot(4)      
+            if waveformOrRMS == 'waveform':                       
+                plot(0, timeTotal, sensorGainList[sensorIndices[0]], zVoltage,  ytitle=header[sensorIndices[0]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False, title=str(timeTitle)[:-8]+'   All Gains - Collector %s   '%(whichCollector)+testFiles_pattern[1:-1])
+                plot(1, timeTotal, sensorGainList[sensorIndices[1]], zVoltage,  ytitle=header[sensorIndices[1]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False)
+                plot(2, timeTotal, sensorGainList[sensorIndices[2]], zVoltage,  ytitle=header[sensorIndices[2]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False)
+                plot(3, timeTotal, sensorGainList[sensorIndices[3]], zVoltage,  ytitle=header[sensorIndices[3]], symbolSize=3, lineStyle='Solid', colorTable='apl_rainbow_black0', xlog=False, xtitle=xAxis_title)
+                dom.plots[0].zaxis.setTickValues(zVoltageString[:-1])
+                dom.plots[1].zaxis.setTickValues(zVoltageString[:-1])
+                dom.plots[2].zaxis.setTickValues(zVoltageString[:-1])
+                dom.plots[3].zaxis.setTickValues(zVoltageString[:-1])
+            if waveformOrRMS == 'RMS':
+                plot(0, xVoltage, sensorGainRMS[sensorIndices[0]],  ytitle=header[sensorIndices[0]], xlog=False, xrange=xAxis_range, title=str(timeTitle)[:-8]+'   All Gains - Collector %s - RMS'%(whichCollector)+testFiles_pattern[1:-1])
+                plot(1, xVoltage, sensorGainRMS[sensorIndices[1]],  ytitle=header[sensorIndices[1]], xlog=False, xrange=xAxis_range)
+                plot(2, xVoltage, sensorGainRMS[sensorIndices[2]],  ytitle=header[sensorIndices[2]], xlog=False, xrange=xAxis_range)
+                plot(3, xVoltage, sensorGainRMS[sensorIndices[3]],  ytitle=header[sensorIndices[3]], xlog=False, xrange=xAxis_range, xtitle=xAxis_title)
+            if waveformOrRMS == 'FFT':
+                plot(0, xVoltage, sensorGainFFT[sensorIndices[0]],  ytitle=header[sensorIndices[0]], xlog=False, xrange=xAxis_range, title=str(timeTitle)[:-8]+'   All Gains - Collector %s - FFT'%(whichCollector)+testFiles_pattern[1:-1])
+                plot(1, xVoltage, sensorGainFFT[sensorIndices[1]],  ytitle=header[sensorIndices[1]], xlog=False, xrange=xAxis_range)
+                plot(2, xVoltage, sensorGainFFT[sensorIndices[2]],  ytitle=header[sensorIndices[2]], xlog=False, xrange=xAxis_range)
+                plot(3, xVoltage, sensorGainFFT[sensorIndices[3]],  ytitle=header[sensorIndices[3]], xlog=False, xrange=xAxis_range, xtitle=xAxis_title)
+            dom.plots[1].xaxis.drawTickLabels = False
+            dom.plots[2].xaxis.drawTickLabels = False
+            dom.plots[3].xaxis.drawTickLabels = False
+            
+            png_filename = png_filename + '_collector%s'%(whichCollector)
+    fixLayout()
+    writeToPng(png_filename+'.png')
+
+def calculateAndPlotCalData():
+    print 'yay!'
+
+####################################
+#####        VARIABLES       #######
+####################################
+    
+### Initialize Variables
+a0= a1= a2= a3= b0= b1= b2= b3= c0= c1= c2= c3= d0= d1= d2= d3 = None
+sensorGainList = [a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3]
+sensorGainRMS = [a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3]
+sensorGainStddev = [a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3]
+sensorGainFFT = [a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3]
+timeTotal = None
+offset = None
+peakToPeak = None
+timeTitle = None
+testFiles = []
+
+timeFormat = TimeParser.create('$H:$M:$S.$(milli)')
+timeTitleFormat = TimeParser.create('$Y$m$dT$H$M')
+
+
+####################################
+#####       MAIN SCRIPT      #######
+####################################
+
+import os
+import re
+for filename in os.listdir(testingDir):
+    if re.match(testFiles_pattern, filename):
+        #print filename
+        testFiles.append(filename)
+#print testFiles
+      
+lineCounter = 0
+for testFile in testFiles:  
+    time = None
+    try:
+        offsetVoltage = '0'
+        peakToPeakVoltage = '0'
+        filenameParts = testFile.split('_')
+        print filenameParts
+        for part in filenameParts:
+            # Try to extract the timestamp to use as a title for the plots
+            try:
+                timeTitle = timeTitleFormat.parse(part).getTime(Units.us2000)
+                timeTitle = putProperty(dataset(timeTitle), QDataSet.UNITS, Units.us2000)
+            except:
+                pass
+            # Find pices of title with numbers in them
+            try:
+                partNumber = int(part)
+            except:
+                try:
+                    partNumber = int(part[:-1])
+                except:
+                    partNumber = 0
+            # Try to extract the DC offset (middle of energy window)
+            if 'offset' in part and len(part) > 6:
+                offsetVoltage = part[6:]
+            elif partNumber > 19:
+                offsetVoltage = part
+            # Try to extract a peak-to-peak amplitude (energy window width)
+            if 'pp' in part and len(part) > 2:
+                peakToPeakVoltage = part[:-3]
+        if 'V' in offsetVoltage:
+            offsetVoltage = offsetVoltage[:-1]
+        print 'offsetVoltage:',offsetVoltage
+        print 'peakToPeakVoltage:',peakToPeakVoltage
+        #print 'timeTitle:',timeTitle
+    except:
+        pass
+    
+    test_csv = open(testingDir+testFile, 'r')
+    lines = test_csv.readlines()
+    
+    header = lines[0][:-1].split(',')
+    #print header
+    
+    firstLine = lineCounter
+    if '0x' in lines[1].split(',')[-1]:
+        for line in lines[1:numberOfLines]:
+            lineValues = line.split(',')
+            if len(lineValues) > len(sensorGainList):  # Case where we see a timestamp
+                sensorGainList = appendMeasurements(sensorGainList, lineValues)
+                #time = append(time, putProperty(dataset(timeFormat.parse(str(long(line.split(',')[-1][:-1], 16))).getTime(Units.us2000)), QDataSet.UNITS, Units.us2000) )
+                time = append(time, putProperty(dataset(long(line.split(',')[-1][:-1], 16)/125000000.), QDataSet.UNITS, Units.lookupTimeUnits('seconds since %s'%(referenceTime))) )
+                #formatDataSet(time, '/tmp/tempTime.txt')
+                lineCounter += 1
+                try:
+                    offset = append(offset, dataset(offsetVoltage))
+                except:
+                    pass
+                try:
+                    peakToPeak = append(peakToPeak, dataset(peakToPeakVoltage))
+                except:
+                    pass
+            elif len(lineValues) == len(sensorGainList) and len(time)>0: # Case where we see don't see a timestamp but have seen at least one before
+                sensorGainList = appendMeasurements(sensorGainList, lineValues)
+                time = append(time, putProperty(time[-1], QDataSet.UNITS, Units.us2000)+datum('0.00003125 sec') )
+                lineCounter += 1
+                try:
+                    offset = append(offset, dataset(offsetVoltage))
+                except:
+                    pass
+                try:
+                    peakToPeak = append(peakToPeak, dataset(peakToPeakVoltage))
+                except:
+                    pass
+            #timeTotal = append(timeTotal, time)
+        
+    else:    
+        for line in lines[1:numberOfLines]:
+            lineValues = line.split(',')
+            if len(lineValues) > len(sensorGainList):  # Case where we see a timestamp
+                sensorGainList = appendMeasurements(sensorGainList, lineValues)
+                time = append(time, putProperty(dataset(timeFormat.parse((lineValues[-1])).getTime(Units.us2000)), QDataSet.UNITS, Units.us2000) )
+                lineCounter += 1
+                try:
+                    offset = append(offset, dataset(offsetVoltage))
+                except:
+                    pass
+                try:
+                    peakToPeak = append(peakToPeak, dataset(peakToPeakVoltage))
+                except:
+                    pass
+            elif len(lineValues) == len(sensorGainList) and len(time)>0: # Case where we see don't see a timestamp but have seen at least one before
+                sensorGainList = appendMeasurements(sensorGainList, lineValues)
+                time = append(time, putProperty(time[-1], QDataSet.UNITS, Units.us2000)+datum('0.00003125 sec') )
+                lineCounter += 1
+                try:
+                    offset = append(offset, dataset(offsetVoltage))
+                except:
+                    pass
+                try:
+                    peakToPeak = append(peakToPeak, dataset(peakToPeakVoltage))
+                except:
+                    pass
+    timeTotal = append(timeTotal, time)
+    
+    RMSValues = zeros(len(sensorGainRMS))
+    SigmaValues = zeros(len(sensorGainRMS))
+    FFTValues = zeros(len(sensorGainRMS))
+    sensorGainListIndex = 0
+    for sensorGain in sensorGainList:
+        RMSValues[sensorGainListIndex] = sqrt(mean(sensorGain[firstLine:]**2))
+        SigmaValues[sensorGainListIndex] = stddev(sensorGain[firstLine:])
+        #fftSpectrum = fftPower(link(time,sensorGain[firstLine:]))
+        fftSinCos = fft(link(time,sensorGain[firstLine:]))
+        fftSpectrum = sqrt(fftSinCos[:,0]**2 + fftSinCos[:,1]**2)
+        r = imin(abs( fftSpectrum.property(QDataSet.DEPEND_0)-datum('1024 Hz')) )
+        FFTValues[sensorGainListIndex] =  max(fftSpectrum[r-4:r+5]) #plot(fftPower(link(time,sensorGain[firstLine:])))  #reset()
+        sensorGainListIndex += 1
+    sensorGainRMS = appendMeasurements(sensorGainRMS, RMSValues)
+    sensorGainStddev = appendMeasurements(sensorGainStddev, SigmaValues)
+    sensorGainFFT = appendMeasurements(sensorGainFFT, FFTValues)
+
+# Reduce DC offset measurements to list of unique values
+uniqueOffsets = offset[uniq(offset)]
+if not uniqueOffsets.property(QDataSet.MONOTONIC) and len(uniqueOffsets) > 1:
+    sortOffsets = sort(uniqueOffsets)
+    uniqueOffsets = uniqueOffsets[sortOffsets]
+    for x in xrange(len(sensorGainRMS)):
+        sensorGainRMS[x] = sensorGainRMS[x][sortOffsets]
+        sensorGainStddev[x] = sensorGainStddev[x][sortOffsets]
+        sensorGainFFT[x] = sensorGainFFT[x][sortOffsets]
+offsetString=''
+for x in uniqueOffsets:
+    #print x
+    offsetString = offsetString+str(int(x))+','
+
+# Reduce AC amplitude measurements to list of unique values    
+uniquePeakToPeak = peakToPeak[uniq(peakToPeak)]
+if not uniquePeakToPeak.property(QDataSet.MONOTONIC) and len(uniquePeakToPeak) > 1:
+    sortPeakToPeak = sort(uniquePeakToPeak)
+    uniquePeakToPeak = uniquePeakToPeak[sortPeakToPeak]
+    for x in xrange(len(sensorGainRMS)):
+        sensorGainRMS[x] = sensorGainRMS[x][sortPeakToPeak]
+        sensorGainStddev[x] = sensorGainStddev[x][sortPeakToPeak]
+        sensorGainFFT[x] = sensorGainFFT[x][sortPeakToPeak]
+peakToPeakString=''
+for x in uniquePeakToPeak:
+    #print x
+    peakToPeakString = peakToPeakString+str(int(x))+','
+
+
+###
+### PLOT STUFF
+###
+
+if bunchaMunchaCrunchyPlots:
+    for processingType in ['waveform', 'RMS']:
+        waveformOrRMS = processingType
+        
+        fourCollectorsOrAllgains = 'fourCollectors'
+        for gainValue in [0, 1, 2, 3]:
+            gainStage = gainValue
+            sensorIndices = getSensorIndices(fourCollectorsOrAllgains, gainStage, whichCollector)
+            plotStuff(sensorGainList, sensorIndices, fourCollectorsOrAllgains, waveformOrRMS)
+        fourCollectorsOrAllgains = 'allGains'
+        for collector in ['A', 'B', 'C', 'D']:
+            whichCollector = collector
+            sensorIndices = getSensorIndices(fourCollectorsOrAllgains, gainStage, whichCollector)
+            plotStuff(sensorGainList, sensorIndices, fourCollectorsOrAllgains, waveformOrRMS)
+elif runAllTheCals:
+    waveformOrRMS = 'FFT'
+    fourCollectorsOrAllgains = 'allGains'
+    for collector in ['A', 'B', 'C', 'D']:
+        whichCollector = collector
+        (gain0, gain1, gain2, gain3, label0, label1, label2, label3) = getSensorIndices(fourCollectorsOrAllgains, gainStage, whichCollector)
+        plotStuff(sensorGainList, [0,1,2,3], fourCollectorsOrAllgains, waveformOrRMS)
+elif calSequence:
+    (gain0, gain1, gain2, gain3, label0, label1, label2, label3) = getSensorIndices(fourCollectorsOrAllgains, gainStage, whichCollector)
+    plotStuff(sensorGainList, [0,1,2,3], fourCollectorsOrAllgains, waveformOrRMS)
+else:
+    sensorIndices = getSensorIndices(fourCollectorsOrAllgains, gainStage, whichCollector)
+    plotStuff(sensorGainList, sensorIndices, fourCollectorsOrAllgains, waveformOrRMS)
+
+
+
+###
+### WRITE STUFF
+###
+
+bindle_rms = None
+bindle_stddev = None
+bindle_fft = None
+for i in xrange(len(header)-1):
+    ds_rms = sensorGainRMS[i]
+    ds_rms.putProperty(QDataSet.LABEL, header[i])
+    ds_rms.putProperty(QDataSet.NAME, header[i])
+    bindle_rms = bundle(bindle_rms, ds_rms)
+    ds_stddev = sensorGainStddev[i]
+    ds_stddev.putProperty(QDataSet.LABEL, header[i])
+    ds_stddev.putProperty(QDataSet.NAME, header[i])
+    bindle_stddev = bundle(bindle_stddev, ds_stddev)
+    ds_fft = sensorGainStddev[i]
+    ds_fft.putProperty(QDataSet.LABEL, header[i])
+    ds_fft.putProperty(QDataSet.NAME, header[i])
+    bindle_fft = bundle(bindle_fft, ds_fft)
+#bindle = append(offset,dataset(sensorGainList))
+
+bindle_rms.putProperty(QDataSet.LABEL, 'RMS')
+bindle_rms.putProperty(QDataSet.NAME, 'RMS')
+bindle_stddev.putProperty(QDataSet.LABEL, 'Standard Deviation')
+bindle_stddev.putProperty(QDataSet.NAME, 'StandardDeviation')
+bindle_fft.putProperty(QDataSet.LABEL, 'FFT Magnitude')
+bindle_fft.putProperty(QDataSet.NAME, 'FFTMagnitude')
+
+if len(uniqueOffsets) == 1:
+    uniqueOffsets = zeros(uniquePeakToPeak)
+    uniqueOffsets.putProperty(QDataSet.TITLE, 'This scan did not vary the DC offset, check lab notes for value.')
+    bindle_rms.putProperty(QDataSet.DEPEND_0, uniquePeakToPeak)
+    bindle_stddev.putProperty(QDataSet.DEPEND_0, uniquePeakToPeak)
+if len(uniquePeakToPeak) == 1:
+    uniquePeakToPeak = zeros(uniqueOffsets)
+    uniquePeakToPeak.putProperty(QDataSet.TITLE, 'This scan did not vary the AC amplitude, check lab notes for value.')
+    bindle_rms.putProperty(QDataSet.DEPEND_0, uniqueOffsets)
+    bindle_stddev.putProperty(QDataSet.DEPEND_0, uniqueOffsets)
+
+uniqueOffsets.putProperty(QDataSet.LABEL, 'DC Offset (V)')
+uniqueOffsets.putProperty(QDataSet.NAME, 'DC_Offset')
+uniqueOffsets.putProperty(QDataSet.UNITS, Units.lookupUnits('V'))
+uniquePeakToPeak.putProperty(QDataSet.LABEL, 'AC Amplitude (V)')
+uniquePeakToPeak.putProperty(QDataSet.NAME, 'AC_Amplitude')
+uniquePeakToPeak.putProperty(QDataSet.UNITS, Units.lookupUnits('V'))
+
+outputFile = testingDir + str(timeTitle)[:10] + '_' + testFiles_pattern[1:-9]
+
+#bindle_csv = append(uniqueOffsets
+
+#try:
+if writeStuff:
+    formatDataSet(uniqueOffsets, outputFile+'.cdf')
+    formatDataSet(uniquePeakToPeak, outputFile+'.cdf'+'?append=T')
+    formatDataSet(bindle_rms, outputFile+'.cdf'+'?append=T')
+    formatDataSet(bindle_stddev, outputFile+'.cdf'+'?append=T')
+    formatDataSet(bindle_fft, outputFile+'.cdf'+'?append=T')
+#except:
+#    pass
+
+####################################
+#####       BUTTON STUFF     #######
+####################################
+
+def plotAllGain(evt):
+    fourCollectorsOrAllgains = 'allGains'
+    plotStuff(sensorGainList, sensorIndices, fourCollectorsOrAllgains, waveformOrRMS)
+
+def plotAllGain_whichGain(evt):
+    
+    fourCollectorsOrAllgains = 'allGains'
+    plotStuff(sensorGainList, sensorIndices, fourCollectorsOrAllgains, waveformOrRMS)
+
+
+def reloadPlots(evt):
+    plotStuff(sensorGainList, sensorIndices, fourCollectorsOrAllgains, waveformOrRMS)
+
+from javax.swing import JPanel,JButton,JTextField,JPopupMenu,JMenuItem
+from java.awt import FlowLayout
+
+# Define Buttons
+reload_button = JButton("Reload", actionPerformed=reloadPlots)
+allGain_button = JButton("All Gain", actionPerformed=plotAllGain)
+
+allGain_menu = JPopupMenu("Which Gain Stage")
+gain0 = JMenuItem("Gain 0")
+gain1 = JMenuItem("Gain 1")
+allGain_menu.add(gain0)
+allGain_menu.add(gain1)
+
+# Build Control Panel
+controlPanel = JPanel()
+controlPanel.setLayout( FlowLayout() )
+controlPanel.add( reload_button )
+controlPanel.add( allGain_button )
+controlPanel.add( allGain_menu )
+
+getApplication().setBottomPanel(controlPanel)

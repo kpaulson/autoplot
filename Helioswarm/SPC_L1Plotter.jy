@@ -1,0 +1,436 @@
+
+sharepointTestDirectory = 'file:///C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/'
+
+tr = '2025-10-08'
+testDirectory = sharepointTestDirectory+'10-LAB NOTES TESTING/10-OCT-2025_Lab_Test_Data/20251008_141750_SPC_inTVAC_calAndBeamTests/'
+
+tr = '2025-09'
+testDirectory = sharepointTestDirectory+'10-LAB NOTES TESTING/09-SEPT-2025_Lab_Test_Data/2025-09-11_crosstalkCalCircuit_FEU_HSFC_SPC/GSEOS_data_justFEU/'
+
+
+tr = '2025-10-30'
+testDirectory = sharepointTestDirectory+'10-LAB NOTES TESTING/10-OCT-2025_Lab_Test_Data/20251030_141512_SPC_ionGunCarlRefurbish_couplingAndBeamFocusTests/'
+
+spcFile = testDirectory + 'PTP_data_APID353_L1.cdf'
+print spcFile
+
+filenameElements = spcFile.split('_')
+for element in filenameElements:
+    if 'APID' in element:
+        apid = element[4:]
+
+print 'apid:',apid
+print filenameElements
+
+def getWindowEnergies(windows):
+    windowEnergies = [  0054.374, 0055.180, 0056.156, 0057.132, 0058.132, 0059.108, 0060.109, 0061.085, 
+                        0062.281, 0063.257, 0064.232, 0065.428, 0066.599, 0067.600, 0068.771, 0069.967,
+                        0071.138, 0072.334, 0073.700, 0074.896, 0076.067, 0077.458, 0078.849, 0080.020,
+                        0081.411, 0082.777, 0084.168, 0085.729, 0087.121, 0088.707, 0090.073, 0091.659,
+                        0093.246, 0094.807, 0096.393, 0097.979, 0099.736, 0101.322, 0103.103, 0104.885,
+                        0106.641, 0108.423, 0110.399, 0112.181, 0114.132, 0116.109, 0118.085, 0120.062,
+                        0122.039, 0124.210, 0126.187, 0128.359, 0130.505, 0132.872, 0135.044, 0137.411,
+                        0139.778, 0142.145, 0144.512, 0146.879, 0149.441, 0152.003, 0154.590, 0157.152,
+                        0159.909, 0162.666, 0165.423, 0168.181, 0170.963, 0173.915, 0176.868, 0179.820,
+                        0182.993, 0186.140, 0189.288, 0192.460, 0195.608, 0198.950, 0202.318, 0205.856,
+                        0209.419, 0212.957, 0216.520, 0220.253, 0224.011, 0227.744, 0231.697, 0235.650,
+                        0239.578, 0243.726, 0247.875, 0252.023, 0256.367, 0260.685, 0265.028, 0269.567,
+                        0274.106, 0278.840, 0283.573, 0288.307, 0293.236, 0298.360, 0303.289, 0308.438,
+                        0313.758, 0319.077, 0324.591, 0329.936, 0335.645, 0341.355, 0347.089, 0352.994,
+                        0359.119, 0365.244, 0371.344, 0377.664, 0384.179, 0390.669, 0397.185, 0404.090,
+                        0410.800, 0417.901, 0425.002, 0432.103, 0439.594, 0447.085, 0454.576, 0462.287,
+                        0470.168, 0478.245, 0486.346, 0494.618, 0502.914, 0511.576, 0520.263, 0529.145,
+                        0538.028, 0547.275, 0556.547, 0566.015, 0575.678, 0585.366, 0595.419, 0605.472,
+                        0615.720, 0626.188, 0636.827, 0647.686, 0658.740, 0669.963, 0681.213, 0692.852,
+                        0704.686, 0716.716, 0728.746, 0741.166, 0753.806, 0766.616, 0779.647, 0792.847,
+                        0806.463, 0820.079, 0834.085, 0848.287, 0862.683, 0877.275, 0892.257, 0907.459,
+                        0922.831, 0938.424, 0954.407, 0970.755, 0987.128, 1003.892, 1021.070, 1038.419,
+                        1055.963, 1073.923, 1092.273, 1110.817, 1129.753, 1148.883, 1168.404, 1188.315,
+                        1208.446, 1229.162, 1250.049, 1271.156, 1292.848, 1314.761, 1337.234, 1359.927,
+                        1383.011, 1406.485, 1430.349, 1454.799, 1479.443, 1504.699, 1530.149, 1556.185,
+                        1582.611, 1609.623, 1636.855, 1664.672, 1693.075, 1721.868, 1751.051, 1780.845,
+                        1811.200, 1841.969, 1873.350, 1905.095, 1937.451, 1970.392, 2003.919, 2038.032,
+                        2072.559, 2107.868, 2143.762, 2180.241, 2217.135, 2255.006, 2293.267, 2332.138,
+                        2371.960, 2412.197, 2453.240, 2494.843, 2537.252, 2580.442, 2624.242, 2669.018,
+                        2714.380, 2760.547, 2807.469, 2855.028, 2903.732, 2953.046, 3003.141, 3054.237,
+                        3106.114, 3158.967, 3212.625, 3267.258, 3322.868, 3379.283, 3436.870, 3495.261,
+                        3554.629, 3614.998, 3676.537, 3739.052, 3802.568, 3867.255, 3932.943, 3999.801]
+    
+    mv_lo = dblarr(len(windows))
+    for i in xrange(len(windows)):
+        mv_lo[i] = windowEnergies[int(windows[i])]
+        
+    return(mv_lo)
+    
+    
+def shiftBits(ds):
+    # When looking at the dn values, there was an obvious rollover where the values exceeded 4096 in order to accomodate the negative number space
+    ds_shifted = copy(ds)
+    ds_shifted.putProperty(QDataSet.VALID_MIN, None)
+    ds_shifted.putProperty(QDataSet.VALID_MAX, None)
+    if dimensionCount(ds) == 3:
+        for i in range(len(ds[0,:])):
+            upperValues_ds = where(gt(ds[:,i], 2047))
+            ds_shifted[upperValues_ds,i] = ds_shifted[upperValues_ds,i]-4096
+    else:    
+        upperValues_ds = where(gt(ds, 2047))
+        #plot(7, ds, legendLabel='ds', color='black')
+        #plot(8, ds[upperValues_ds], legendLabel='ds>2047', color='red')
+        ds_shifted[upperValues_ds] = ds_shifted[upperValues_ds]-4096
+        #plot(9, ds_shifted[upperValues_ds], legendLabel='ds_shifted', color='blue')
+    return(ds_shifted)
+    
+    
+def applyGain(sin_dn, cos_dn, gain_dn):
+    # At some point I need to convert DN to current:
+    # current = I0 * dn*G where G = 16^(3-gain)
+    sin_current = sin_dn*(16**(3-gain_dn))
+    cos_current = cos_dn*(16**(3-gain_dn))
+    return(sin_current, cos_current)
+    
+
+def gaussFit_math2(xdata, ydata):
+    '''
+    Runs gaussian fit of data and returns parameters
+    '''
+    # Import the required Java classes
+    from org.apache.commons.math.optimization.fitting import CurveFitter
+    from org.apache.commons.math.optimization.fitting import ParametricRealFunction
+    from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
+    from java.util import ArrayList
+    
+    class GaussFit(ParametricRealFunction):
+        def value(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            return (a1 + b1*exp(-((x - c1)**2 / (2*d1**2))))
+        def gradient(self, x, params):
+            a1 = params[0]
+            b1 = params[1]
+            c1 = params[2]
+            d1 = params[3]
+            return [1,
+                    exp(-((x - c1)**2 / (2*d1**2))),
+                    (b1*(x-c1)/(d1**2))*exp(-((x - c1)**2 / (2*d1**2))),
+                    (b1*((x-c1)**2)/(d1**3))*exp(-((x - c1)**2 / (2*d1**2)))]  
+           
+    # Pick the optimization algorithm (this one is probably fine)
+    ftr = CurveFitter(LevenbergMarquardtOptimizer())
+    
+    for i in range(len(xdata)):
+        #ftr.addObservedPoint(float(ydata[i]), float(xdata[i]), float(ydata[i]))
+        ftr.addObservedPoint(1., float(xdata[i]), float(ydata[i]))
+    
+    #inputFloor = min(ydata)
+    inputFloor = total(ydata[0:10])/len(ydata[0:10])
+    inputCeiling = max(ydata) - min(ydata)
+    inputCentroid = xdata[imax(ydata)]
+    inputSpread = (max(xdata)-min(xdata))/10.
+    
+    inputGuessParams = [float(inputFloor), float(inputCeiling), float(inputCentroid), float(inputSpread)]
+    #print inputGuessParams
+    
+    params = ftr.fit(GaussFit(),inputGuessParams) 
+    
+    return(params)
+    
+#def 
+
+if apid=='353':
+    spcFile_353 = spcFile
+    spcFile_35F = spcFile.replace('353','35F')
+    
+    # Import data from the SINCOS 0x353 packet
+    again_353  = trim(getDataSet(spcFile_353+'?AGAIN', tr), tr)
+    acos_353   = trim(getDataSet(spcFile_353+'?ACOS', tr), tr)
+    asin_353   = trim(getDataSet(spcFile_353+'?ASIN', tr), tr)
+    bgain_353  = trim(getDataSet(spcFile_353+'?BGAIN', tr), tr)
+    bcos_353   = trim(getDataSet(spcFile_353+'?BCOS', tr), tr)
+    bsin_353   = trim(getDataSet(spcFile_353+'?BSIN', tr), tr)
+    cgain_353  = trim(getDataSet(spcFile_353+'?CGAIN', tr), tr)
+    ccos_353   = trim(getDataSet(spcFile_353+'?CCOS', tr), tr)
+    csin_353   = trim(getDataSet(spcFile_353+'?CSIN', tr), tr)
+    dgain_353  = trim(getDataSet(spcFile_353+'?DGAIN', tr), tr)
+    dcos_353   = trim(getDataSet(spcFile_353+'?DCOS', tr), tr)
+    dsin_353   = trim(getDataSet(spcFile_353+'?DSIN', tr), tr)
+    window_353 = trim(getDataSet(spcFile_353+'?WINDOW', tr), tr)
+    time_353   = window_353.property(QDataSet.DEPEND_0)
+    
+    echo1 = trim(getDataSet(spcFile_35F+'?SW_SPC_ECHO1', tr), tr)
+    
+    mv_lo = getWindowEnergies(window_353)
+    mv_lo.putProperty(QDataSet.DEPEND_0, time_353)
+    
+    mv_lo_table = uniqValues(mv_lo, sort(mv_lo))
+    for tableValue in mv_lo_table: print tableValue.value()
+        
+    asinShifted_353 = shiftBits(asin_353)
+    acosShifted_353 = shiftBits(acos_353)
+    bsinShifted_353 = shiftBits(bsin_353)
+    bcosShifted_353 = shiftBits(bcos_353)
+    csinShifted_353 = shiftBits(csin_353)
+    ccosShifted_353 = shiftBits(ccos_353)
+    dsinShifted_353 = shiftBits(dsin_353)
+    dcosShifted_353 = shiftBits(dcos_353)
+        
+    (asinCurrent, acosCurrent) = applyGain(asinShifted_353, acosShifted_353, again_353)
+    (bsinCurrent, bcosCurrent) = applyGain(bsinShifted_353, bcosShifted_353, bgain_353)
+    (csinCurrent, ccosCurrent) = applyGain(csinShifted_353, ccosShifted_353, cgain_353)
+    (dsinCurrent, dcosCurrent) = applyGain(dsinShifted_353, dcosShifted_353, dgain_353)
+    
+    aPhase = toDegrees(atan2(asinCurrent, acosCurrent))
+    bPhase = toDegrees(atan2(bsinCurrent, bcosCurrent))
+    cPhase = toDegrees(atan2(csinCurrent, ccosCurrent))
+    dPhase = toDegrees(atan2(dsinCurrent, dcosCurrent))
+    
+    arss = sqrt(acosCurrent**2 + asinCurrent**2)
+    brss = sqrt(bcosCurrent**2 + bsinCurrent**2)
+    crss = sqrt(ccosCurrent**2 + csinCurrent**2)
+    drss = sqrt(dcosCurrent**2 + dsinCurrent**2)
+    
+    arss = link(time_353, mv_lo, arss)
+    brss = link(time_353, mv_lo, brss)
+    crss = link(time_353, mv_lo, crss)
+    drss = link(time_353, mv_lo, drss)
+    
+    aPhase = link(time_353, mv_lo, aPhase)
+    bPhase = link(time_353, mv_lo, bPhase)
+    cPhase = link(time_353, mv_lo, cPhase)
+    dPhase = link(time_353, mv_lo, dPhase)
+    
+    plotSingleWindow = False
+    if plotSingleWindow:
+        energyValue = 2760.547 # 3495.261  #
+        yTitlePrefix = 'current'
+        windowIndex = where(eq(mv_lo,energyValue))
+        #timeFlux = [0,2]
+        
+        arss = link(arss[windowIndex,0],arss[windowIndex,2])
+        brss = link(brss[windowIndex,0],brss[windowIndex,2])
+        crss = link(crss[windowIndex,0],crss[windowIndex,2])
+        drss = link(drss[windowIndex,0],drss[windowIndex,2])
+        
+        aPhase = link(aPhase[windowIndex,0],aPhase[windowIndex,2])
+        bPhase = link(bPhase[windowIndex,0],bPhase[windowIndex,2])
+        cPhase = link(cPhase[windowIndex,0],cPhase[windowIndex,2])
+        dPhase = link(dPhase[windowIndex,0],dPhase[windowIndex,2])
+        
+        again = link(time_353[windowIndex],again_353[windowIndex])
+        
+        render_type = 'series'
+    else:
+        energyValue = ''
+        yTitlePrefix = ''
+        windowIndex = []
+        timeFlux = []
+        render_type = 'spectrogram'
+    
+    plotAllCurrents = True
+    #plotPhases = True
+    if plotAllCurrents:
+        signal = where(ge(aPhase,40).and(le(aPhase,60)))
+        noise = where(ge(aPhase,85).or(le(aPhase,5)))
+        signal = []
+        noise = []
+        plot(0, arss[signal], ztitle='A Current', ytitle='A_CURRENT   E=%sV'%(energyValue), renderType=render_type, color='blue')
+        #plot(1, arss[noise], ztitle='A Current', ytitle='A_CURRENT   E=%sV'%(energyValue), renderType=render_type, color='red', title='Ion Beam at 3000V')
+        plot(2, brss, ztitle='B Current', ytitle='%s%s (eV)'%(yTitlePrefix,energyValue), renderType=render_type)
+        plot(4, crss, ztitle='C Current', ytitle='%s%s (eV)'%(yTitlePrefix,energyValue), renderType=render_type)
+        plot(6, drss, ztitle='D Current', ytitle='%s%s (eV)'%(yTitlePrefix,energyValue), renderType=render_type)
+    #if plotPhases:
+        #plot(2, aPhase[signal], ztitle='A Phase', ytitle='A_PHASE   E=%sV'%(energyValue), renderType='scatter', color='blue', symbolSize=4.)
+        plot(1, aPhase[noise], ztitle='A Phase', ytitle='A_PHASE   E=%sV'%(energyValue), renderType=render_type, symbolSize=4.)
+        plot(3, bPhase, ztitle='B Phase', ytitle='%s%s (eV)'%(yTitlePrefix,energyValue), renderType=render_type)
+        plot(5, cPhase, ztitle='C Phase', ytitle='%s%s (eV)'%(yTitlePrefix,energyValue), renderType=render_type)
+        plot(7, dPhase, ztitle='D Phase', ytitle='%s%s (eV)'%(yTitlePrefix,energyValue), renderType=render_type)
+        #plot(4, again[signal], ztitle='A Phase', ytitle='A_GAIN   E=%sV'%(energyValue), renderType='scatter', color='blue', symbolSize=4.)
+        #plot(5, again[noise], ztitle='A Phase', ytitle='A_GAIN   E=%sV'%(energyValue), renderType='scatter', color='red', symbolSize=4.)
+        #plot(6, time_353[windowIndex], asinCurrent[windowIndex], legendLabel='asincurrent')
+        #plot(7, time_353[windowIndex], acosCurrent[windowIndex], legendLabel='acoscurrent', color='dark green')
+        
+    totalCurrent = arss+brss+crss+drss
+    totalCurrent.putProperty(QDataSet.DEPEND_0, time_353)
+    
+    examineEnergyResolution = False
+    if examineEnergyResolution:
+        trs = ['2025-10-30 16:20:23 to 16:20:31',
+               '2025-10-30 16:20:38 to 16:20:43',
+               '2025-10-30 16:20:48 to 16:20:54',
+               '2025-10-30 16:21:01 to 16:21:05',
+               '2025-10-30 16:21:11 to 16:21:23',
+               '2025-10-30 16:21:29 to 16:21:35',
+               '2025-10-30 16:21:41 to 16:21:47',
+               '2025-10-30 16:21:52 to 16:21:57',
+               '2025-10-30 16:22:05 to 16:22:09',
+               '2025-10-30 16:22:17 to 16:22:21',
+               '2025-10-30 16:22:26 to 16:22:34',
+               #'2025-10-30 16:22:41 to 16:22:52',
+               '2025-10-30 16:22:58 to 16:23:02',
+               '2025-10-30 16:23:07 to 16:23:11',
+               '2025-10-30 16:23:18 to 16:23:25',
+               '2025-10-30 16:23:30 to 16:23:38']
+               
+        #trs = ['2025-10-30 16:20:23 to 2025-10-30 16:20:31']
+        beamEnergy = None
+        measuredPeak = None
+        measuredSpread = None
+        for tr in trs:
+            TEMP_totalCurrent = trim(totalCurrent[:,2], datumRange(tr))
+            TEMP_mv_lo = trim(mv_lo, datumRange(tr))
+            TEMP_beamEnergy = mode(trim(echo1, tr))
+            
+            #maxCurrent = imax(TEMP_totalCurrent)
+            #mv_lo_peak = TEMP_mv_lo[maxCurrent]
+            topCurrents = TEMP_totalCurrent[sort(TEMP_totalCurrent)][-5:]
+            mv_lo_peak = median(TEMP_mv_lo[where(eq(TEMP_mv_lo, median(TEMP_mv_lo[sort(TEMP_totalCurrent)][-5:])))])
+            
+            ss = sort(TEMP_mv_lo)
+            mv_lo_table = uniqValues(TEMP_mv_lo, ss)
+            mv_lo_peakRange = mv_lo_table[ where(eq(mv_lo_table,mv_lo_peak))[0]-6 : where(eq(mv_lo_table,mv_lo_peak))[0]+4 ]
+            sortedSubset = None
+            for peakRangeValue in mv_lo_peakRange:
+                sortedSubset = append(sortedSubset, where(eq(TEMP_mv_lo[ss], peakRangeValue)))
+            #sortedSubset = dataset(sortedSubset)
+            
+            setLayoutOverplot(4)
+            plot(0,TEMP_mv_lo[ss], TEMP_totalCurrent[ss])
+            plot(1,TEMP_mv_lo[ss][sortedSubset], TEMP_totalCurrent[ss][sortedSubset], color='blue')
+            #plot(0, TEMP_totalCurrent[:,1], TEMP_totalCurrent[:,2])#, renderType='scatter')
+            plot(2, link(dataset([TEMP_beamEnergy, TEMP_beamEnergy+1E-10]), dataset([0.9*min(TEMP_totalCurrent),2*max(TEMP_totalCurrent)])), renderType='series', lineWidth=4, color='red', ylog=True)
+            
+            xx = TEMP_mv_lo[ss][sortedSubset][where(valid(TEMP_totalCurrent[ss][sortedSubset]))]
+            yy = TEMP_totalCurrent[ss][sortedSubset][where(valid(TEMP_totalCurrent[ss][sortedSubset]))]
+            fitParameters = gaussFit_math2(xx, yy)
+            
+            floor           = fitParameters[0]
+            peak_amplitude  = fitParameters[1]
+            peak_center     = fitParameters[2]
+            peak_width      = fitParameters[3]
+            
+            print 'Beam Energy: %sV     Energy Centroid: %sV   Energy FWHM: %sV'%(int(TEMP_beamEnergy.value()), round(peak_center,1), round(peak_width,1))
+            
+            energySpace = linspace(min(TEMP_mv_lo[ss][sortedSubset]), max(TEMP_mv_lo[ss][sortedSubset]), 100)
+            
+            peak = floor + peak_amplitude*exp(-((energySpace - peak_center)**2 / (peak_width**2)))
+            
+            xAxis_range = [0.8*min(TEMP_mv_lo[ss][sortedSubset]), 1.2*max(TEMP_mv_lo[ss][sortedSubset])]
+            yAxis_range = [0.9*min(TEMP_totalCurrent),2*max(TEMP_totalCurrent)]
+            
+            plot(3, energySpace, peak, xrange=xAxis_range, yrange=yAxis_range, color='magenta', title='Beam Energy: %sV     Energy Centroid: %sV   Energy FWHM: %sV'%(int(TEMP_beamEnergy.value()), round(peak_center,1), round(peak_width,1)))
+            writeToPng(testDirectory+'beamCharacterization_%sV.png'%(int(TEMP_beamEnergy.value())))
+            
+            beamEnergy = append(beamEnergy, dataset(int(TEMP_beamEnergy.value())))
+            measuredPeak = append(measuredPeak, dataset(peak_center))
+            measuredSpread = append(measuredSpread, dataset(peak_width))
+        
+        beamEnergy.putProperty(QDataSet.NAME, 'beam_energy')
+        beamEnergy.putProperty(QDataSet.TITLE, 'Energy of Ion Gun Beam')
+        measuredPeak.putProperty(QDataSet.NAME, 'measured_peak_energy')
+        measuredPeak.putProperty(QDataSet.TITLE, 'Peak of measured energy during voltage sweep')
+        measuredSpread.putProperty(QDataSet.NAME, 'measured_spread_energy')
+        measuredSpread.putProperty(QDataSet.TITLE, 'Spread of measured energy during voltage sweep')
+        
+        formatDataSet(beamEnergy, testDirectory+'beamCharacterization.cdf')    
+        formatDataSet(measuredPeak, testDirectory+'beamCharacterization.cdf?append=T')    
+        formatDataSet(measuredSpread, testDirectory+'beamCharacterization.cdf?append=T')    
+
+
+if apid=='351':
+    spcFile_351 = spcFile
+    spcFile_35E = testDirectory + 'PTP_data_APID35E_L1.cdf'
+    
+    gainStage = 1
+    
+    # Import data from the ALLGAIN 0x351 packet
+    windows_351 = trim(getDataSet(spcFile_351+'?WINDOW', tr), tr)
+    time_351   = getDataSet(spcFile_351+'?Epoch', tr)
+    
+    a0s  = trim(getDataSet(spcFile_351+'?A0S', tr), tr)
+    
+    a_sin = dblarr(len(windows_351), 4)
+    b_sin = dblarr(len(windows_351), 4)
+    c_sin = dblarr(len(windows_351), 4)
+    d_sin = dblarr(len(windows_351), 4)
+    a_cos = dblarr(len(windows_351), 4)
+    b_cos = dblarr(len(windows_351), 4)
+    c_cos = dblarr(len(windows_351), 4)
+    d_cos = dblarr(len(windows_351), 4)
+    
+    a_sinCurrent = dblarr(len(windows_351), 4)
+    b_sinCurrent = dblarr(len(windows_351), 4)
+    c_sinCurrent = dblarr(len(windows_351), 4)
+    d_sinCurrent = dblarr(len(windows_351), 4)
+    a_cosCurrent = dblarr(len(windows_351), 4)
+    b_cosCurrent = dblarr(len(windows_351), 4)
+    c_cosCurrent = dblarr(len(windows_351), 4)
+    d_cosCurrent = dblarr(len(windows_351), 4)
+    
+    for i in range(4):
+        a_sin[:,i] = trim(getDataSet(spcFile_351+'?A%sS'%i, tr), tr)
+        a_cos[:,i] = trim(getDataSet(spcFile_351+'?A%sC'%i, tr), tr)
+        b_sin[:,i] = trim(getDataSet(spcFile_351+'?B%sS'%i, tr), tr)
+        b_cos[:,i] = trim(getDataSet(spcFile_351+'?B%sC'%i, tr), tr)
+        c_sin[:,i] = trim(getDataSet(spcFile_351+'?C%sS'%i, tr), tr)
+        c_cos[:,i] = trim(getDataSet(spcFile_351+'?C%sC'%i, tr), tr)
+        d_sin[:,i] = trim(getDataSet(spcFile_351+'?D%sS'%i, tr), tr)
+        d_cos[:,i] = trim(getDataSet(spcFile_351+'?D%sC'%i, tr), tr)
+    
+    calStatusA = trim(getDataSet(spcFile_35E+'?SW_SPC_CALCOLLA', tr), tr)
+    calStatusB = trim(getDataSet(spcFile_35E+'?SW_SPC_CALCOLLB', tr), tr)
+    calStatusC = trim(getDataSet(spcFile_35E+'?SW_SPC_CALCOLLC', tr), tr)
+    calStatusD = trim(getDataSet(spcFile_35E+'?SW_SPC_CALCOLLD', tr), tr)
+    
+    (calStatusA, calStatusB, calStatusC, calStatusD) = synchronize(windows_351,[calStatusA, calStatusB, calStatusC, calStatusD])
+     
+    mv_lo = getWindowEnergies(windows_351)
+    
+    a_sin = shiftBits(a_sin)
+    b_sin = shiftBits(b_sin)
+    c_sin = shiftBits(c_sin)
+    d_sin = shiftBits(d_sin)
+    
+    a_cos = shiftBits(a_cos)
+    b_cos = shiftBits(b_cos)
+    c_cos = shiftBits(c_cos)
+    d_cos = shiftBits(d_cos)
+    
+    
+    for i in xrange(4):
+#        a_sin = shiftBits(a_sin)
+#        b_sin = shiftBits(b_sin)
+#        c_sin = shiftBits(c_sin)
+#        d_sin = shiftBits(d_sin)
+#
+#        a_cos = shiftBits(a_cos)
+#        b_cos = shiftBits(b_cos)
+#        c_cos = shiftBits(c_cos)
+#        d_cos = shiftBits(d_cos)
+        
+        (a_sinCurrent[:,i], a_cosCurrent[:,i]) = applyGain(a_sin[:,i], a_cos[:,i], zeros(len(a_sin))+i)
+        (b_sinCurrent[:,i], b_cosCurrent[:,i]) = applyGain(b_sin[:,i], b_cos[:,i], zeros(len(a_sin))+i)
+        (c_sinCurrent[:,i], c_cosCurrent[:,i]) = applyGain(c_sin[:,i], c_cos[:,i], zeros(len(a_sin))+i)
+        (d_sinCurrent[:,i], d_cosCurrent[:,i]) = applyGain(d_sin[:,i], d_cos[:,i], zeros(len(a_sin))+i)
+    
+    arss = sqrt(a_cosCurrent**2 + a_sinCurrent**2)
+    brss = sqrt(b_cosCurrent**2 + b_sinCurrent**2)
+    crss = sqrt(c_cosCurrent**2 + c_sinCurrent**2)
+    drss = sqrt(d_cosCurrent**2 + d_sinCurrent**2)
+    
+    plot(0, arss)
+    plot(1, brss)
+    stop
+
+    #setLayoutOverplot(4)
+    setLayout(2,2)
+    plot0_b = plot(0, time_351[where(calStatusA)], brss[where(calStatusA), gainStage]/arss[where(calStatusA), gainStage], ytitle='A Stimulated',   legendLabel='B%s/A%s'%(gainStage,gainStage), color='red')
+    plot0_c = plot(   time_351[where(calStatusA)], crss[where(calStatusA), gainStage]/arss[where(calStatusA), gainStage], overplotOf=dom.plots[3-0], legendLabel='C%s/A%s'%(gainStage,gainStage), color='dark green')
+    plot0_d = plot(   time_351[where(calStatusA)], drss[where(calStatusA), gainStage]/arss[where(calStatusA), gainStage], overplotOf=dom.plots[3-0], legendLabel='D%s/A%s'%(gainStage,gainStage), color='blue')
+    
+    plot1_a = plot(1, time_351[where(calStatusB)], arss[where(calStatusB), gainStage]/brss[where(calStatusB), gainStage], ytitle='B Stimulated',   legendLabel='A%s/B%s'%(gainStage,gainStage), color='red')
+    plot1_c = plot(   time_351[where(calStatusB)], crss[where(calStatusB), gainStage]/brss[where(calStatusB), gainStage], overplotOf=dom.plots[3-1], legendLabel='C%s/B%s'%(gainStage,gainStage), color='dark green')
+    plot1_d = plot(   time_351[where(calStatusB)], drss[where(calStatusB), gainStage]/brss[where(calStatusB), gainStage], overplotOf=dom.plots[3-1], legendLabel='D%s/B%s'%(gainStage,gainStage), color='blue')
+    
+
+

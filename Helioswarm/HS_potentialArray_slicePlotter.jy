@@ -1,0 +1,22 @@
+
+paDirectory = 'C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/01-HSFC-SCIENCE/SIMION/fcp_prototype/fcp_prototype_2025-10-02_justGrids_smallHVGrids_widerEntranceModule/'
+paFile_4012V = 'FCA_justGrids_centerCrop_4012V.patxt_z-slice_104.txt'
+paFile_4500V = 'FCA_justGrids_centerCrop_45.patxt_z-slice_104.txt'
+paFile_5033V = 'FCA_justGrids_centerCrop_5033V.patxt_z-slice_104.txt'
+
+
+suppressorPotential_0 = getDataSet(paDirectory+paFile_4012V+'?X=data0&Y=data1&Z=data2')#&column=data2'
+suppressorPotential_1 = getDataSet(paDirectory+paFile_4500V+'?X=data0&Y=data1&Z=data2')#&column=data2'
+
+x_axis = suppressorPotential_0[:,0]
+y_axis = suppressorPotential_0[:,1]
+z_field = suppressorPotential_0[:,2]-suppressorPotential_1[:,2]
+
+x_axis.putProperty(QDataSet.UNITS, Units.millimeters)
+x_axis.putProperty(QDataSet.LABEL, '(%{UNITS})')
+y_axis.putProperty(QDataSet.UNITS, Units.millimeters)
+y_axis.putProperty(QDataSet.LABEL, '(%{UNITS})')
+
+suppressorPotential_diff = link(x_axis, y_axis, z_field)
+
+plot(0, suppressorPotential_diff, xtitle=x_axis.property(QDataSet.LABEL), ytitle=y_axis.property(QDataSet.LABEL), renderType='spectrogram', title='Potential Difference at Suppressor Grid When HV at 5033V vs 4494V')

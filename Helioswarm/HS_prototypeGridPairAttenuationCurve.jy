@@ -1,0 +1,39 @@
+gridCellSize = 3.4  # mm
+
+V_suppression = 100  # suppression voltage
+
+gridSeparation = [3.1,
+                  4.1,
+                  5.05,
+                  6.0,
+                  7.0,
+                  8.0,
+                  9.0,
+                  10.0,
+                  11.0]
+ 
+peakVoltage    = [23.911,
+                  19.286,
+                  16.285,
+                  14.104,
+                  12.356,
+                  10.997,
+                  9.9069,
+                  9.0158,
+                  8.2684]
+
+w = gridCellSize
+V = V_suppression
+d = dataset(gridSeparation)
+V_eff = dataset(peakVoltage)
+
+# V_eff = V*alpha*w/d
+
+#plot(V*w/d, V_eff, xtitle='100V * gridCell/gridSeparation', ytitle='Effective Voltage (V)')
+#plot(1, createEvent(datumRange((V*3.4/3.9)-0.0001, (V*3.4/3.9)+0.0001),0,'Prototype'), color='red')
+
+##plot(w/d, V_eff*d/(w*V), xtitle='gridCell/gridSeparation', ytitle='alpha')
+#plot(1, createEvent(datumRange((3.4/3.9)-0.0001, (3.4/3.9)+0.0001),0,'Prototype'), color='red')
+
+alpha = 0.26
+print 'attenuation for alpha=%s:'%alpha,alpha**5 *(1.5*3.4*3.4*3.4*3.4)/(11*14.6*6*6*6)

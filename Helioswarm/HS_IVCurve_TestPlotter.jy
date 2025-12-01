@@ -1,0 +1,48 @@
+
+runNumber = 6
+
+testDirectory = 'file:///C:/Users/KPaulson/OneDrive/OneDrive - Smithsonian Institution/SAO - Central Engineering - Project-HelioSwarm/05-HSFC-ENGINEERING/10-LAB NOTES TESTING/'
+testFolder = '07-JUNE-2025_Lab_Test_Data/2025-06-16_RebuiltHVCableTest/'
+#testFolder = '06-MAY-2025_Lab_Test_Data/2025-05-20_suppressorGridTest/'
+
+first = 90
+last = 98
+
+runList = linspace(first,last,(last-first)+1)
+
+for runNumber in runList:
+    try:
+        print 'run number:',runNumber
+        runNumber = int(runNumber)
+        
+        filename = testDirectory + testFolder + 'scope_%s.csv'%(int(runNumber))
+    
+        time = getDataSet(filename+'?column=x_axis')
+        collectorCurrent = getDataSet(filename+'?column=field1')
+        try:
+            HVmon = getDataSet(filename+'?column=field2')
+            suppressor = getDataSet(filename+'?column=field3')
+            HVctl = getDataSet(filename+'?column=field4')
+        except:
+            suppressor = getDataSet(filename+'?column=field2')
+            HVctl = getDataSet(filename+'?column=field3')
+        
+        HVmon.putProperty(QDataSet.VALID_MAX, 1.1)
+        HVctl.putProperty(QDataSet.VALID_MAX, 1.1)
+        
+        #setLayoutOverplot(2)
+        plot(0, time, HVmon, color='red', legendLabel='HVmon', ytitle='HV', title = 'scope %s'%(runNumber))
+        plot(1, time, HVctl, color='blue', legendLabel='HVctl')
+        plot(2, time, suppressor, ytitle='Suppressor')
+        plot(3, time, collectorCurrent, ytitle='Collector', xtitle='time')
+        
+        #plot(4, HVmon[:-1], collectorCurrent[:-1], diff(smooth(HVmon,5)), renderType='colorScatter', symbolSize=4., zrange=[-0.01, 0.01], ztitle='rising         falling', ytitle='Collector', xtitle='HVmon')
+        plot(4, smooth(HVctl[:-1],5), collectorCurrent[:-1], diff(smooth(HVmon,5)), renderType='scatter', symbolSize=4., zrange=[-0.01, 0.01], ztitle='rising         falling', ytitle='Collector', xtitle='HVctl')
+        
+        
+        #plot(4, smooth(HVmon[0:350], 5), smooth(collectorCurrent[0:350], 3))
+        writeToPng(testDirectory + testFolder + 'scope_%s.png'%(runNumber))
+    except:
+        import traceback
+        traceback.print_exc()
+        continue

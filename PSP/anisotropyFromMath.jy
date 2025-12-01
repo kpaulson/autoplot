@@ -1,3 +1,50 @@
+################################
+#                              #
+#  Single Spectrum Anisotropy  #
+#                              #
+#       Kristoff Paulson       #
+#                              #
+################################
+
+'''
+	This code calculates the temperature anisotropy of a 1-dimensional
+	reduced particle distribution, presumably recorded by a faraday cup
+	with the ability to measure a plasma deflection angle as a function
+	of energy. This was originaly written for the Solar Probe Cup on board
+	the Parker Solar Probe, but submodules have been adapted to other 
+	instruments with varying levels of success.
+	
+	input:
+		timerange							string of overall analysis timerange that will be broken up into daily chunks
+	Parameters:
+		version
+		skipPreviousFiles
+	output: 
+		"L0" cdf file containing the variables:
+			Bunit, 							rank3 unit vector of magnetic field direction in spacecraft coordinates
+			Btotal_in,                      
+			chiline,                        
+			psiline,                        
+			chiSquaredReduced_chi,          
+			chiSquaredReduced_psi,          
+			rSquared_chi,                   
+			rSquared_psi,                   
+			slopeError_chi,                 
+			slopeError_psi,                 
+			epsilon_chi,                    
+			epsilon_psi,                    
+			anisotropy_chi,                 
+			anisotropy_psi,                 
+			epsilonEpoch,                   
+			anisotropy_chi_deltaPlus,       
+			anisotropy_chi_deltaMinus,      
+			anisotropy_psi_deltaPlus,       
+			anisotropy_psi_deltaMinus,      
+			anisotropy_chi_standardDev,     
+			anisotropy_psi_standardDev      
+	imports:
+		
+'''   
 
 ############################################################################
 ##################            VARIABLES          ###########################
@@ -7,117 +54,79 @@
 
 #timerange = getParam('timerange','2018-11-01 06:00 to 08:00','Iteration Timerange')#
 #timerange = getParam('timerange','2020-01-27 to 2020-01-30','Iteration Timerange')
-timerange = getParam('timerange','2023-09-26','Iteration Timerange')
-version = getParam('version','0.4.5','Version number to be appended to filenames')
+timerange = getParam('timerange','2024-12-22','Iteration Timerange')
+version = getParam('version','0.4.6','Version number to be appended to filenames')
 
-#separatePeaksWithL3Values      = False #Attempt to calculate anisotropy around each of fit peaks
-#writeStuff                     = True  #Write out L0 anisotropy file
-#useVDFFluxForWeights           = True  #Weight linear fits by normalized flux around peak (points at peak take precendence)
-#conflateAndDownsampleSpectra   = True  #Downsample the spectra for individual pads (smoothSeconds parameter)
-#analyzingTimeWidthComparisons  = False #Run Routine for various timewidths to compare end results (TESTING ONLY)
-#usePreviouslyDownsampledData   = True  #Use Downsampled data file created previously
-#useLocalSubprocesses           = True  #Use local script call files instead of pulling from github
-
-skipPreviousFiles                   = getParam('skipPreviousFiles','T','Look for previously generated files and skip analysis if found',['T','F'])
-separatePeaksWithL3Values           = getParam('separatePeaksWithL3Values','F','Attempt to calculate anisotropy around each of fit peaks',['T','F'])
-writeStuff                          = getParam('writeStuff','T','Write out L0 anisotropy file',['T','F'])
-maskNoiseWithL3Fits                 = getParam('maskNoiseWithL3Fits','T','Use the single maxwellian fits to isolate "good" data',['T','F'])
-useVDFFluxForWeights                = getParam('useVDFFluxForWeights','T','Weight linear fits by normalized flux around peak (points at peak take precendence)',['T','F'])
-useLocalSubprocesses                = getParam('useLocalSubprocesses','T','Use local script call files instead of pulling from github',['T','F'])
-conflateAndDownsampleSpectra        = getParam('conflateAndDownsampleSpectra','T','Downsample the spectra for individual pads (smoothSeconds parameter)',['T','F'])
-usePreviouslyDownsampledData        = getParam('usePreviouslyDownsampledData','T','Use Downsampled data file created previously',['T','F'])
-if usePreviouslyDownsampledData == 'F':
-    spc_mode                        = getParam('spcInstrumentMode', 'fullScan', 'Use data from Peak Tracking (default) or Full Scan mode?', ['peakTrack', 'fullScan'])
-runSpectraDownsamplerIfFileNotFound = getParam('runSpectraDownsamplerIfFileNotFound','F','If no downsampled file exists, should this code try to generate one?',['T','F'])
-analyzingTimeWidthComparisons       = getParam('analyzingTimeWidthComparisons','F','Run Routine for various timewidths to compare end results (TESTING ONLY)',['T','F'])
-useLocalCachedMagFiles              = getParam('useLocalCacheMagFile', 'F', 'Use the local cached magnetic field values instead of hitting up the servers?', ['T', 'F'])
-use4SaPerCycMagFiles                = getParam('use4SaPerCycMagFiles', 'F', 'Use the higher-cadence magnetic field values instead of 60s? - you should change "trend_seconds"', ['T', 'F'])
+# Set Parameters for how we want to run the code
+skipPreviousFiles                   = getParam('skipPreviousFiles',True,'Look for previously generated files and skip analysis if found',[True,False])
+separatePeaksWithL3Values           = getParam('separatePeaksWithL3Values',False,'Attempt to calculate anisotropy around each of fit peaks',[True,False])
+writeStuff                          = getParam('writeStuff',True,'Write out L0 anisotropy file',[True,False])
+maskNoiseWithL3Fits                 = getParam('maskNoiseWithL3Fits',True,'Use the single maxwellian fits to isolate "good" data',[True,False])
+useVDFFluxForWeights                = getParam('useVDFFluxForWeights',True,'Weight linear fits by normalized flux around peak (points at peak take precendence)',[True,False])
+useLocalSubprocesses                = getParam('useLocalSubprocesses',True,'Use local script call files instead of pulling from github',[True,False])
+conflateAndDownsampleSpectra        = getParam('conflateAndDownsampleSpectra',True,'Downsample the spectra for individual pads (smoothSeconds parameter)',[True,False])
+usePreviouslyDownsampledData        = getParam('usePreviouslyDownsampledData',True,'Use Downsampled data file created previously',[True,False])
+if usePreviouslyDownsampledData == False:
+	spc_mode                        = getParam('spcInstrumentMode', 'fullScan', 'Use data from Peak Tracking (default) or Full Scan mode?', ['peakTrack', 'fullScan'])
+skipPegasus                         = getParam('skipPegasus',True,'Do you want to ignore the local mirror (because something is mounted wrong)?',[True,False])
+runSpectraDownsamplerIfFileNotFound = getParam('runSpectraDownsamplerIfFileNotFound',False,'If no downsampled file exists, should this code try to generate one?',[True,False])
+analyzingTimeWidthComparisons       = getParam('analyzingTimeWidthComparisons',False,'Run Routine for various timewidths to compare end results (TESTING ONLY)',[True,False])
+useLocalCachedMagFiles              = getParam('useLocalCacheMagFile', False, 'Use the local cached magnetic field values instead of hitting up the servers?', [True,False])
+use4SaPerCycMagFiles                = getParam('use4SaPerCycMagFiles', True, 'Use the higher-cadence magnetic field values instead of 60s? - you should change "trend_seconds"', [True,False])
 
 m_p                  = 1.6726231E-24
 q                    = 1.6022E-12
-#trend_seconds        = 30     # Number of seconds over which to average magField to determine background field direction
-trend_seconds        = getParam('Bfield_window' , 60 , 'Number of seconds over which to average magField to determine background field direction' )
-#minFluxValueForFit   = 0.5    # Throw out/Don't fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])
+
+# Set parameters for the actual analysis (sizes of bins and timeranges, etc)
+trend_seconds        = getParam('Bfield_window' , 1 , 'Number of seconds over which to average magField to determine background field direction' )
 minFluxValueForFit   = getParam('Minimum_VDF' , 0.5 , 'Throw out/Don\'t fit data points where totalFlux is below this value (for normalized data, so choose [0,...,1])' )
-#fitSeconds           = 5      # Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)
 fitSeconds           = getParam('fit_window' , 4 , 'Number of seconds over which to do the linear fitting between (vx,vy) and vz*(bx,by)')
 modFits              = getParam('mod_number' , 50 , 'Number of fits performed before updating plot/time reporting')
 smoothSeconds        = getParam('smoothSeconds' , 1 , 'Number of seconds over which to average spectra together before defining flow directions')
 minVoltage           = getParam('minimumVoltage', 150, 'Throw out points in mv_lo channels below this voltage')
-
-
 angleBinWdith        = getParam('angleBinWidth' , 4 , 'Width of bins in degrees making up incident field angle axis of uncertainty map')
 anisotropyBinNumber  = getParam('anisotropyBinNumber' , 30 , 'Number of bins making up anisotropy axis of uncertainty map')
 
 cfa_sweap_file = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
 
-plotFitsAndPauseALot_yn = getParam('FitPlots','F', 'Run the script while pausing and plotting each fit for test purposes?',['T','F'])
+plotFitsAndPauseALot_yn = getParam('FitPlots',False, 'Run the script while pausing and plotting each fit for test purposes?',[True,False])
 
 
-def convertTstoTrues(parameterInput):
-    if parameterInput == 'T':
-        parameterInput = True
-    elif parameterInput == 'F':
-        parameterInput = False
-    return(parameterInput)
-
-useLocalSubprocesses                = convertTstoTrues(useLocalSubprocesses)  
-usePreviouslyDownsampledData        = convertTstoTrues(usePreviouslyDownsampledData)   
-writeStuff                          = convertTstoTrues(writeStuff)    
-maskNoiseWithL3Fits                 = convertTstoTrues(maskNoiseWithL3Fits)   
-useVDFFluxForWeights                = convertTstoTrues(useVDFFluxForWeights)   
-conflateAndDownsampleSpectra        = convertTstoTrues(conflateAndDownsampleSpectra)   
-analyzingTimeWidthComparisons       = convertTstoTrues(analyzingTimeWidthComparisons)   
-separatePeaksWithL3Values           = convertTstoTrues(separatePeaksWithL3Values)   
-plotFitsAndPauseALot_yn             = convertTstoTrues(plotFitsAndPauseALot_yn)   
-skipPreviousFiles                   = convertTstoTrues(skipPreviousFiles)   
-runSpectraDownsamplerIfFileNotFound = convertTstoTrues(runSpectraDownsamplerIfFileNotFound)  
-useLocalCachedMagFiles              = convertTstoTrues(useLocalCachedMagFiles)  
-use4SaPerCycMagFiles                = convertTstoTrues(use4SaPerCycMagFiles)  
-    
+	
 serverList = ['fc.cfa.harvard.edu', 'nanook']
-    
+	
 ############################################################################
 ##################       Directory Locator       ###########################
 ############################################################################
 ############################################################################
-    
-def get_os_version():
-    '''
-    Basic subprocess that should print out the operating system version. Mostly helpful
-    for scripts looking for files in a different directory structure on windows vs mac.
-    Easiest application:
-        print get_os_version().split()[0]
-    '''
-    import sys
-    ver = sys.platform.lower()
-    if ver.startswith('java'):
-        import java.lang
-        ver = java.lang.System.getProperty("os.name").lower()
-    return ver
-
-OS = get_os_version().split()[0]
-if OS == 'mac' or OS == 'linux':
-    googleDrive_path = '/home/kpaulson/MyDrive/'
-elif OS == 'windows':
-    #googleDrive_path = '/Users/kpaulson/GoogleDrive/'
-    googleDrive_path = 'G:/My Drive/'
-    
+	
+serverList = ['fc.cfa.harvard.edu', 'nanook']
 import socket
-hostName = socket.gethostname()
+hostname = socket.gethostname()
 
 w3sweapDirectory = 'http://w3sweap.cfa.harvard.edu/'
 sweap_spc_L3_filename = 'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
 cfa_sweap_filename    = 'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
 
-if hostName == 'nanook' or hostName == 'fc.cfa.harvard.edu':
-    sweap_spc_L3_file = '/psp/'+'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
-    cfa_sweap_file    = '/psp/'+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+if hostname in serverList:
+	sweap_spc_L3_file = '/psp/'+'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+	cfa_sweap_file    = '/psp/'+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+	googleDrive_path = '/home/kpaulson/MyDrive/'
+	if hostname == 'fc.cfa.harvard.edu':
+		pegasusPath = '/mnt/nanook/'
+	elif hostname == 'nanook':
+		pegasusPath = '/Volumes/Pegasus/'
 else:
-    sweap_spc_L3_file = w3sweapDirectory+'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
-    cfa_sweap_file    = w3sweapDirectory+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
-    
+	sweap_spc_L3_file = w3sweapDirectory+'data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf'
+	cfa_sweap_file    = w3sweapDirectory+'data/sci/sweap/spc/L2/$Y/$m/spp_swp_spc_l2_$Y$m$d_v$v.cdf'
+	googleDrive_path = 'G:/My Drive/'
+	pegasusPath = ''
+
+if skipPegasus:
+	pegasusPath = '~/tmp'
+	print 'skipping Pegasus'
+	
 ############################################################################
 ##################            IMPORTS            ###########################
 ############################################################################
@@ -130,148 +139,105 @@ import java
 localGithubDirectory = googleDrive_path+'Software/Autoplot/githubScripts_autoplot/'
 remoteGithubDirectory = 'https://github.com/kpaulson/autoplot/blob/master/'
 try:
-    if useLocalSubprocesses == True:
-        findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
-        execfile( findVDFAnisotropy.toString() )
-        
-        writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
-        execfile( writeAnisotropyL0.toString() )
-        
-        fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
-        execfile( fittingUncertainties.toString() )
-        
-        field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
-        execfile( field_aligner.toString() )
+	if useLocalSubprocesses == True:
+		findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+		execfile( findVDFAnisotropy.toString() )
+		
+		writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+		execfile( writeAnisotropyL0.toString() )
+		
+		fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+		execfile( fittingUncertainties.toString() )
+		
+		field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+		execfile( field_aligner.toString() )
 
-        get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
-        execfile( get_OS_version.toString() )
+		get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+		execfile( get_OS_version.toString() )
 
-        getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
-        execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+		getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+		execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 
-        smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
-        execfile( smoothSPCByVoltage.toString() )
+		smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+		execfile( smoothSPCByVoltage.toString() )
 
-        smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
-        execfile( smoothAndDownsampleSPCByVoltage.toString() )
-       
-    else:
-    
-        findVDFAnisotropy = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
-        execfile( findVDFAnisotropy.toString() )
-        
-        writeAnisotropyL0 = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
-        execfile( writeAnisotropyL0.toString() )
-        
-        fittingUncertainties = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
-        execfile( fittingUncertainties.toString() )
-        
-        field_aligner = getFile( remoteGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
-        execfile( field_aligner.toString() )
+		smoothAndDownsampleSPCByVoltage = getFile( 'C:/Users/kpaulson/Software/Autoplot/GithubScripts/PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+		execfile( smoothAndDownsampleSPCByVoltage.toString() )
+	   
+	else:
+	
+		findVDFAnisotropy = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+		execfile( findVDFAnisotropy.toString() )
+		
+		writeAnisotropyL0 = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+		execfile( writeAnisotropyL0.toString() )
+		
+		fittingUncertainties = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+		execfile( fittingUncertainties.toString() )
+		
+		field_aligner = getFile( remoteGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+		execfile( field_aligner.toString() )
 
-        get_OS_version = getFile( remoteGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
-        execfile( get_OS_version.toString() )
+		get_OS_version = getFile( remoteGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+		execfile( get_OS_version.toString() )
 
-        getSPCAnisotropyUncertaintyMaps = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
-        execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+		getSPCAnisotropyUncertaintyMaps = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+		execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 
-        smoothSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
-        execfile( smoothSPCByVoltage.toString() )
+		smoothSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+		execfile( smoothSPCByVoltage.toString() )
 
-        smoothAndDownsampleSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
-        execfile( smoothAndDownsampleSPCByVoltage.toString() )
-    
+		smoothAndDownsampleSPCByVoltage = getFile( remoteGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+		execfile( smoothAndDownsampleSPCByVoltage.toString() )
+	
 except:
 
-    print 'Unable to grab subprocess from github'
-    
-    findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
-    execfile( findVDFAnisotropy.toString() )
-    
-    writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
-    execfile( writeAnisotropyL0.toString() )
-        
-    fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
-    execfile( fittingUncertainties.toString() )
-    
-    field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
-    execfile( field_aligner.toString() )
+	print 'Unable to grab subprocess from github'
+	
+	findVDFAnisotropy = getFile( localGithubDirectory+'PSP/PSPSubProcesses/findVDFAnisotropy.jy',monitor.getSubtaskMonitor('import findVDFAnisotropy()'))
+	execfile( findVDFAnisotropy.toString() )
+	
+	writeAnisotropyL0 = getFile( localGithubDirectory+'PSP/PSPSubProcesses/writeAnisotropyL0.jy',monitor.getSubtaskMonitor('import writeAnisotropyL0()'))
+	execfile( writeAnisotropyL0.toString() )
+		
+	fittingUncertainties = getFile( localGithubDirectory+'PSP/PSPSubProcesses/fittingUncertainties.jy',monitor.getSubtaskMonitor('import fittingUncertainties()'))
+	execfile( fittingUncertainties.toString() )
+	
+	field_aligner = getFile( localGithubDirectory+'CoreSubprocesses/Field_Aligner.jy',monitor.getSubtaskMonitor('import field_aligner()'))
+	execfile( field_aligner.toString() )
 
-    get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
-    execfile( get_OS_version.toString() )
+	get_OS_version = getFile( localGithubDirectory+'CoreSubprocesses/get_os_version.jy',monitor.getSubtaskMonitor('import get_os_version()'))
+	execfile( get_OS_version.toString() )
 
-    getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
-    execfile( getSPCAnisotropyUncertaintyMaps.toString() )
+	getSPCAnisotropyUncertaintyMaps = getFile( localGithubDirectory+'PSP/PSPSubProcesses/getSPCAnisotropyUncertaintyMaps.jy',monitor.getSubtaskMonitor('import getSPCAnisotropyUncertaintyMaps()'))
+	execfile( getSPCAnisotropyUncertaintyMaps.toString() )
 
-    smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
-    execfile( smoothSPCByVoltage.toString() )
+	smoothSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothSPCByVoltage()'))
+	execfile( smoothSPCByVoltage.toString() )
 
-    smoothAndDownsampleSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
-    execfile( smoothAndDownsampleSPCByVoltage.toString() )
-       
-# from org.apache.commons.math.optimization.fitting import CurveFitter
-# from org.apache.commons.math.optimization.fitting import ParametricRealFunction
-# from org.apache.commons.math.optimization.fitting import WeightedObservedPoint
-# from org.apache.commons.math.optimization.general import LevenbergMarquardtOptimizer
-# from org.apache.commons.math.stat.regression      import SimpleRegression
-
-#addToSearchPath(sys.path, str(googleDrive_path+'Software/Autoplot/jar/commons-math3-3.6.1.jar'), monitor)
-
-#from org.apache.commons.math3.fitting import AbstractCurveFitter
-#from org.apache.commons.math3.fitting import SimpleCurveFitter
-#from org.apache.commons.math3.fitting.leastsquares import LevenbergMarquardtOptimizer as LMO
-#from org.apache.commons.math3.fitting.leastsquares import GaussNewtonOptimizer
-# #from org.apache.commons.math3.analysis import ParametricUnivariateFunction
-
-# class LinFit(ParametricRealFunction):
-# #class LinFit(ParametricUnivariateFunction):
-    # def value(self, x, params):
-        # a = params[0]
-        # b = params[1]
-        # return (a*x + b)
-    # def gradient(self, x, params):
-        # a = params[0]
-        # b = params[1]
-        # return [x,1]
+	smoothAndDownsampleSPCByVoltage = getFile( localGithubDirectory+'PSP/PSPSubProcesses/smoothAndDownsampleSPCByVoltage.jy',monitor.getSubtaskMonitor('import smoothAndDownsampleSPCByVoltage()'))
+	execfile( smoothAndDownsampleSPCByVoltage.toString() )
+	   
 
 
 ############################################################################
-##################            DEFINITIONS        ###########################
+##################     DIRECTORY DEFINITIONS     ###########################
 ############################################################################
 ############################################################################
-    
+
+baseOutputDir = googleDrive_path+'Research/PSP/SPC/'
+if hostname in serverList and not skipPegasus:
+	baseOutputDir = pegasusPath+'PSP_SPC/'
+	
+#### TEMP PROBLEM WITH FC WRITE CDF TO RCLONE AND PEGASUS MEANS WE ARE BYPASSING THE SYSTEM!  ###
+# baseOutputDir = '/home/kpaulson/PSP/SPC/'
+	
 if analyzingTimeWidthComparisons == True:
-    output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version)
-    #output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+	output_folder_top = baseOutputDir+'SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version)
+	#output_folder_top = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
 elif analyzingTimeWidthComparisons == False:
-    output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
-    
-    
-# def fittingUncertainties(fitResult,tempVDF,tempvz,tempvq,tempBq):
-    # r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
-    # r = where(ge(tempVDF,minFluxValueForFit).and(valid(tempVDF)).and(valid(tempvz)))  # Removes points from the measurement below a particular threschhold
-    # VDF_fitValues = where(gt(tempVDF[r],0))
-    # temp_fitValues = (fitResult[0]*(tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) + fitResult[1])
-    # temp_residualVariance = ( tempvq[r][VDF_fitValues] - temp_fitValues )**2
-    
-    # try:
-        # temp_chiSquared = total( abs( temp_residualVariance / temp_fitValues ) )
-        # temp_chiSquaredReduced = temp_chiSquared / (len(tempvz[r][VDF_fitValues]) - 2)
-    # except:
-        # temp_chiSquaredReduced = -1E38
-    # try:
-        # temp_totalVariance = (tempvq[r][VDF_fitValues] - mean(tempvq[r][VDF_fitValues]))**2
-        # temp_rSquared = 1 - ( total(temp_residualVariance) / total(temp_totalVariance) )
-        # temp_abscissaVariance = ( (tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues]) - mean((tempvz[r][VDF_fitValues]*tempBq[r][VDF_fitValues])) )**2
-        # temp_slopeError = sqrt( total(temp_residualVariance) / total(temp_abscissaVariance) ) / (len(tempvz[r][VDF_fitValues]) - 2)
-    # except:
-        # temp_rSquared = -1E38
-        # temp_slopeError = -1E38
-    
-    # return(temp_chiSquaredReduced,temp_rSquared,temp_slopeError)
-                        
-    
-    
+	output_folder_top = baseOutputDir+'SPC_Anisotropy/Anisotropy_Files/L0/v%s/'%(version)
+	
 ############################################################################
 #################            BEGIN SCRIPT        ###########################
 ############################################################################
@@ -279,11 +245,23 @@ elif analyzingTimeWidthComparisons == False:
 
 import java
 time_begin = TimeUtil.now()    
-
-    
-        
+	
+trCompletedList = None
+trCompletedFile = output_folder_top+'psp_spc_anisotropy_L0_v%s_completedTimeranges.txt'%(version)
+try:
+	f = open(trCompletedFile, 'r')
+	trCompletedList = f.readlines()
+	f.close()
+except:
+	print 'No Completed File List Found in %s'%(output_folder_top)
+for i in xrange(len(trCompletedList)):
+	trCompletedList[i] = trCompletedList[i].strip('\n')
+	
+		
 # Set up error/uncertainty maps
-(anisotropy_deltaPlus,anisotropy_deltaMinus) = getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber,OS)
+# TODO: There are abunch of read errors here, fix this subroutine
+print 'Loading uncertainty maps'
+(anisotropy_deltaPlus,anisotropy_deltaMinus) = getSPCAnisotropyUncertaintyMaps(angleBinWdith,anisotropyBinNumber)
    
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MIN,0)
 anisotropy_deltaPlus.putProperty(QDataSet.VALID_MAX,1E10)
@@ -295,195 +273,236 @@ anisotropy_deltaMinus.putProperty(QDataSet.VALID_MAX,1E10)
 monitor.started()
 trs= generateTimeRanges('$Y-$m-$d',timerange)
 for tr in trs:
-    
-    fileAlreadyExists = False
-    time_begin_tr = TimeUtil.now() 
-    timeTitle = str(tr)   
-    year = tr[0:4]
-    output_folder = output_folder + '%s/'%year
-    
-    if lt(datumRange(timerange).width(), datumRange(tr).width()):
-        tr = timerange
-        tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
-        tp_end = TimeParser.create('-$H$M')
-        timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
-    
-    # Create list of VDF poulations over which to perform analysis
-    vdfList = list() 
-    if separatePeaksWithL3Values == True:
-        vdfList.append('vdf_p1')
-        vdfList.append('vdf_3')
-        vdfList.append('vdf_a')
-    else:
-        vdfList.append('vdf_full')
+	print ''
+	print tr
+	
+	fileAlreadyExists = False
+	time_begin_tr = TimeUtil.now() 
+	timeTitle = str(tr)   
+	year = tr[0:4]
+	output_folder = output_folder_top + '%s/'%year
+	
+	if lt(datumRange(timerange).width(), datumRange(tr).width()):
+		tr = timerange
+		tp_begin = TimeParser.create('$Y-$m-$dT$H$M')
+		tp_end = TimeParser.create('-$H$M')
+		timeTitle = tp_begin.format(datumRange(timerange).min())+tp_end.format(datumRange(timerange).max())
+	
+	# Create list of VDF poulations over which to perform analysis
+	vdfList = list() 
+	if separatePeaksWithL3Values == True:
+		vdfList.append('vdf_p1')
+		vdfList.append('vdf_3')
+		vdfList.append('vdf_a')
+	else:
+		vdfList.append('vdf_full')
 
-    # Look for previous instances of the file and skip rather than overwrite
-    if skipPreviousFiles == True:
-        try:
-            if separatePeaksWithL3Values == False:
-                for vdf in vdfList:
-                    output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
-                    TEMP_epoch = getDataSet(output_file+'?Epoch')
-                    if ne( long(mode(copy(TEMP_epoch))), 0):
-                        print 'File already exists for %s on %s'%(vdf,timeTitle)
-                        vdfList.remove(vdf)
-                    
-            elif separatePeaksWithL3Values == True:
-                for vdf in vdfList:
-                    if vdf == 'vdf_full':
-                        output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
-                    else:
-                        output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
-                        print output_file
-                    TEMP_epoch = getDataSet(output_file+'?Epoch')
-                    if ne( long(mode(copy(TEMP_epoch))), 0):
-                        print 'File already exists for %s on %s'%(vdf,timeTitle)
-                        vdfList.remove(vdf)
-            if len(vdfList) == 0:
-                fileAlreadyExists = True
-        except:
-            fileAlreadyExists = False
-        
-    # Run the big routine    
-    try:
-        if fileAlreadyExists == True:
-            raise fileAlreadyExistsException
-            
-        monitor.setProgressMessage(tr)
-        
-        if usePreviouslyDownsampledData == True:
-            monitor.setLabel('Using Local SPC Downsample') 
-            
-            localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
-            localDownsampledDataFile = localDownsampledDataDirectory+'SPC_DownsampledSpectra_$Y-$m-$d_%ssec.cdf'%(smoothSeconds)
-            try:
-                spc_a = getDataSet(localDownsampledDataFile+'?spc_a_mean',tr)
-                spc_b = getDataSet(localDownsampledDataFile+'?spc_b_mean',tr)
-                spc_c = getDataSet(localDownsampledDataFile+'?spc_c_mean',tr)
-                spc_d = getDataSet(localDownsampledDataFile+'?spc_d_mean',tr)
-                
-                mv_lo = getDataSet(localDownsampledDataFile+'?mv_lo',tr)
-                mv_hi = getDataSet(localDownsampledDataFile+'?mv_hi',tr)
-                
-                spc_a = trim(spc_a,tr)
-                spc_b = trim(spc_b,tr)
-                spc_c = trim(spc_c,tr)
-                spc_d = trim(spc_d,tr)
-                
-                mv_lo = trim(mv_lo,tr)
-                mv_hi = trim(mv_hi,tr)
-                
-                print 'Loading downsampled SPC L2 data took:',TimeUtil.now()-time_begin_tr
-                time_last = TimeUtil.now()
-                
-            except:
-                if runSpectraDownsamplerIfFileNotFound:
-                    usePreviouslyDownsampledData = False
-                print 'SPC File not found for %s'%(timeTitle)
-                exc_type, exc_value, exc_tb = sys.exc_info()
-                print exc_value
-                print exc_tb
-                raise java.io.FileNotFoundException    
-                
-        elif usePreviouslyDownsampledData == False:
-            monitor.setLabel('Downloading SPC') 
-            if spc_mode == 'peakTrack':
-                try:
-                    print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
-                    spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
-                    spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
-                    spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
-                    spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
-                    
-                    mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
-                    mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
-                except:
-                    noSPCData = None
-                    raise java.io.FileNotFoundException
-            elif spc_mode == 'fullScan':
-                output_folder = googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/fullScan/L0/v%s/%s/'%(version, year)
-                monitor.setLabel('Downloading SPC FullScan Data') 
-                try:
-                    print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(1)'
-                    spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(1)',tr)
-                    spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(1)',tr)
-                    spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(1)',tr)
-                    spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(1)',tr)
-                    
-                    mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(1)',tr)
-                    mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(1)',tr)
-                except:
-                    noSPCData = None
-                    raise java.io.FileNotFoundException
-            
-                
-            print 'Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
-            time_last = TimeUtil.now()
-            #spc_list = [spc_a,spc_b,spc_c,spc_d]
-            
-            spc_a = trim(spc_a,tr)
-            spc_b = trim(spc_b,tr)
-            spc_c = trim(spc_c,tr)
-            spc_d = trim(spc_d,tr)
-            
-            mv_lo = trim(mv_lo,tr)
-            mv_hi = trim(mv_hi,tr)
-            
-            if conflateAndDownsampleSpectra == True:
-                monitor.setLabel('Downsampling') 
-                
-                (spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
-                (spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,mv_hi,smoothSeconds)
-                (spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,mv_hi,smoothSeconds)
-                (spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,mv_hi,smoothSeconds)
-                
-                spc_a = spc_a_smooth_downsampled_mean
-                spc_b = spc_b_smooth_downsampled_mean
-                spc_c = spc_c_smooth_downsampled_mean
-                spc_d = spc_d_smooth_downsampled_mean
-    #            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds/3.)
-    #            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds/3.)
-    #            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds/3.)
-    #            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds/3.)
-                
-                mv_lo = mv_lo_downsampled
-                mv_hi = mv_hi_downsampled
-                
-                #mv_lo = spc_a.property(QDataSet.DEPEND_1)
-                mv_lo.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
-                mv_hi.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
-                #mv_hi = synchronize(mv_lo,mv_hi) #This will lead to some errors when interpolating across changing bin sizes. Could fix in the smoothAndD... subprocess
-                
-            
-            print 'Smoothing and downsampling data took:',TimeUtil.now()-time_last
-            time_last = TimeUtil.now()
-        
-        badLowVoltagePoints = where(lt(mv_lo,minVoltage))
-        spc_a[badLowVoltagePoints] = 0
-        spc_b[badLowVoltagePoints] = 0
-        spc_c[badLowVoltagePoints] = 0
-        spc_d[badLowVoltagePoints] = 0
-        
-        monitor.setLabel('Flow Angles') 
-        spc_list = [spc_a,spc_b,spc_c,spc_d]
-        del(spc_a,spc_b,spc_c,spc_d)
-        
-        totalFlux = sum(spc_list)
-        
-        fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
-        fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
-        
-        U = -(fluxDifference_scy/totalFlux)/0.035 #Negative symbol needed to align with Mike's calculations
-        V = (fluxDifference_scx/totalFlux)/0.035
-        
-        U.putProperty(QDataSet.VALID_MIN,None)
-        V.putProperty(QDataSet.VALID_MIN,None)
-        U.putProperty(QDataSet.VALID_MAX,None)
-        V.putProperty(QDataSet.VALID_MAX,None)
-        
+	# Look for previous instances of the file and skip rather than overwrite
+	if skipPreviousFiles == True:
+		try:
+			if separatePeaksWithL3Values == False:
+				if timeTitle in trCompletedList:
+					print '    File Found in CompletedFiles List'
+					fileAlreadyExists = True
+					vdfList.remove('vdf_full')
+				else:
+					for vdf in vdfList:
+						try:
+							output_file = pegasusPath+'PSP_SPC/SPC_Anisotropy/Anisotropy_Files/TEMP/L0/v%s/'%(version) + '%s/'%year + 'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+							TEMP_epoch = getDataSet(output_file+'?Epoch')
+						except:
+							output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+							TEMP_epoch = getDataSet(output_file+'?Epoch')
+							
+						if ne( long(mode(copy(TEMP_epoch))), 0):
+							print '    File already exists for %s on %s'%(vdf,timeTitle)
+							try:
+								f = open(trCompletedFile, 'a')
+								f.write('\n%s'%timeTitle)
+								f.close()
+								print '    Wrote timerange to CompletedFiles List'
+							except:
+								pass
+							vdfList.remove(vdf)
+					
+			elif separatePeaksWithL3Values == True:
+				for vdf in vdfList:
+					if vdf == 'vdf_full':
+						output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+					else:
+						output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+						print '   ','output file:',output_file
+					TEMP_epoch = getDataSet(output_file+'?Epoch')
+					if ne( long(mode(copy(TEMP_epoch))), 0):
+						print '    File already exists for %s on %s'%(vdf,timeTitle)
+						vdfList.remove(vdf)
+			if len(vdfList) == 0:
+				fileAlreadyExists = True
+		except:
+			fileAlreadyExists = False
+		
+	# Run the big routine    
+	try:
+		if fileAlreadyExists == True:
+			continue
+			#raise fileAlreadyExistsException
+			
+		monitor.setProgressMessage(tr)
+		
+		###
+		### Get L2 SPC Spectra
+		###
+		
+		if usePreviouslyDownsampledData == True:
+			monitor.setLabel('Using Local SPC Downsample') 
+			
+			localDownsampledDataDirectory = googleDrive_path+'Research/PSP/SPC/DownsampledSpectra/%ssec/'%smoothSeconds
+			localDownsampledDataDirectory_localMirror   = pegasusPath+'PSP_SPC/DownsampledSpectra/%ssec/'%smoothSeconds
+			localDownsampledDataFile = 'SPC_DownsampledSpectra_$Y-$m-$d_%ssec.cdf'%(smoothSeconds)
+			try:
+				try:
+					spc_a = getDataSet(localDownsampledDataDirectory_localMirror+localDownsampledDataFile+'?spc_a_mean',tr)
+					spc_b = getDataSet(localDownsampledDataDirectory_localMirror+localDownsampledDataFile+'?spc_b_mean',tr)
+					spc_c = getDataSet(localDownsampledDataDirectory_localMirror+localDownsampledDataFile+'?spc_c_mean',tr)
+					spc_d = getDataSet(localDownsampledDataDirectory_localMirror+localDownsampledDataFile+'?spc_d_mean',tr)
 
-        # This part is in there to match Mike's measurement of Bulk Flow Directions, 
-        # but we should pull it out for our fitting, right? - Yes, right now it filters over index for rank2 instead of DEPEND_1 so you get bad results
+					mv_lo = getDataSet(localDownsampledDataDirectory_localMirror+localDownsampledDataFile+'?mv_lo',tr)
+					mv_hi = getDataSet(localDownsampledDataDirectory_localMirror+localDownsampledDataFile+'?mv_hi',tr)
+					
+					spc_a = trim(spc_a,tr)
+					spc_b = trim(spc_b,tr)
+					spc_c = trim(spc_c,tr)
+					spc_d = trim(spc_d,tr)
+					
+					mv_lo = trim(mv_lo,tr)
+					mv_hi = trim(mv_hi,tr)
+				except:
+					spc_a = getDataSet(localDownsampledDataDirectory+localDownsampledDataFile+'?spc_a_mean',tr)
+					spc_b = getDataSet(localDownsampledDataDirectory+localDownsampledDataFile+'?spc_b_mean',tr)
+					spc_c = getDataSet(localDownsampledDataDirectory+localDownsampledDataFile+'?spc_c_mean',tr)
+					spc_d = getDataSet(localDownsampledDataDirectory+localDownsampledDataFile+'?spc_d_mean',tr)
+					
+					mv_lo = getDataSet(localDownsampledDataDirectory+localDownsampledDataFile+'?mv_lo',tr)
+					mv_hi = getDataSet(localDownsampledDataDirectory+localDownsampledDataFile+'?mv_hi',tr)
+					
+					spc_a = trim(spc_a,tr)
+					spc_b = trim(spc_b,tr)
+					spc_c = trim(spc_c,tr)
+					spc_d = trim(spc_d,tr)
+					
+					mv_lo = trim(mv_lo,tr)
+					mv_hi = trim(mv_hi,tr)
+				print '    Loading downsampled SPC L2 data took:',TimeUtil.now()-time_begin_tr
+				time_last = TimeUtil.now()
+				
+			except:
+				if runSpectraDownsamplerIfFileNotFound:
+					usePreviouslyDownsampledData = False
+				print '    SPC File not found for %s'%(timeTitle)
+				exc_type, exc_value, exc_tb = sys.exc_info()
+				print exc_value
+				print exc_tb
+				raise java.io.FileNotFoundException    
+				
+		elif usePreviouslyDownsampledData == False:
+			monitor.setLabel('Downloading SPC') 
+			if spc_mode == 'peakTrack':
+				try:
+					print cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)'
+					spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(0)',tr)
+					spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(0)',tr)
+					spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(0)',tr)
+					spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(0)',tr)
+					
+					mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(0)',tr)
+					mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(0)',tr)
+				except:
+					noSPCData = None
+					raise java.io.FileNotFoundException
+			elif spc_mode == 'fullScan':
+				output_folder = baseOutputDir+'SPC_Anisotropy/Anisotropy_Files/fullScan/L0/v%s/%s/'%(version, year)
+				monitor.setLabel('Downloading SPC FullScan Data') 
+				try:
+					print '   ','a_current file:',cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(1)'
+					spc_a = getDataSet(cfa_sweap_file+'?a_current&where=MODE_FLAG.eq(1)',tr)
+					spc_b = getDataSet(cfa_sweap_file+'?b_current&where=MODE_FLAG.eq(1)',tr)
+					spc_c = getDataSet(cfa_sweap_file+'?c_current&where=MODE_FLAG.eq(1)',tr)
+					spc_d = getDataSet(cfa_sweap_file+'?d_current&where=MODE_FLAG.eq(1)',tr)
+					
+					mv_lo = getDataSet(cfa_sweap_file+'?mv_lo&where=MODE_FLAG.eq(1)',tr)
+					mv_hi = getDataSet(cfa_sweap_file+'?mv_hi&where=MODE_FLAG.eq(1)',tr)
+				except:
+					noSPCData = None
+					raise java.io.FileNotFoundException
+			
+				
+			print '    Downloading SPC L2 data took:',TimeUtil.now()-time_begin_tr
+			time_last = TimeUtil.now()
+			#spc_list = [spc_a,spc_b,spc_c,spc_d]
+			
+			spc_a = trim(spc_a,tr)
+			spc_b = trim(spc_b,tr)
+			spc_c = trim(spc_c,tr)
+			spc_d = trim(spc_d,tr)
+			
+			mv_lo = trim(mv_lo,tr)
+			mv_hi = trim(mv_hi,tr)
+			
+			if conflateAndDownsampleSpectra == True:
+				monitor.setLabel('Downsampling') 
+				
+				(spc_a_smooth_downsampled_mean, spc_a_smooth_downsampled_median, spc_a_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,mv_hi,smoothSeconds)
+				(spc_b_smooth_downsampled_mean, spc_b_smooth_downsampled_median, spc_b_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,mv_hi,smoothSeconds)
+				(spc_c_smooth_downsampled_mean, spc_c_smooth_downsampled_median, spc_c_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,mv_hi,smoothSeconds)
+				(spc_d_smooth_downsampled_mean, spc_d_smooth_downsampled_median, spc_d_smooth_downsampled_mode, mv_lo_downsampled, mv_hi_downsampled) = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,mv_hi,smoothSeconds)
+				
+				spc_a = spc_a_smooth_downsampled_mean
+				spc_b = spc_b_smooth_downsampled_mean
+				spc_c = spc_c_smooth_downsampled_mean
+				spc_d = spc_d_smooth_downsampled_mean
+	#            spc_a = smoothAndDownsampleSPCByVoltage(spc_a,mv_lo,smoothSeconds/3.)
+	#            spc_b = smoothAndDownsampleSPCByVoltage(spc_b,mv_lo,smoothSeconds/3.)
+	#            spc_c = smoothAndDownsampleSPCByVoltage(spc_c,mv_lo,smoothSeconds/3.)
+	#            spc_d = smoothAndDownsampleSPCByVoltage(spc_d,mv_lo,smoothSeconds/3.)
+				
+				mv_lo = mv_lo_downsampled
+				mv_hi = mv_hi_downsampled
+				
+				#mv_lo = spc_a.property(QDataSet.DEPEND_1)
+				mv_lo.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+				mv_hi.putProperty(QDataSet.DEPEND_0,spc_a.property(QDataSet.DEPEND_0))
+				#mv_hi = synchronize(mv_lo,mv_hi) #This will lead to some errors when interpolating across changing bin sizes. Could fix in the smoothAndD... subprocess
+				
+			
+			print '    Smoothing and downsampling data took:',TimeUtil.now()-time_last
+			time_last = TimeUtil.now()
+		
+		badLowVoltagePoints = where(lt(mv_lo,minVoltage))
+		spc_a[badLowVoltagePoints] = 0
+		spc_b[badLowVoltagePoints] = 0
+		spc_c[badLowVoltagePoints] = 0
+		spc_d[badLowVoltagePoints] = 0
+		
+		monitor.setLabel('Flow Angles') 
+		spc_list = [spc_a,spc_b,spc_c,spc_d]
+		del(spc_a,spc_b,spc_c,spc_d)
+		
+		totalFlux = sum(spc_list)
+		
+		fluxDifference_scx = (spc_list[0]+spc_list[3]) - (spc_list[1]+spc_list[2])
+		fluxDifference_scy = (spc_list[0]+spc_list[1]) - (spc_list[2]+spc_list[3])
+		
+		U = -(fluxDifference_scy/totalFlux)/0.035 #Negative symbol needed to align with Mike's calculations
+		V = (fluxDifference_scx/totalFlux)/0.035
+		
+		U.putProperty(QDataSet.VALID_MIN,None)
+		V.putProperty(QDataSet.VALID_MIN,None)
+		U.putProperty(QDataSet.VALID_MAX,None)
+		V.putProperty(QDataSet.VALID_MAX,None)
+		
+
+		# This part is in there to match Mike's measurement of Bulk Flow Directions, 
+		# but we should pull it out for our fitting, right? - Yes, right now it filters over index for rank2 instead of DEPEND_1 so you get bad results
 #        for j in xrange(len(U[0,:])):
 #            try:
 #                U[:,j] = medianFilter(U[:,j],3)
@@ -493,493 +512,510 @@ for tr in trs:
 #                V[:,j] = medianFilter(V[:,j],3)
 #            except:
 #                continue
-        
-        U.putProperty(QDataSet.UNITS,Units.degrees)
-        V.putProperty(QDataSet.UNITS,Units.degrees)
-        
-        #Are you measuring the slope near the peak in current or near the peak in the velocity distribution function? 
-        #(the VDF goes like current divided by speed time window width in speed units)
-        
-        print 'Calculating Flow Angles took:',TimeUtil.now()-time_last
-        time_last = TimeUtil.now()
-        
-        
-        monitor.setLabel('Defining VDF')
-        if False:
-            centerVoltage = (mv_hi+mv_lo)/2.
-            v_z = sqrt( (2./m_p) * q * centerVoltage ) / 1.E5   # in km/s
-            windowWidths = sqrt( (4./m_p) * q * centerVoltage - v_z**2 )
-            
-            
-        v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
-        #formatDataSet(v_z, '/tmp/tempv_z.cdf')
-        windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
-        vdf_full = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
-        vdf_full.putProperty(QDataSet.DEPEND_1,v_z)
-        #vdfList.append('vdf_full')
-        del(windowWidths,mv_hi)
-        
-        spitOutVDFData = True
-        if spitOutVDFData:
-            vdf_full.putProperty(QDataSet.NAME, 'vdf_full')
-            vdf_full.putProperty(QDataSet.LABEL, 'vdf_full')
-            #vdfBindle = bundle(vdf_full, v_z)
-            mkdir('/tmp/autoplot/anisotropyVDF/')
-            formatDataSet(vdf_full, '/tmp/autoplot/anisotropyVDF/anisotropyVDF%s.cdf'%(timeTitle))
-        
-        
-        # This step is meant to be a further step in removing full scans, but is probably not set properly
+		
+		U.putProperty(QDataSet.UNITS,Units.degrees)
+		V.putProperty(QDataSet.UNITS,Units.degrees)
+		
+		#Are you measuring the slope near the peak in current or near the peak in the velocity distribution function? 
+		#(the VDF goes like current divided by speed time window width in speed units)
+		
+		print '    Calculating Flow Angles took:',TimeUtil.now()-time_last
+		time_last = TimeUtil.now()
+		
+		
+		monitor.setLabel('Defining VDF')
+		if False:
+			centerVoltage = (mv_hi+mv_lo)/2.
+			v_z = sqrt( (2./m_p) * q * centerVoltage ) / 1.E5   # in km/s
+			windowWidths = sqrt( (4./m_p) * q * centerVoltage - v_z**2 )
+			
+			
+		v_z = sqrt( (2./m_p) * q*(mv_lo + (mv_hi-mv_lo)/2.) ) / 1.E5   # in km/s
+		#formatDataSet(v_z, '/tmp/tempv_z.cdf')
+		windowWidths = sqrt( (2./m_p) * q*(mv_hi-mv_lo)/2.) / 1.E5
+		vdf_full = totalFlux/(v_z*windowWidths)*1.66667E3 #This factor seems arbitrary, but is necessary to line up with Mike's L3 values.
+		vdf_full.putProperty(QDataSet.DEPEND_1,v_z)
+		#vdfList.append('vdf_full')
+		del(windowWidths,mv_hi)
+		
+		spitOutVDFData = False
+		if spitOutVDFData:
+			vdf_full.putProperty(QDataSet.NAME, 'vdf_full')
+			vdf_full.putProperty(QDataSet.LABEL, 'vdf_full')
+			#vdfBindle = bundle(vdf_full, v_z)
+			mkdir('/tmp/autoplot/anisotropyVDF/')
+			formatDataSet(vdf_full, '/tmp/autoplot/anisotropyVDF/anisotropyVDF%s.cdf'%(timeTitle))
+		
+		
+		# This step is meant to be a further step in removing full scans, but is probably not set properly
 #        if manuallyRemoveFullScans == True:
 #            for i in xrange(len(v_z)):
 #                if gt(v_z[i,max(where(valid(v_z[i,:])))] - v_z[i,min(where(valid(v_z[i,:])))],500):
 #                    vdf[i,:] = -1E38
-        
-        totalFlux.putProperty(QDataSet.DEPEND_1,mv_lo)
-        #peaks = reduceMax(totalFlux,1)
-        #r = where(eq(totalFlux,peaks))
-        peaks = reduceMax(vdf_full,1)
-        peaks_smooth = synchronize( vdf_full, medianFilter(peaks[where(valid(peaks))],5) )
-        r = where(eq(vdf_full,peaks))
-        r_smooth = where(eq(vdf_full,peaks_smooth))
-        
-        
-        print 'Defining VDF took:',TimeUtil.now()-time_last
-        time_last = TimeUtil.now()
-        
-        # If we want to mask out instrument noise away from the distribution, we can import the L3 fits to identify "good" data
-        if maskNoiseWithL3Fits:
-            DQF = getDataSet(sweap_spc_L3_file+'?DQF',tr)
-            goodFlags = where(eq(DQF[:,0],0))
+		
+		totalFlux.putProperty(QDataSet.DEPEND_1,mv_lo)
+		#peaks = reduceMax(totalFlux,1)
+		#r = where(eq(totalFlux,peaks))
+		peaks = reduceMax(vdf_full,1)
+		peaks_smooth = synchronize( vdf_full, medianFilter(peaks[where(valid(peaks))],5) )
+		r = where(eq(vdf_full,peaks))
+		r_smooth = where(eq(vdf_full,peaks_smooth))
+		
+		#v_z_atPeak = v_z[r_smooth] 
+		#plot(0,v_z[r_smooth])
+		
+		print '    Defining VDF took:',TimeUtil.now()-time_last
+		time_last = TimeUtil.now()
+		
+		# If we want to mask out instrument noise away from the distribution, we can import the L3 fits to identify "good" data
+		if maskNoiseWithL3Fits:
+			DQF = getDataSet(sweap_spc_L3_file+'?DQF',tr)
+			goodFlags = where(eq(DQF[:,0],0))
 
-            np_fit    = getDataSet(sweap_spc_L3_file+'?np_fit',   tr)#[goodFlags]
-            wp_fit    = getDataSet(sweap_spc_L3_file+'?wp_fit',   tr)#[goodFlags]
-            vp_fit_SC = getDataSet(sweap_spc_L3_file+'?vp_fit_SC',tr)#[goodFlags]
-            vp_fit = magnitude(vp_fit_SC)
-            spc_time = np_fit.property(QDataSet.DEPEND_0)
-            
-            (np_fit, wp_fit, vp_fit) = synchronize(vdf_full, [np_fit, wp_fit, vp_fit])
-            
-            # Define Gaussian parameters
-            cp = wp_fit            
-            ap = np_fit / (cp*sqrt(PI))         
-            bp = vp_fit
-            
-            v_space = copy(v_z)
-            v_space_time = v_space.property(QDataSet.DEPEND_0)
-            vdf_p  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
-            v_index = 0
-            for v_index in xrange(len(v_space[0,:])):
-                vdf_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2)))
-            
-            vdf_p.putProperty(QDataSet.DEPEND_0,v_space_time)
-            vdf_p.putProperty(QDataSet.DEPEND_1,v_space)
-            vdf_p.putProperty(QDataSet.VALID_MIN,1E-10)
-            vdf_p.putProperty(QDataSet.VALID_MAX,1E10)
-            
-            vdf_pNormalized = normalize(vdf_p, 1) # If column normalizing is so easy, why do we only normalize within a group of 4 seconds in the workhorse fitting code?
-            bottom = where(lt(vdf_pNormalized, 0.3)) # This value is chosen so we don't throw everything out below one thermal width at this stage, in case there are gradient differences between spectra measurements
-            vdf_full[bottom] = -1
-        
-        # If we want to use the peaks as weights in fitting, import L3 data and build model distributions
-        if separatePeaksWithL3Values == True:
-            
-            DQF = getDataSet(sweap_spc_L3_file+'?DQF',tr)
-            goodFlags = where(eq(DQF[:,0],0))
+			np_fit    = getDataSet(sweap_spc_L3_file+'?np_fit',   tr)#[goodFlags]
+			wp_fit    = getDataSet(sweap_spc_L3_file+'?wp_fit',   tr)#[goodFlags]
+			vp_fit_SC = getDataSet(sweap_spc_L3_file+'?vp_fit_SC',tr)#[goodFlags]
+			vp_fit = magnitude(vp_fit_SC)
+			spc_time = np_fit.property(QDataSet.DEPEND_0)
+			
+			(np_fit, wp_fit, vp_fit) = synchronize(vdf_full, [np_fit, wp_fit, vp_fit])
+			
+			# Define Gaussian parameters
+			cp = wp_fit            
+			ap = np_fit / (cp*sqrt(PI))         
+			bp = vp_fit
+			
+			v_space = copy(v_z)
+			v_space_time = v_space.property(QDataSet.DEPEND_0)
+			vdf_p  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+			v_index = 0
+			for v_index in xrange(len(v_space[0,:])):
+				vdf_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2)))
+			
+			vdf_p.putProperty(QDataSet.DEPEND_0,v_space_time)
+			vdf_p.putProperty(QDataSet.DEPEND_1,v_space)
+			vdf_p.putProperty(QDataSet.VALID_MIN,1E-10)
+			vdf_p.putProperty(QDataSet.VALID_MAX,1E10)
+			
+			vdf_pNormalized = normalize(vdf_p, 1) # If column normalizing is so easy, why do we only normalize within a group of 4 seconds in the workhorse fitting code?
+			bottom = where(lt(vdf_pNormalized, 0.3)) # This value is chosen so we don't throw everything out below one thermal width at this stage, in case there are gradient differences between spectra measurements
+			vdf_full[bottom] = -1
+		
+		# If we want to use the peaks as weights in fitting, import L3 data and build model distributions
+		if separatePeaksWithL3Values:
+			
+			DQF = getDataSet(sweap_spc_L3_file+'?DQF',tr)
+			goodFlags = where(eq(DQF[:,0],0))
 
-            np_fit = getDataSet(sweap_spc_L3_file+'?np_fit',tr)[goodFlags]
-            wp_fit = getDataSet(sweap_spc_L3_file+'?wp_fit',tr)[goodFlags]
-            vp_fit_SC = getDataSet(sweap_spc_L3_file+'?vp_fit_SC',tr)[goodFlags]
-            vp_fit = magnitude(vp_fit_SC)
-            spc_time = np_fit.property(QDataSet.DEPEND_0)
-            
-            np1_fit = getDataSet(sweap_spc_L3_file+'?np1_fit',tr)[goodFlags]
-            wp1_fit = getDataSet(sweap_spc_L3_file+'?wp1_fit',tr)[goodFlags]
-            vp1_fit_SC = getDataSet(sweap_spc_L3_file+'?vp1_fit_SC',tr)[goodFlags]
-            vp1_fit = magnitude(vp1_fit_SC)
-            
-            n3_fit = getDataSet(sweap_spc_L3_file+'?n3_fit',tr)[goodFlags]
-            w3_fit = getDataSet(sweap_spc_L3_file+'?w3_fit',tr)[goodFlags]
-            v3_fit_SC = getDataSet(sweap_spc_L3_file+'?v3_fit_SC',tr)[goodFlags]
-            v3_fit = magnitude(v3_fit_SC)
-            
-            na_fit = getDataSet(sweap_spc_L3_file+'?na_fit',tr)[goodFlags]
-            wa_fit = getDataSet(sweap_spc_L3_file+'?wa_fit',tr)[goodFlags]
-            va_fit_SC = getDataSet(sweap_spc_L3_file+'?va_fit_SC',tr)[goodFlags]
-            va_fit = magnitude(va_fit_SC)
-            
-            # Define Gaussian parameters
-            cp = wp_fit            
-            ap = np_fit / (cp*sqrt(PI))         
-            bp = vp_fit
-            
-            cp1 = wp1_fit     
-            ap1 = np1_fit / (cp1*sqrt(PI))                
-            bp1 = vp1_fit
-            
-            c3 = w3_fit     
-            a3 = n3_fit / (c3*sqrt(PI))                
-            b3 = v3_fit
-            
-            ca = wa_fit    
-            aa = (na_fit/2.) / (ca*sqrt(PI))                 
-            ba = va_fit * sqrt(2.)
-            
-            (ap,bp,cp) = synchronize(v_z,[ap,bp,cp])
-            (ap1,bp1,cp1) = synchronize(v_z,[ap1,bp1,cp1])
-            (a3,b3,c3) = synchronize(v_z,[a3,b3,c3])
-            (aa,ba,ca) = synchronize(v_z,[aa,ba,ca])
-            
-            
-            v_space = copy(v_z)
-            v_space_time = v_space.property(QDataSet.DEPEND_0)
-            vdf_p  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
-            vdf_p1 = dblarr(len(v_z[:,0]),len(v_z[0,:]))
-            vdf_3  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
-            vdf_a  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
-            v_index = 0
-            for v_index in xrange(len(v_space[0,:])):
-                
-                #peak_p[:,v_index]  = ap*exp(-((v_space[:,v_index] - bp)**2 / (2*cp**2)))
-                #peak_p1[:,v_index] = ap1*exp(-((v_space[:,v_index] - bp1)**2 / (2*cp1**2)))
-                #peak_a[:,v_index]  = aa*exp(-((v_space_a[:,v_index] - ba)**2 / (2*ca**2)))
-                
-                vdf_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2)))
-                vdf_p1[:,v_index] = ap1*exp(-((v_space[:,v_index]   - bp1)**2 / (cp1**2)))
-                vdf_3[:,v_index]  = a3 *exp(-((v_space[:,v_index]   - b3 )**2 / (c3**2)))
-                vdf_a[:,v_index]  = aa *exp(-((v_space[:,v_index]   - ba )**2 / (ca**2)))
-                #v_index+=1
-            
-            vdf_p.putProperty(QDataSet.DEPEND_0,v_space_time)
-            vdf_p.putProperty(QDataSet.DEPEND_1,v_space)
-            vdf_p.putProperty(QDataSet.VALID_MIN,1E-10)
-            vdf_p.putProperty(QDataSet.VALID_MAX,1E10)
-            
-            vdf_p1.putProperty(QDataSet.DEPEND_0,v_space_time)
-            vdf_p1.putProperty(QDataSet.DEPEND_1,v_space)
-            vdf_p1.putProperty(QDataSet.VALID_MIN,1E-10)
-            vdf_p1.putProperty(QDataSet.VALID_MAX,1E10)
-            
-            vdf_3.putProperty(QDataSet.DEPEND_0,v_space_time)
-            vdf_3.putProperty(QDataSet.DEPEND_1,v_space)
-            vdf_3.putProperty(QDataSet.VALID_MIN,1E-10)
-            vdf_3.putProperty(QDataSet.VALID_MAX,1E10)
-            
-            vdf_a.putProperty(QDataSet.DEPEND_0,v_space_time)
-            vdf_a.putProperty(QDataSet.DEPEND_1,v_space)
-            vdf_a.putProperty(QDataSet.VALID_MIN,0)
-            vdf_a.putProperty(QDataSet.VALID_MAX,1E20)
-            
-            #plot(0,vdf_p1)
-            #plot(1,vdf_3)
-            #plot(2,vdf_a)
+			np_fit = getDataSet(sweap_spc_L3_file+'?np_fit',tr)[goodFlags]
+			wp_fit = getDataSet(sweap_spc_L3_file+'?wp_fit',tr)[goodFlags]
+			vp_fit_SC = getDataSet(sweap_spc_L3_file+'?vp_fit_SC',tr)[goodFlags]
+			vp_fit = magnitude(vp_fit_SC)
+			spc_time = np_fit.property(QDataSet.DEPEND_0)
+			
+			np1_fit = getDataSet(sweap_spc_L3_file+'?np1_fit',tr)[goodFlags]
+			wp1_fit = getDataSet(sweap_spc_L3_file+'?wp1_fit',tr)[goodFlags]
+			vp1_fit_SC = getDataSet(sweap_spc_L3_file+'?vp1_fit_SC',tr)[goodFlags]
+			vp1_fit = magnitude(vp1_fit_SC)
+			
+			n3_fit = getDataSet(sweap_spc_L3_file+'?n3_fit',tr)[goodFlags]
+			w3_fit = getDataSet(sweap_spc_L3_file+'?w3_fit',tr)[goodFlags]
+			v3_fit_SC = getDataSet(sweap_spc_L3_file+'?v3_fit_SC',tr)[goodFlags]
+			v3_fit = magnitude(v3_fit_SC)
+			
+			na_fit = getDataSet(sweap_spc_L3_file+'?na_fit',tr)[goodFlags]
+			wa_fit = getDataSet(sweap_spc_L3_file+'?wa_fit',tr)[goodFlags]
+			va_fit_SC = getDataSet(sweap_spc_L3_file+'?va_fit_SC',tr)[goodFlags]
+			va_fit = magnitude(va_fit_SC)
+			
+			# Define Gaussian parameters
+			cp = wp_fit            
+			ap = np_fit / (cp*sqrt(PI))         
+			bp = vp_fit
+			
+			cp1 = wp1_fit     
+			ap1 = np1_fit / (cp1*sqrt(PI))                
+			bp1 = vp1_fit
+			
+			c3 = w3_fit     
+			a3 = n3_fit / (c3*sqrt(PI))                
+			b3 = v3_fit
+			
+			ca = wa_fit    
+			aa = (na_fit/2.) / (ca*sqrt(PI))                 
+			ba = va_fit * sqrt(2.)
+			
+			(ap,bp,cp) = synchronize(v_z,[ap,bp,cp])
+			(ap1,bp1,cp1) = synchronize(v_z,[ap1,bp1,cp1])
+			(a3,b3,c3) = synchronize(v_z,[a3,b3,c3])
+			(aa,ba,ca) = synchronize(v_z,[aa,ba,ca])
+			
+			
+			v_space = copy(v_z)
+			v_space_time = v_space.property(QDataSet.DEPEND_0)
+			vdf_p  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+			vdf_p1 = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+			vdf_3  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+			vdf_a  = dblarr(len(v_z[:,0]),len(v_z[0,:]))
+			v_index = 0
+			for v_index in xrange(len(v_space[0,:])):
+				
+				#peak_p[:,v_index]  = ap*exp(-((v_space[:,v_index] - bp)**2 / (2*cp**2)))
+				#peak_p1[:,v_index] = ap1*exp(-((v_space[:,v_index] - bp1)**2 / (2*cp1**2)))
+				#peak_a[:,v_index]  = aa*exp(-((v_space_a[:,v_index] - ba)**2 / (2*ca**2)))
+				
+				vdf_p[:,v_index]  = ap *exp(-((v_space[:,v_index]   - bp )**2 / (cp**2)))
+				vdf_p1[:,v_index] = ap1*exp(-((v_space[:,v_index]   - bp1)**2 / (cp1**2)))
+				vdf_3[:,v_index]  = a3 *exp(-((v_space[:,v_index]   - b3 )**2 / (c3**2)))
+				vdf_a[:,v_index]  = aa *exp(-((v_space[:,v_index]   - ba )**2 / (ca**2)))
+				#v_index+=1
+			
+			vdf_p.putProperty(QDataSet.DEPEND_0,v_space_time)
+			vdf_p.putProperty(QDataSet.DEPEND_1,v_space)
+			vdf_p.putProperty(QDataSet.VALID_MIN,1E-10)
+			vdf_p.putProperty(QDataSet.VALID_MAX,1E10)
+			
+			vdf_p1.putProperty(QDataSet.DEPEND_0,v_space_time)
+			vdf_p1.putProperty(QDataSet.DEPEND_1,v_space)
+			vdf_p1.putProperty(QDataSet.VALID_MIN,1E-10)
+			vdf_p1.putProperty(QDataSet.VALID_MAX,1E10)
+			
+			vdf_3.putProperty(QDataSet.DEPEND_0,v_space_time)
+			vdf_3.putProperty(QDataSet.DEPEND_1,v_space)
+			vdf_3.putProperty(QDataSet.VALID_MIN,1E-10)
+			vdf_3.putProperty(QDataSet.VALID_MAX,1E10)
+			
+			vdf_a.putProperty(QDataSet.DEPEND_0,v_space_time)
+			vdf_a.putProperty(QDataSet.DEPEND_1,v_space)
+			vdf_a.putProperty(QDataSet.VALID_MIN,0)
+			vdf_a.putProperty(QDataSet.VALID_MAX,1E20)
+			
+			#plot(0,vdf_p1)
+			#plot(1,vdf_3)
+			#plot(2,vdf_a)
 #
 #            vdfList.append('vdf_p1')
 #            vdfList.append('vdf_3')
 #            vdfList.append('vdf_a')
-            #stop
-            
-            print 'Building Peaks took:',TimeUtil.now()-time_last
-            time_last = TimeUtil.now()
-        
-        
-        vz_tanTheta = v_z * tan(toRadians(V))     # Vx
-        vz_tanPhi   = v_z * tan(toRadians(-U))     # Vy The negative sign here is to align the velocity with the sc coordinate system (sc_y = -spc_y)
-        #plot(vz_tanPhi)
-        #stop
-        
-        # This is a dumb thing to do, fix it. U is bulk solar wind flow, not s/c velocity. We shouldn't care about aberration
-        try:
-            if hostName in serverList:
-                psp_ephem_file_local = '/psp/data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
-            else:
-                psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
-                psp_ephem_file_local = 'G:/Shared drives/PSP_SWEAP/INSTRUMENT/SPC/Operations/data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
-            psp_ephem_file = psp_ephem_file_local #Some day I need to figure out how to grab a nonlocal copy of these files
-            v_scz = getDataSet(psp_ephem_file+'?SC_VR_kms',tr)
-            v_scx = getDataSet(psp_ephem_file+'?SC_VORB_kms',tr)
-            v_scy = getDataSet(psp_ephem_file+'?SC_VZ_kms',tr)
-            u_x = synchronize(v_z,v_scx)
-            u_y = synchronize(v_z,v_scy)
-            u_z = synchronize(v_z,v_scz)
-            u_x = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
-            u_y = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
-            u_z = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
-        except(java.io.FileNotFoundException):
-            print 'PSP ephemeris file not found at', psp_ephem_file
-            break
-        
-        
-        #if 'alreadyPlottedOnce' not in globals():
-            #setLayoutOverplot(4) 
-        reset()
-        load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
-        
-        #plot(0,totalFlux)
-        plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF!C!C(cm!U-3!N km!U-1!N s)',zlog=True,title='%s-sec downsample,  %s-sec fit'%(smoothSeconds,fitSeconds))
-        plot(1,v_z[r_smooth])
-        #alreadyPlottedOnce = True
-        #stop
-        #plot(0,vz_tanTheta-synchronize(vz_tanTheta,u_x))
-        
-        #####
-        ##########
-        #################
-        if use4SaPerCycMagFiles:
-            try:
-            #if True:
-                mag_datafile = '/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
-                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',tr)
-                print 'Used mag data from:',mag_datafile
-            except:
-                mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
-                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',tr)
-                print 'Used mag data from:',mag_datafile
-        else:    
-            if useLocalCachedMagFiles:
-                try:
-                    mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
-                    mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
-                    print 'Used mag data from:',mag_datafile
-                except:
-                    mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
-                    mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
-                    print 'Used mag data from:',mag_datafile
-            else:
-                # Why was this using the full-resolution data instead of the 1min product? I am smoothing it on that order anyway, this was a dumb choice.
-                try:
-                    # First try public 1min data
-                    mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
-                    mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
-                    print 'Used mag data from:',mag_datafile
-                except:
-                    try:
-                        # Then try team 1min data
-                        mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
-                        mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
-                        print 'Used mag data from:',mag_datafile
-                    except:
-                        try:
-                            # Then start probing the full-resolution files to see if anything is there
-                            mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-                            mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
-                            print 'Used mag data from:',mag_datafile
-                        except:
-                            try:
-                                mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
-                                mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
-                                print 'Used mag data from:',mag_datafile
-                            except:
-                                mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
-                                mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
-                                print 'Used mag data from:',mag_datafile
-                    
-        #mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
-        mag = trim(mag,tr)
-        
-        mag_time = mag.property(QDataSet.DEPEND_0)
-        
-        #pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
-        #pos_time = pos.property(QDataSet.DEPEND_0)
-        
-        Bx = mag[:,0]
-        By = mag[:,1]
-        Bz = mag[:,2]
-        Btotal = magnitude(mag)
-        #plot(6, mag, renderType='series')
-        
-        # These inputs are arbitrary since we don't really care what the B_perp directions are for now. Does not affect outcome
-        TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-        TEMP_Ry = putProperty(-1*ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-        TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
-        
-        
-        ( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
-        #plot(6,Bx)
-        
-        #################
-        ##########
-        #####
-        
-        print 'Downloading MAG Data took:',TimeUtil.now()-time_last
-        time_last = TimeUtil.now()
-        
-        plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
-        #plot(6,mag_time,bundle(toDegrees(atan2(Nx,Nz)),toDegrees(atan2(Ny,Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
-            
-        
-        for vdf in vdfList:
-            if vdf == 'vdf_full':
-                vdf_in = vdf_full
-                u_x_in = u_x
-                u_y_in = u_y
-                u_z_in = u_z
-                (Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
-                vdf_label = 'VDF!BTot.!N (cm!U-3!N km!U-1!N s)' 
-                
-                plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True, xrange=tr)
-                (chiline, psiline, chiSquaredReduced_chi, chiSquaredReduced_psi,
-                    rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
-                    epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
-                    epsilonEpoch, anisotropy_chi_deltaPlus,
-                    anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
-                    anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev) = findVDFAnisotropy(-v_z, vz_tanPhi, vz_tanTheta, 
-                                                 u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, Ny_temp, Nz_temp, 
-                                                 minNormalizedFluxValue=0.5, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
-                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
-                plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
-                plot(5,epsilonEpoch,bundle(slopeError_chi,slopeError_psi), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
-                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
-                
-            elif vdf == 'vdf_p1':
-                vdf_in = vdf_p1
-                vp1_fit_SC = synchronize(vdf_p1,vp1_fit_SC)
-                u_x_in = vp1_fit_SC[:,0]
-                u_y_in = vp1_fit_SC[:,1]
-                u_z_in = vp1_fit_SC[:,2]
-                (Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
-                vdf_label = 'VDF!BCore!N (cm!U-3!N km!U-1!N s)'
-                minFluxValueForFit = 0
-                
-                plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True)
-                (chiline_p1, psiline_p1, chiSquaredReduced_chi_p1, chiSquaredReduced_psi_p1,
-                    rSquared_chi_p1, rSquared_psi_p1, slopeError_chi_p1, slopeError_psi_p1,
-                    epsilon_chi_p1, epsilon_psi_p1, anisotropy_chi_p1, anisotropy_psi_p1, 
-                    epsilonEpoch_p1, anisotropy_chi_deltaPlus_p1, anisotropy_chi_deltaMinus_p1,
-                    anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1, anisotropy_chi_standardDev_p1, anisotropy_psi_standardDev_p1) = findVDFAnisotropy(-v_z, vz_tanPhi,
-                                                 vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
-                                                 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
-                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
-                plot(4,epsilonEpoch_p1,bundle(anisotropy_chi_p1,anisotropy_psi_p1), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
-                plot(5,epsilonEpoch_p1,bundle(slopeError_chi_p1,slopeError_psi_p1), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
-                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
-                
-            elif vdf == 'vdf_3':
-                vdf_in = vdf_3
-                v3_fit_SC = synchronize(vdf_3,v3_fit_SC)
-                u_x_in = v3_fit_SC[:,0]
-                u_y_in = v3_fit_SC[:,1]
-                u_z_in = v3_fit_SC[:,2]
-                (Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
-                vdf_label = 'VDF!BBeam!N (cm!U-3!N km!U-1!N s)'
-                minFluxValueForFit = 0
-                
-                plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True)
-                (chiline_3, psiline_3, chiSquaredReduced_chi_3, chiSquaredReduced_psi_3,
-                    rSquared_chi_3, rSquared_psi_3, slopeError_chi_3, slopeError_psi_3,
-                    epsilon_chi_3, epsilon_psi_3, anisotropy_chi_3, anisotropy_psi_3, 
-                    epsilonEpoch_3, anisotropy_chi_deltaPlus_3, anisotropy_chi_deltaMinus_3,
-                    anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3, anisotropy_chi_standardDev_3, anisotropy_psi_standardDev_3) = findVDFAnisotropy(-v_z, vz_tanPhi,
-                                                 vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
-                                                 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
-                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
-                plot(4,epsilonEpoch_3,bundle(anisotropy_chi_3,anisotropy_psi_3), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
-                plot(5,epsilonEpoch_3,bundle(slopeError_chi_3,slopeError_psi_3), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
-                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
-                
-            elif vdf == 'vdf_a':
-                vdf_in = vdf_a
-                va_fit_SC = synchronize(vdf_a,va_fit_SC)
-                u_x_in = va_fit_SC[:,0]
-                u_y_in = va_fit_SC[:,1]
-                u_z_in = va_fit_SC[:,2]
-                (Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
-                vdf_label = 'VDF!BAlpha!N (cm!U-3!N km!U-1!N s)'
-                minFluxValueForFit = 0
-                
-                plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True)
-                (chiline_a, psiline_a, chiSquaredReduced_chi_a, chiSquaredReduced_psi_a,
-                    rSquared_chi_a, rSquared_psi_a, slopeError_chi_a, slopeError_psi_a,
-                    epsilon_chi_a, epsilon_psi_a, anisotropy_chi_a, anisotropy_psi_a, 
-                    epsilonEpoch_a, anisotropy_chi_deltaPlus_a, anisotropy_chi_deltaMinus_a,
-                    anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a, anisotropy_chi_standardDev_a, anisotropy_psi_standardDev_a) = findVDFAnisotropy(-v_z, vz_tanPhi,
-                                                 vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
-                                                 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
-                load(googleDrive_path+'Research/PSP/SPC/SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap')
-                plot(4,epsilonEpoch_a,bundle(anisotropy_chi_a,anisotropy_psi_a), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
-                plot(5,epsilonEpoch_a,bundle(slopeError_chi_a,slopeError_psi_a), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
-                #plot(6,bundle(anisotropy_chi_a,anisotropy_psi_a),ylog=True)
-                plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
-        
-        
-            #Btotal_in = synchronize(chiline,Btotal)
-            
-            
-            
-            # ###
-            # ### WRITE STUFF
-            # ###
-            
-        if writeStuff == True:
-            mkdir(output_folder)
-            if analyzingTimeWidthComparisons == True:
-                output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec_%ssec.cdf'%(timeTitle,version,str(smoothSeconds),str(fitSeconds))
-            elif analyzingTimeWidthComparisons == False:
-                output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
-                #output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
-            
-            
-            for vdf in vdfList:
-                time_write_begin = TimeUtil.now()
-                print 'writing %s file'%(vdf)
-                if vdf == 'vdf_full':
-                    tempB = synchronize(chiline,[Nx,Ny,Nz])
-                    Bunit = bundle(tempB[0],tempB[1],tempB[2])
-                    Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
-                    Btotal_in = synchronize(Bunit,Btotal)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline, psiline, 
-                         chiSquaredReduced_chi, chiSquaredReduced_psi,
-                         rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
-                         epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
-                         epsilonEpoch, anisotropy_chi_deltaPlus,
-                         anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
-                         anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, 
-                         anisotropy_psi_standardDev)
-                     #plot(epsilonEpoch)
-                     #print epsilonEpoch.property(QDataSet.UNITS)
-                         
-                elif vdf == 'vdf_p1':
-                    tempB = synchronize(chiline_p1,[Nx,Ny,Nz])
-                    Bunit = bundle(tempB[0],tempB[1],tempB[2])
-                    Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_p1)
-                    Btotal_in = synchronize(Bunit,Btotal)
-                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_p1, psiline_p1, 
-                        chiSquaredReduced_chi_p1, chiSquaredReduced_psi_p1,
-                        rSquared_chi_p1, rSquared_psi_p1, slopeError_chi_p1, slopeError_psi_p1,
-                        epsilon_chi_p1, epsilon_psi_p1, anisotropy_chi_p1, anisotropy_psi_p1, 
-                        epsilonEpoch_p1, anisotropy_chi_deltaPlus_p1, anisotropy_chi_deltaMinus_p1,
-                        anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1, anisotropy_chi_standardDev_p1, 
-                         anisotropy_psi_standardDev_p1)
-                        
-                elif vdf == 'vdf_3':
-                    tempB = synchronize(chiline_3,[Nx,Ny,Nz])
-                    Bunit = bundle(tempB[0],tempB[1],tempB[2])
-                    Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_3)
-                    Btotal_in = synchronize(Bunit,Btotal)
-                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_3, psiline_3, 
-                        chiSquaredReduced_chi_3, chiSquaredReduced_psi_3,
-                        rSquared_chi_3, rSquared_psi_3, slopeError_chi_3, slopeError_psi_3,
-                        epsilon_chi_3, epsilon_psi_3, anisotropy_chi_3, anisotropy_psi_3, 
-                        epsilonEpoch_3, anisotropy_chi_deltaPlus_3, anisotropy_chi_deltaMinus_3,
-                        anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3, anisotropy_chi_standardDev_3, 
-                        anisotropy_psi_standardDev_3)
-                                                     
-                elif vdf == 'vdf_a':
-                    tempB = synchronize(chiline_a,[Nx,Ny,Nz])
-                    Bunit = bundle(tempB[0],tempB[1],tempB[2])
-                    Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_a)
-                    Btotal_in = synchronize(Bunit,Btotal)
-                    output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
-                    writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_a, psiline_a, 
-                        chiSquaredReduced_chi_a, chiSquaredReduced_psi_a,
-                        rSquared_chi_a, rSquared_psi_a, slopeError_chi_a, slopeError_psi_a,
-                        epsilon_chi_a, epsilon_psi_a, anisotropy_chi_a, anisotropy_psi_a, 
-                        epsilonEpoch_a, anisotropy_chi_deltaPlus_a, anisotropy_chi_deltaMinus_a,
-                        anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a, anisotropy_chi_standardDev_a, 
-                        anisotropy_psi_standardDev_a)
-            
-    except:
-        import traceback
-        traceback.print_exc()
-        continue
+			#stop
+			
+			print '    Building Peaks took:',TimeUtil.now()-time_last
+			time_last = TimeUtil.now()
+		
+		
+		vz_tanTheta = v_z * tan(toRadians(V))     # Vx
+		vz_tanPhi   = v_z * tan(toRadians(-U))     # Vy The negative sign here is to align the velocity with the sc coordinate system (sc_y = -spc_y)
+		
+		# This is a dumb thing to do, fix it. U is bulk solar wind flow, not s/c velocity. We shouldn't care about aberration
+		try:
+			if hostname in serverList:
+				psp_ephem_file_local = '/psp/data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+			else:
+				#psp_ephem_file_local = googleDrive_path+'Research/PSP/Ephemeris/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+				psp_ephem_file_local = 'G:/Shared drives/PSP_SWEAP/INSTRUMENT/SPC/Operations/data/sci/sweap/spc/EPHEMERIS/$Y/$m/spp_swp_spc_ephem_$Y$m$d_v$v.cdf'
+			psp_ephem_file = psp_ephem_file_local #Some day I need to figure out how to grab a nonlocal copy of these files
+			v_scz = getDataSet(psp_ephem_file+'?SC_VR_kms',tr)
+			v_scx = getDataSet(psp_ephem_file+'?SC_VORB_kms',tr)
+			v_scy = getDataSet(psp_ephem_file+'?SC_VZ_kms',tr)
+			u_x = synchronize(v_z,v_scx)
+			u_y = synchronize(v_z,v_scy)
+			u_z = synchronize(v_z,v_scz)
+			u_x = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
+			u_y = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
+			u_z = putProperty( zeros(len(v_z)), QDataSet.DEPEND_0, v_z.property(QDataSet.DEPEND_0))
+		except(java.io.FileNotFoundException):
+			print '    PSP ephemeris file not found at', psp_ephem_file
+			break
+				
+		# Bulk flow direction from peak (should just calculate moments or do a cap fit)
+		u_x = vz_tanTheta[r_smooth]
+		u_y = vz_tanPhi[r_smooth]
+		u_z = v_z[r_smooth]
+		
+		###
+		### BEGIN PLOTTING
+		###
+		
+		reset()
+		plotTemplate = baseOutputDir+'SPC_Anisotropy/Anisotropy_Files/L0/anisotropyFromMath_DayOverviewPlotter.vap'
+		load(plotTemplate)
+		
+		#plot(0,totalFlux)
+		plot(0,vdf_full,xrange=tr, colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle='VDF!C!C(cm!U-3!N km!U-1!N s)',zlog=True,title='%s-sec downsample,  %s-sec fit'%(smoothSeconds,fitSeconds))
+		plot(1,v_z[r_smooth])
+		#alreadyPlottedOnce = True
+		#stop
+		#plot(0,vz_tanTheta-synchronize(vz_tanTheta,u_x))
+		
+		#####
+		##########
+		#################
+		if use4SaPerCycMagFiles:
+			if hostname in serverList:
+				mag_datafile = '/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
+				mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',tr)
+				#print '    Used mag data from:',mag_datafile
+			else:
+				mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_4_Sa_per_Cyc/$Y/$m/psp_fld_l2_mag_SC_4_Sa_per_Cyc_$Y$m$d_v$v.cdf'
+				mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_4_Sa_per_Cyc',tr)
+				#print '    Used mag data from:',mag_datafile
+		else:    
+			if useLocalCachedMagFiles:
+				try:
+					mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+					mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
+					#print '    Used mag data from:',mag_datafile
+				except:
+					mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+					mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
+					#print '    Used mag data from:',mag_datafile
+			else:
+				# Why was this using the full-resolution data instead of the 1min product? I am smoothing it on that order anyway, this was a dumb choice.
+				try:
+					# First try public 1min data
+					mag_datafile = 'http://research.ssl.berkeley.edu/data/psp/data/sci/fields/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+					mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
+					#print '    Used mag data from:',mag_datafile
+				except:
+					try:
+						# Then try team 1min data
+						mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC_1min/$Y/$m/psp_fld_l2_mag_SC_1min_$Y$m$d_v$v.cdf'
+						mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC_1min',tr)
+						#print '    Used mag data from:',mag_datafile
+					except:
+						try:
+							# Then start probing the full-resolution files to see if anything is there
+							mag_datafile = 'http://w3sweap.cfa.harvard.edu/data/sci/sweap/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+							mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+							#print '    Used mag data from:',mag_datafile
+						except:
+							try:
+								mag_datafile = googleDrive_path+'Research/Data/AutoplotCache/http/w3sweap.cfa.harvard.edu/data/sci/mag/l2_draft/$Y/$m/psp_fld_l2_mag_$Y$m$d_v$v.cdf'
+								mag = getDataSet(mag_datafile+'?psp_fld_mag_sc',tr)
+								#print '    Used mag data from:',mag_datafile
+							except:
+								mag_datafile = 'http://research.ssl.berkeley.edu/data/spp/data/sci/fields/staging/l2/mag_SC/$Y/$m/psp_fld_l2_mag_SC_$Y$m$d$(H,span=6)_v$v.cdf'
+								mag = getDataSet(mag_datafile+'?psp_fld_l2_mag_SC',tr)
+		print '    Used mag data from:',mag_datafile
+					
+		#mag = getDataSet('file:/home/kpaulson/data/remote/spp_swp_spc_magosurvey_20181103_v00.cdf?B_SC')
+		mag = trim(mag,tr)
+		
+		mag_time = mag.property(QDataSet.DEPEND_0)
+		
+		#pos = getDataSet('http://sweap.cfa.harvard.edu/data/sci/sweap/spc/L3/$Y/$m/spp_swp_spc_l3i_$Y$m$d_v$v.cdf?sc_pos_HCI',tr)
+		#pos_time = pos.property(QDataSet.DEPEND_0)
+		
+		Bx = mag[:,0]
+		By = mag[:,1]
+		Bz = mag[:,2]
+		Btotal = magnitude(mag)
+		#plot(6, Bx, renderType='series')
+		
+		time_last = TimeUtil.now()
+		print '    Downloading MAG Data took:',TimeUtil.now()-time_last
+		
+		# These inputs are arbitrary since we don't really care what the B_perp directions are for now. Does not affect outcome
+		TEMP_Rx = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+		TEMP_Ry = putProperty(-1*ones(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+		TEMP_Rz = putProperty(zeros(len(Btotal)),QDataSet.DEPEND_0,mag_time)
+		
+		
+		( Bn , Bp , Bq , Nx , Ny , Nz , Px , Py , Pz , Qx , Qy , Qz ) = field_aligner( Bx , By, Bz , Btotal , TEMP_Rx , TEMP_Ry , TEMP_Rz , trend_seconds )
+		#plot(6,Bx)
+		
+		#################
+		##########
+		#####
+		
+		time_last = TimeUtil.now()
+		print '    Rotating coordinate system took:',TimeUtil.now()-time_last
+		
+		plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+		#plot(6,mag_time,bundle(toDegrees(atan2(Nx,Nz)),toDegrees(atan2(Ny,Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+			
+		
+		for vdf in vdfList:
+			if vdf == 'vdf_full':
+				vdf_in = vdf_full
+				u_x_in = u_x
+				u_y_in = u_y
+				u_z_in = u_z
+				(Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
+				vdf_label = 'VDF!BTot.!N (cm!U-3!N km!U-1!N s)' 
+				
+				plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True, xrange=tr)
+				(chiline, psiline, chiSquaredReduced_chi, chiSquaredReduced_psi,
+					rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
+					epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
+					epsilonEpoch, anisotropy_chi_deltaPlus,
+					anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
+					anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, anisotropy_psi_standardDev) = findVDFAnisotropy(-v_z, vz_tanPhi, vz_tanTheta, 
+												 u_x_in, u_y_in, u_z_in, vdf_in, Nx_temp, Ny_temp, Nz_temp, 
+												 minNormalizedFluxValue=0.5, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+				load(plotTemplate)
+				plot(4,epsilonEpoch,bundle(anisotropy_chi,anisotropy_psi), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+				plot(5,epsilonEpoch,bundle(slopeError_chi,slopeError_psi), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+				plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+				
+			elif vdf == 'vdf_p1':
+				vdf_in = vdf_p1
+				vp1_fit_SC = synchronize(vdf_p1,vp1_fit_SC)
+				u_x_in = vp1_fit_SC[:,0]
+				u_y_in = vp1_fit_SC[:,1]
+				u_z_in = vp1_fit_SC[:,2]
+				(Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
+				vdf_label = 'VDF!BCore!N (cm!U-3!N km!U-1!N s)'
+				minFluxValueForFit = 0
+				
+				plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True)
+				(chiline_p1, psiline_p1, chiSquaredReduced_chi_p1, chiSquaredReduced_psi_p1,
+					rSquared_chi_p1, rSquared_psi_p1, slopeError_chi_p1, slopeError_psi_p1,
+					epsilon_chi_p1, epsilon_psi_p1, anisotropy_chi_p1, anisotropy_psi_p1, 
+					epsilonEpoch_p1, anisotropy_chi_deltaPlus_p1, anisotropy_chi_deltaMinus_p1,
+					anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1, anisotropy_chi_standardDev_p1, anisotropy_psi_standardDev_p1) = findVDFAnisotropy(-v_z, vz_tanPhi,
+												 vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
+												 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+				load(plotTemplate)
+				plot(4,epsilonEpoch_p1,bundle(anisotropy_chi_p1,anisotropy_psi_p1), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+				plot(5,epsilonEpoch_p1,bundle(slopeError_chi_p1,slopeError_psi_p1), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+				plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+				
+			elif vdf == 'vdf_3':
+				vdf_in = vdf_3
+				v3_fit_SC = synchronize(vdf_3,v3_fit_SC)
+				u_x_in = v3_fit_SC[:,0]
+				u_y_in = v3_fit_SC[:,1]
+				u_z_in = v3_fit_SC[:,2]
+				(Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
+				vdf_label = 'VDF!BBeam!N (cm!U-3!N km!U-1!N s)'
+				minFluxValueForFit = 0
+				
+				plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True)
+				(chiline_3, psiline_3, chiSquaredReduced_chi_3, chiSquaredReduced_psi_3,
+					rSquared_chi_3, rSquared_psi_3, slopeError_chi_3, slopeError_psi_3,
+					epsilon_chi_3, epsilon_psi_3, anisotropy_chi_3, anisotropy_psi_3, 
+					epsilonEpoch_3, anisotropy_chi_deltaPlus_3, anisotropy_chi_deltaMinus_3,
+					anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3, anisotropy_chi_standardDev_3, anisotropy_psi_standardDev_3) = findVDFAnisotropy(-v_z, vz_tanPhi,
+												 vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
+												 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+				load(plotTemplate)
+				plot(4,epsilonEpoch_3,bundle(anisotropy_chi_3,anisotropy_psi_3), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+				plot(5,epsilonEpoch_3,bundle(slopeError_chi_3,slopeError_psi_3), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+				plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+				
+			elif vdf == 'vdf_a':
+				vdf_in = vdf_a
+				va_fit_SC = synchronize(vdf_a,va_fit_SC)
+				u_x_in = va_fit_SC[:,0]
+				u_y_in = va_fit_SC[:,1]
+				u_z_in = va_fit_SC[:,2]
+				(Nx_temp,Ny_temp,Nz_temp) = synchronize(vdf_in,[Nx,Ny,Nz])
+				vdf_label = 'VDF!BAlpha!N (cm!U-3!N km!U-1!N s)'
+				minFluxValueForFit = 0
+				
+				plot(0,vdf_in,colorTable='apl_rainbow_black0',ytitle='v!Bz!N (km/s)',ztitle=vdf_label,zlog=True)
+				(chiline_a, psiline_a, chiSquaredReduced_chi_a, chiSquaredReduced_psi_a,
+					rSquared_chi_a, rSquared_psi_a, slopeError_chi_a, slopeError_psi_a,
+					epsilon_chi_a, epsilon_psi_a, anisotropy_chi_a, anisotropy_psi_a, 
+					epsilonEpoch_a, anisotropy_chi_deltaPlus_a, anisotropy_chi_deltaMinus_a,
+					anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a, anisotropy_chi_standardDev_a, anisotropy_psi_standardDev_a) = findVDFAnisotropy(-v_z, vz_tanPhi,
+												 vz_tanTheta, u_x_in, u_y_in, u_z_in, vdf_in, 
+												 Nx_temp, Ny_temp, Nz_temp, plotFitsAndPauseALot=plotFitsAndPauseALot_yn)
+				load(plotTemplate)
+				plot(4,epsilonEpoch_a,bundle(anisotropy_chi_a,anisotropy_psi_a), xrange=tr, ylog=True, yrange='0.1 to 10', ytitle='&omega;!B&perp;!N/&omega;!B||!N')
+				plot(5,epsilonEpoch_a,bundle(slopeError_chi_a,slopeError_psi_a), xrange=tr, ylog=True, yrange='0.005 to 50', ytitle='Slope Error of Fit')
+				#plot(6,bundle(anisotropy_chi_a,anisotropy_psi_a),ylog=True)
+				plot(6,mag_time,bundle(toDegrees(atan(Nx/Nz)),toDegrees(atan(Ny/Nz))), xrange=tr, ylog=False,ytitle='&#x2220;B!Bincident!N')
+		
+		
+			#Btotal_in = synchronize(chiline,Btotal)
+			
+			
+			
+			# ###
+			# ### WRITE STUFF
+			# ###
+			
+		if writeStuff:
+			mkdir(output_folder)
+			if analyzingTimeWidthComparisons:
+				output_file = output_folder+'SPC_Anisotropy_%s_v%s_%ssec_%ssec.cdf'%(timeTitle,version,str(smoothSeconds),str(fitSeconds))
+			else:
+				output_file = output_folder+'SPC_Anisotropy_%s_v%s.cdf'%(timeTitle,version)
+				#output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+			
+			
+			for vdf in vdfList:
+				time_write_begin = TimeUtil.now()
+				print '    writing %s file'%(vdf)
+				if vdf == 'vdf_full':
+					tempB = synchronize(chiline,[Nx,Ny,Nz])
+					Bunit = bundle(tempB[0],tempB[1],tempB[2])
+					Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch)
+					Btotal_in = synchronize(Bunit,Btotal)
+					writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline, psiline, 
+						 chiSquaredReduced_chi, chiSquaredReduced_psi,
+						 rSquared_chi, rSquared_psi, slopeError_chi, slopeError_psi,
+						 epsilon_chi, epsilon_psi, anisotropy_chi, anisotropy_psi, 
+						 epsilonEpoch, anisotropy_chi_deltaPlus,
+						 anisotropy_chi_deltaMinus, anisotropy_psi_deltaPlus,
+						 anisotropy_psi_deltaMinus, anisotropy_chi_standardDev, 
+						 anisotropy_psi_standardDev)
+					
+					try:
+						f = open(trCompletedFile, 'a')
+						f.write('\n%s'%timeTitle)
+						f.close()
+						print '    Wrote timerange to CompletedFiles List'
+					except:
+						pass
+					 #plot(epsilonEpoch)
+					 #print epsilonEpoch.property(QDataSet.UNITS)
+						 
+				elif vdf == 'vdf_p1':
+					tempB = synchronize(chiline_p1,[Nx,Ny,Nz])
+					Bunit = bundle(tempB[0],tempB[1],tempB[2])
+					Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_p1)
+					Btotal_in = synchronize(Bunit,Btotal)
+					output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+					writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_p1, psiline_p1, 
+						chiSquaredReduced_chi_p1, chiSquaredReduced_psi_p1,
+						rSquared_chi_p1, rSquared_psi_p1, slopeError_chi_p1, slopeError_psi_p1,
+						epsilon_chi_p1, epsilon_psi_p1, anisotropy_chi_p1, anisotropy_psi_p1, 
+						epsilonEpoch_p1, anisotropy_chi_deltaPlus_p1, anisotropy_chi_deltaMinus_p1,
+						anisotropy_psi_deltaPlus_p1,anisotropy_psi_deltaMinus_p1, anisotropy_chi_standardDev_p1, 
+						 anisotropy_psi_standardDev_p1)
+						
+				elif vdf == 'vdf_3':
+					tempB = synchronize(chiline_3,[Nx,Ny,Nz])
+					Bunit = bundle(tempB[0],tempB[1],tempB[2])
+					Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_3)
+					Btotal_in = synchronize(Bunit,Btotal)
+					output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+					writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_3, psiline_3, 
+						chiSquaredReduced_chi_3, chiSquaredReduced_psi_3,
+						rSquared_chi_3, rSquared_psi_3, slopeError_chi_3, slopeError_psi_3,
+						epsilon_chi_3, epsilon_psi_3, anisotropy_chi_3, anisotropy_psi_3, 
+						epsilonEpoch_3, anisotropy_chi_deltaPlus_3, anisotropy_chi_deltaMinus_3,
+						anisotropy_psi_deltaPlus_3,anisotropy_psi_deltaMinus_3, anisotropy_chi_standardDev_3, 
+						anisotropy_psi_standardDev_3)
+													 
+				elif vdf == 'vdf_a':
+					tempB = synchronize(chiline_a,[Nx,Ny,Nz])
+					Bunit = bundle(tempB[0],tempB[1],tempB[2])
+					Bunit.putProperty(QDataSet.DEPEND_0,epsilonEpoch_a)
+					Btotal_in = synchronize(Bunit,Btotal)
+					output_file = output_folder+'SPC_Anisotropy_%s_%s_v%s.cdf'%(vdf.split('_')[1],timeTitle,version)
+					writeAnisotropyL0(time_write_begin, output_file, Bunit, Btotal_in, chiline_a, psiline_a, 
+						chiSquaredReduced_chi_a, chiSquaredReduced_psi_a,
+						rSquared_chi_a, rSquared_psi_a, slopeError_chi_a, slopeError_psi_a,
+						epsilon_chi_a, epsilon_psi_a, anisotropy_chi_a, anisotropy_psi_a, 
+						epsilonEpoch_a, anisotropy_chi_deltaPlus_a, anisotropy_chi_deltaMinus_a,
+						anisotropy_psi_deltaPlus_a,anisotropy_psi_deltaMinus_a, anisotropy_chi_standardDev_a, 
+						anisotropy_psi_standardDev_a)
+			
+	except:
+		import traceback
+		traceback.print_exc()
+		continue

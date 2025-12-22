@@ -1,0 +1,299 @@
+tr = '2025-05-06 through 2025-05-10' # 5-Day period post aphelion roll O23/O24
+#tr = '2025-06-16 12:00 to 12:45'
+#tr = '2025-08-08 through 2025-08-11' # Aphelion 24/25
+#tr = '2025-09-08 through 2025-09-09' # O25 inbound mag roll
+#tr = '2025-10-30 through 2025-11-05'
+#tr = '2025-10-15 through 2025-10-31'
+
+
+
+subTime = '2025-05-06 08:00 through 2025-05-07 12:00'
+#subTime = '2025-06-16 12:20 to 12:35'
+#subTime = '2025-05-06 16:00 to 2025-05-10 10:00'
+subTime = '2025-08-09 18:00 to 2025-08-10 08:00'
+#subTime = '2025-10-19'
+
+upperEnergyLimit = 3000
+writePlot = False
+
+file_353 = 'file:///psp/data/sci/sweap/spc/L1/$Y/$m/APID353/spp_swp_spc_APID353L1_$Y$m$d_v$v.cdf'
+file_35F = 'file:///psp/data/sci/sweap/spc/L1/$Y/$m/APID35F/spp_swp_spc_APID35FL1_$Y$m$d_v$v.cdf'
+
+#tr_old = ''
+#global tr_old
+
+from java.awt import Color
+transparent_red = Color(255, 0, 0, 128) 
+transparent_blue = Color(0, 0, 255, 128) 
+
+
+def getWindowEnergies(windows):
+    windowEnergies4kVTable = [  0054.374, 0055.180, 0056.156, 0057.132, 0058.132, 0059.108, 0060.109, 0061.085, 
+                                0062.281, 0063.257, 0064.232, 0065.428, 0066.599, 0067.600, 0068.771, 0069.967,
+                                0071.138, 0072.334, 0073.700, 0074.896, 0076.067, 0077.458, 0078.849, 0080.020,
+                                0081.411, 0082.777, 0084.168, 0085.729, 0087.121, 0088.707, 0090.073, 0091.659,
+                                0093.246, 0094.807, 0096.393, 0097.979, 0099.736, 0101.322, 0103.103, 0104.885,
+                                0106.641, 0108.423, 0110.399, 0112.181, 0114.132, 0116.109, 0118.085, 0120.062,
+                                0122.039, 0124.210, 0126.187, 0128.359, 0130.505, 0132.872, 0135.044, 0137.411,
+                                0139.778, 0142.145, 0144.512, 0146.879, 0149.441, 0152.003, 0154.590, 0157.152,
+                                0159.909, 0162.666, 0165.423, 0168.181, 0170.963, 0173.915, 0176.868, 0179.820,
+                                0182.993, 0186.140, 0189.288, 0192.460, 0195.608, 0198.950, 0202.318, 0205.856,
+                                0209.419, 0212.957, 0216.520, 0220.253, 0224.011, 0227.744, 0231.697, 0235.650,
+                                0239.578, 0243.726, 0247.875, 0252.023, 0256.367, 0260.685, 0265.028, 0269.567,
+                                0274.106, 0278.840, 0283.573, 0288.307, 0293.236, 0298.360, 0303.289, 0308.438,
+                                0313.758, 0319.077, 0324.591, 0329.936, 0335.645, 0341.355, 0347.089, 0352.994,
+                                0359.119, 0365.244, 0371.344, 0377.664, 0384.179, 0390.669, 0397.185, 0404.090,
+                                0410.800, 0417.901, 0425.002, 0432.103, 0439.594, 0447.085, 0454.576, 0462.287,
+                                0470.168, 0478.245, 0486.346, 0494.618, 0502.914, 0511.576, 0520.263, 0529.145,
+                                0538.028, 0547.275, 0556.547, 0566.015, 0575.678, 0585.366, 0595.419, 0605.472,
+                                0615.720, 0626.188, 0636.827, 0647.686, 0658.740, 0669.963, 0681.213, 0692.852,
+                                0704.686, 0716.716, 0728.746, 0741.166, 0753.806, 0766.616, 0779.647, 0792.847,
+                                0806.463, 0820.079, 0834.085, 0848.287, 0862.683, 0877.275, 0892.257, 0907.459,
+                                0922.831, 0938.424, 0954.407, 0970.755, 0987.128, 1003.892, 1021.070, 1038.419,
+                                1055.963, 1073.923, 1092.273, 1110.817, 1129.753, 1148.883, 1168.404, 1188.315,
+                                1208.446, 1229.162, 1250.049, 1271.156, 1292.848, 1314.761, 1337.234, 1359.927,
+                                1383.011, 1406.485, 1430.349, 1454.799, 1479.443, 1504.699, 1530.149, 1556.185,
+                                1582.611, 1609.623, 1636.855, 1664.672, 1693.075, 1721.868, 1751.051, 1780.845,
+                                1811.200, 1841.969, 1873.350, 1905.095, 1937.451, 1970.392, 2003.919, 2038.032,
+                                2072.559, 2107.868, 2143.762, 2180.241, 2217.135, 2255.006, 2293.267, 2332.138,
+                                2371.960, 2412.197, 2453.240, 2494.843, 2537.252, 2580.442, 2624.242, 2669.018,
+                                2714.380, 2760.547, 2807.469, 2855.028, 2903.732, 2953.046, 3003.141, 3054.237,
+                                3106.114, 3158.967, 3212.625, 3267.258, 3322.868, 3379.283, 3436.870, 3495.261,
+                                3554.629, 3614.998, 3676.537, 3739.052, 3802.568, 3867.255, 3932.943, 3999.801]
+                        
+    windowEnergies6kVTable = [  0069.961, 0071.913, 0074.085, 0076.061, 0078.038, 0080.014, 0084.943, 0090.067,
+                                0094.996, 0099.925, 0105.049, 0109.978, 0114.932, 0120.056, 0124.985, 0129.914,
+                                0135.038, 0139.967, 0145.091, 0150.020, 0154.975, 0159.903, 0165.028, 0169.956,
+                                0175.081, 0180.010, 0184.938, 0190.063, 0194.992, 0199.946, 0205.070, 0209.999,
+                                0214.928, 0220.052, 0224.981, 0229.910, 0235.034, 0239.963, 0244.917, 0250.041,
+                                0254.970, 0260.094, 0265.023, 0269.952, 0275.076, 0280.005, 0284.934, 0290.083,
+                                0295.012, 0299.941, 0305.065, 0309.994, 0314.923, 0320.047, 0324.976, 0329.905,
+                                0334.834, 0339.788, 0344.717, 0349.841, 0354.965, 0360.089, 0365.408, 0370.753,
+                                0376.267, 0381.781, 0387.516, 0393.031, 0398.960, 0404.670, 0410.795, 0416.700,
+                                0422.824, 0429.119, 0435.440, 0441.760, 0448.250, 0454.765, 0461.475, 0468.381,
+                                0475.091, 0482.192, 0489.293, 0496.394, 0503.689, 0511.180, 0518.671, 0526.358,
+                                0534.069, 0541.755, 0549.831, 0557.933, 0566.009, 0574.306, 0582.773, 0591.460,
+                                0600.147, 0608.809, 0617.886, 0626.963, 0636.041, 0645.508, 0654.976, 0664.639,
+                                0674.301, 0684.159, 0694.212, 0704.486, 0714.929, 0725.372, 0736.036, 0746.895,
+                                0757.728, 0768.977, 0780.226, 0791.671, 0803.285, 0815.119, 0827.149, 0839.204,
+                                0851.624, 0864.044, 0876.854, 0889.689, 0902.695, 0915.920, 0929.536, 0943.127,
+                                0956.938, 0970.944, 0985.341, 0999.738, 1014.549, 1029.336, 1044.513, 1059.911,
+                                1075.478, 1091.266, 1107.249, 1123.427, 1139.995, 1156.759, 1173.717, 1191.066,
+                                1208.440, 1226.179, 1244.334, 1262.463, 1281.008, 1299.944, 1319.074, 1338.399,
+                                1358.140, 1378.051, 1398.182, 1418.874, 1439.591, 1460.893, 1482.195, 1504.082,
+                                1526.190, 1548.468, 1571.356, 1594.440, 1617.719, 1641.583, 1665.642, 1690.092,
+                                1714.957, 1740.187, 1765.833, 1791.673, 1818.100, 1844.721, 1871.758, 1899.355,
+                                1927.172, 1955.575, 1984.368, 2013.381, 2042.955, 2072.944, 2103.519, 2134.483,
+                                2165.839, 2197.584, 2229.940, 2262.686, 2295.823, 2329.545, 2363.878, 2398.575,
+                                2433.884, 2469.582, 2505.892, 2542.566, 2580.046, 2617.917, 2656.372, 2695.439,
+                                2734.895, 2775.133, 2815.956, 2857.364, 2899.382, 2941.792, 2985.176, 3028.977,
+                                3073.557, 3118.528, 3164.475, 3210.838, 3258.176, 3305.904, 3354.608, 3403.727,
+                                3453.823, 3504.528, 3555.990, 3608.282, 3661.329, 3715.182, 3769.621, 3825.036,
+                                3881.256, 3938.256, 3996.233, 4054.820, 4114.383, 4174.946, 4236.291, 4298.416,
+                                4361.541, 4425.643, 4490.720, 4556.603, 4623.657, 4691.516, 4760.546, 4830.383,
+                                4901.390, 4973.372, 5046.551, 5120.510, 5195.861, 5272.187, 5349.709, 5428.207,
+                                5507.901, 5588.961, 5671.022, 5754.254, 5838.877, 5924.671, 6011.661, 6100.017]
+    
+    mv_lo = dblarr(len(windows))
+    for i in xrange(len(windows)):
+        mv_lo[i] = windowEnergies6kVTable[int(windows[i])]
+        
+    return(mv_lo)
+
+def convertVelDNToVelocity(Raw):
+    Raw.putProperty(QDataSet.UNITS, None)
+    #return( (99.1095142469013978825387312099337577819824 * Raw ** 0) + (0.984398725083763 * Raw) + (0.0047348989771278902904949603680506697856 * Raw ** 2) + (0.0000184571558167864987792979036829166262 * Raw ** 3) + (0.0000000152356268015681012375010761842470 * Raw ** 4) + (0.0000000002173927524985549873881129901814 * Raw ** 5) + (-0.0000000000003085026250906070225623755834 * Raw ** 6) + (0.0000000000000008562567429045270132317086 * Raw ** 7))
+    return((110.0999029782390010723247542046010494232178 * Raw ** 0) + (3.541960966089080 * Raw) + (-0.0227382411031613017315944347274125902914 * Raw ** 2) + (0.0000039980119914137100228909878218974683 * Raw ** 3) + (0.0000024751541044447799551169158566166217 * Raw ** 4) + (-0.0000000194612329534854002907473947796280 * Raw ** 5) + (0.0000000000622801500749857058713664136568 * Raw ** 6) + (-0.0000000000000731251996682070023438620989 * Raw ** 7))
+
+
+def shiftBits(ds):
+    #There is a step in IDL data processing where the bits are shifted relative to 2047 for some reason
+    # When looking at the dn values, there was an obvious rollover where the values exceeded 4096
+    
+    #ds_shifted = copy(ds[:,2])
+    ds_shifted = copy(ds)
+    ds_shifted.putProperty(QDataSet.VALID_MIN, None)
+    ds_shifted.putProperty(QDataSet.VALID_MAX, None)
+    upperValues_ds = where(gt(ds, 2047))
+    ds_shifted[upperValues_ds] = ds_shifted[upperValues_ds]-4096
+    return(ds_shifted)
+    
+    
+def applyGain(sin_dn, cos_dn, gain_dn):
+    # At some point I need to convert DN to current:
+    # current = I0 * dn*G where G = 16^(3-gain)
+    sin_current = sin_dn*(16**(3-gain_dn))
+    cos_current = cos_dn*(16**(3-gain_dn))
+    return(sin_current, cos_current)        
+
+
+def rank1To2ifier(rank1_ds, rank1_time, rank1_energy, rank2_time, rank2in1_timeIndices):
+    #rank1_time = rank1_ds.property(QDataSet.DEPEND_0)
+    rank2_ds = dblarr(len(rank2_time), 256)
+    print 'rank1_ds:',rank1_ds
+    print 'rank2_time:',rank2_time
+    print 'rank2in1_timeIndices:',rank2in1_timeIndices
+    print 'rank2in1_timeIndices[0]:',rank2in1_timeIndices[0]
+    print 'len(rank1_ds[:rank2in1_timeIndices[0]]):',len(rank1_ds[:rank2in1_timeIndices[0]])
+    
+    rank2_ds[:len(rank1_ds[:rank2in1_timeIndices[0]]),0] = rank1_ds[:rank2in1_timeIndices[0]]
+    for i in xrange(len(rank2_time)-1):
+        sweepData = rank1_ds[rank2in1_timeIndices[i]:rank2in1_timeIndices[i+1]]
+        sweepEnergy = rank1_energy[rank2in1_timeIndices[i]:rank2in1_timeIndices[i+1]]
+        sweepLength = len(sweepData)
+        #print sweepLength
+        if sweepLength > 31:
+            sweepData = sweepData[:31]
+            sweepEnergy = sweepEnergy[:31]
+            sweepLength = len(sweepData)
+        print sweepData
+        rank2_ds[i+1,:sweepLength] = sweepData[sort(sweepEnergy)]  # sweepData
+    
+    return(rank2_ds)
+
+def plotOverallPhaseAndRSS(tr):
+    
+    global arss_array
+    global phase_array
+    global mv_lo_array
+    global energy
+    
+    ds=getDataSet(file_353+'?ASIN', tr)
+    ds1=getDataSet(file_353+'?ACOS', tr)
+    gain=getDataSet(file_353+'?AGAIN', tr)
+    ds2=getDataSet(file_353+'?WINDOW', tr)
+    
+    vel = getDataSet(file_35F+'?SW_SPC_VEL', tr)
+    
+    asin_353 = ds
+    acos_353 = ds1
+    again_353= gain
+    
+    time = asin_353.property(QDataSet.DEPEND_0)
+                                                    
+    mv_lo = getWindowEnergies(ds2)
+    vel = convertVelDNToVelocity(vel)
+    
+    m_p = 0.010438870 #938.27 MeV/c² converted into eV
+    energy = 0.5*m_p*(vel**2)
+    
+    asinShifted_353 = shiftBits(asin_353)
+    acosShifted_353 = shiftBits(acos_353)
+    
+    phase = toDegrees(atan2(asinShifted_353,acosShifted_353))
+    negPhase = where(lt(phase,0))
+    phase[negPhase] += 360
+            
+    (asinCurrent, acosCurrent) = applyGain(asinShifted_353, acosShifted_353, again_353)
+    
+    arss = sqrt(acosCurrent**2 + asinCurrent**2)
+    
+    diffTime = diff(time)
+    bigSpikes = where(gt(diffTime, 1E10))
+    
+    arrayTime = None
+    #for i in xrange(len(bigSpikes)):
+    for jumpTime in time[bigSpikes]:
+        arrayTime = append(arrayTime, jumpTime)
+    
+    arss_array  = rank1To2ifier(arss,  time, mv_lo, arrayTime, bigSpikes)
+    phase_array = rank1To2ifier(phase, time, mv_lo, arrayTime, bigSpikes)
+    mv_lo_array = rank1To2ifier(mv_lo, time, mv_lo, arrayTime, bigSpikes)
+    
+    #plot(3, arrayTime, mv_lo_array, arss_array)
+    #stp
+    
+    mv_lo.putProperty(QDataSet.DEPEND_0, time)
+    
+    phase.putProperty(QDataSet.DEPEND_0, time)
+    phase.putProperty(QDataSet.DEPEND_1, mv_lo)
+    
+    arss.putProperty(QDataSet.DEPEND_0, time)
+    arss.putProperty(QDataSet.DEPEND_1, mv_lo)
+    
+    mv_lo_array.putProperty(QDataSet.DEPEND_0, arrayTime)
+    
+    phase_array.putProperty(QDataSet.DEPEND_0, arrayTime)
+    phase_array.putProperty(QDataSet.DEPEND_1, mv_lo_array)
+    
+    arss_array.putProperty(QDataSet.DEPEND_0, arrayTime)
+    arss_array.putProperty(QDataSet.DEPEND_1, mv_lo_array)
+    
+    
+    #plot(0, time, mv_lo, phase, renderType='spectrogram', colorTable='apl_rainbow_black0')
+    #plot(1, energy)
+    
+    #plot(2, time, mv_lo, arss, renderType='spectrogram', colorTable='apl_rainbow_black0')
+    
+    plot(0, phase_array, renderType='spectrogram', colorTable='apl_rainbow_black0', ytitle='mv_lo (eV)', ztitle='Phase (degrees)', title='Phase Analysis of SPC Flight Data', zrange=[0,360], zlog=False)
+    plot(1, energy)
+    
+    plot(2, arss_array, renderType='spectrogram', colorTable='apl_rainbow_black0', ytitle='mv_lo (eV)', ztitle='A_rss (current)', xrange=tr)
+
+    
+
+def analyzeSubTime(phase_array, arss_array, mv_lo_array, energy, subTime):
+    print 'subTime:',subTime
+    phase_array_subTime = trim(phase_array, subTime)
+    arss_array_subTime = trim(arss_array, subTime)
+    mv_lo_array_subtime = trim(mv_lo_array, subTime)
+    #energy_subTime = trim(energy, subTime)
+    energy_subTime = synchronize(phase_array_subTime, energy)
+    arraySubTime = phase_array_subTime.property(QDataSet.DEPEND_0)
+    
+    plot(3, createEvent(datumRange(subTime),0,'Phase Histogram Period'), color=transparent_red, legendLabel='Histogram!CPeriod')
+    
+    arss_mask_subTime = zeros(arss_array_subTime)
+    for i in range(len(energy_subTime)):
+        peakIndex = imin(abs(mv_lo_array_subtime[i,:]-energy_subTime[i]))
+        arss_mask_subTime[i,peakIndex-0:peakIndex+1] = 1
+    
+    arss_mask_subTime.putProperty(QDataSet.DEPEND_0, arraySubTime)
+    arss_mask_subTime.putProperty(QDataSet.DEPEND_1, mv_lo_array_subtime)
+    
+    peakBins = where(arss_mask_subTime)
+    noiseBins = where(gt(mv_lo_array_subtime,upperEnergyLimit))
+    
+    #plot(3, phase_array_subTime[:,14], arss_array_subTime[:,14], renderType='scatter')
+    plot(4, histogram(phase_array_subTime[peakBins],0,360,1), renderType='stairSteps', color='blue', fillColor=transparent_blue, legendLabel='Peak Measurement', xtitle='Phase (degrees)', ytitle='# Points', title='Phase Distribution for %s'%subTime)
+    plot(5, histogram(phase_array_subTime[noiseBins],0,360,1), renderType='stairSteps', color='red', fillColor=transparent_red, legendLabel='mv_lo > %sV'%upperEnergyLimit, xtitle='Phase (degrees)', ytitle='# Points')
+    
+    plot(6, phase_array_subTime[peakBins], mv_lo_array_subtime[peakBins], arss_array_subTime[peakBins], renderType='colorScatter', zlog=True, symbolSize=5., xtitle='Phase (degrees)', ytitle='mv_lo (eV)', ztitle='A_rss (current)', legendLabel='Peak Bins', symbol='circles')
+    plot(7, phase_array_subTime[noiseBins], mv_lo_array_subtime[noiseBins], arss_array_subTime[noiseBins], renderType='colorScatter', zlog=True, symbolSize=2., xtitle='Phase (degrees)', ytitle='mv_lo (eV)', ztitle='A_rss (current)', legendLabel='mv_lo > %sV'%upperEnergyLimit, symbol='crosses')
+
+def main(tr, subTime, upperEnergyLimit, writePlot):
+    
+    if 'tr_old' not in globals():
+        print 'adding \'tr_old\' to global variable list'
+        global tr_old
+        tr_old = ''
+    
+    if tr != tr_old:
+        print 'Plotting the overall Timerange'
+        plotOverallPhaseAndRSS(tr)
+        
+        global tr_old
+        tr_old = tr
+    else:
+        print 'Already plotted overall Timerange, just analyzing subset'
+    
+    analyzeSubTime(phase_array, arss_array, mv_lo_array, energy, subTime)
+
+    if writePlot:
+        writeToPng('/home/kpaulson/sharedDrive_PSP-SWEAP/INSTRUMENT/SPC/Operations/projects/noisePhaseAnalysis'+'psp_spc_noisePhaseHistogram_%s.png'%subTime)
+
+def mouse( evt ):
+    ds= dom.plotElements[2].controller.dataSet
+    #if gt(evt.getXRange().width(), datum('1E-3 sec')):
+    #    ds= trim( ds, evt.getXRange() )
+    #    ds_dep1 = ds.property(QDataSet.DEPEND_1)
+    #else:
+    #    ds= slice0( ds, dataset(evt.getXRange().min()) )
+    #    ds_dep1 = ds.property(QDataSet.DEPEND_0)     
+    #subTime = putProperty(ds_dep1[:,0], QDataSet.UNITS, Units.cdfTT2000)
+    subTime = evt.getXRange()
+    analyzeSubTime(phase_array, arss_array, mv_lo_array, energy, subTime)
+
+addMouseModule( dom.plots[1], "generateHistograms", mouse )
+            
+main(tr, subTime, upperEnergyLimit, writePlot)

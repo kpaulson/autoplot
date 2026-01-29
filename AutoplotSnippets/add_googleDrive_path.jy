@@ -1,0 +1,21 @@
+setScriptDescription("""Insert googleDrive_path Identifier""")
+setScriptLabel("Google Drive Path")
+setScriptTitle("Google Drive Path")
+
+editor= getApplication().getScriptPanel().getEditorPanel()
+
+text= """
+serverList = ['fc.cfa.harvard.edu', 'machida.cfa.harvard.edu']
+import socket
+hostname = socket.gethostname()
+
+if hostname in serverList:
+    googleDrive_path = '/home/kpaulson/MyDrive/'
+else:
+    googleDrive_path = 'G:/My Drive/'
+"""
+
+doc= editor.getDocument()
+pos= editor.getCaretPosition()
+
+doc.insertString(pos, text, None)

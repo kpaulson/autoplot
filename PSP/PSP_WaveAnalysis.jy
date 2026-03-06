@@ -4,7 +4,6 @@
 ############################################################################
 ############################################################################
 
-
 timerange        = getParam('timerange','2021-11-22 02:00 to 4:00','Timerange over which to calculate Wave Parameters')
 
 freq_min         = getParam('minFrequency',   0.1,  'Lower frequency bound of analysis (Hz)')
@@ -58,31 +57,46 @@ elif writeStuff == 'F':
 	writeStuff = True
 	outputDirectory = '/tmp/'
 	print '    secretly writing file to %s directory'%(outputDirectory)
-   
+	
+def print_boxed_params(params):
+    title = "INPUT PARAMETERS"
+    if not params:
+        print "+-%s-+\n| %s |\n+-%s-+" % ("-"*len(title), title, "-"*len(title))
+        return
+
+    items = params.items()[::-1]
+    kw = max([len(str(k)) for k in params.keys()]) + 2
+    vw = max([len(str(v)) for v in params.values()]) + 2
+    
+    # Ensure columns are wide enough for title (title + 2 padding)
+    if (kw + vw + 1) < (len(title) + 2):
+        vw = (len(title) + 2) - kw - 1
+
+    # Total width of the interior (columns + middle '+')
+    iw = kw + vw + 1
+    sep = "+" + "-" * kw + "+" + "-" * vw + "+"
+    
+    print "+" + "-" * iw + "+"
+    print "| " + title.center(iw - 2) + " |"
+    print sep
+    for k, v in items:
+        print "| %-*s| %-*s|" % (kw - 1, str(k), vw - 1, str(v))
+    print sep
+
+print_boxed_params(params)   
 
 ############################################################################
 ##################            IMPORTS            ###########################
 ############################################################################
 ############################################################################
 
-def get_os_version():
-	'''
-	Basic subprocess that should print out the operating system version. Mostly helpful
-	for scripts looking for files in a different directory structure on windows vs mac.
-	Easiest application:
-		print get_os_version().split()[0]
-	'''
-	import sys
-	ver = sys.platform.lower()
-	if ver.startswith('java'):
-		import java.lang
-		ver = java.lang.System.getProperty("os.name").lower()
-	return ver
-	   
-OS = get_os_version().split()[0]
-if OS == 'mac' or OS == 'linux':
+serverList = ['fc.cfa.harvard.edu', 'nanook']
+import socket
+hostName = socket.gethostname()
+       
+if hostName in serverList:
 	googleDrive_path = '/home/kpaulson/MyDrive/'
-elif OS == 'windows':
+else:
 	#googleDrive_path = '/Users/kpaulson/GoogleDrive/'
 	googleDrive_path = 'G:/My Drive/'
 	
@@ -278,6 +292,13 @@ for tr in trs:
 					TEMP_epoch = getDataSet(outputFile+'?Bfield_time')
 				if ne( long(mode(copy(TEMP_epoch))), 0):
 					fileAlreadyExists = True
+					try:
+						f = open(trCompletedFile, 'a')
+						f.write('\n%s'%tr_titles[index])
+						f.close()
+						print '    Wrote file to CompletedFiles List'
+					except:
+						pass
 		except:
 			if checkForFailedFiles:
 				try:
@@ -350,7 +371,8 @@ for tr in trs:
 				version = '0'+version[1:]
 				outputDirectory = 'Research/PSP/WaveAnalysis/WaveAnalysis_Files/v%s/'%(version)
 				waveAnalysisFiles_directory = googleDrive_path + outputDirectory
-				outputFile = waveAnalysisFiles_directory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
+				mkdir(waveAnalysisFiles_directory+outputSubDirectory)
+				outputFile = waveAnalysisFiles_directory+outputSubDirectory+'PSP_WaveAnalysis_%s_v%s.cdf'%(tr_titles[index],version)
 			else:
 				efield_data = None
 	
@@ -733,6 +755,7 @@ for tr in trs:
 					formatDataSet(variableList[0], outputFile)
 				if gt(len(variableList),1):
 					for variable in variableList[1:]:
+						print '    writing %s'%(variable.property(QDataSet.NAME))
 						formatDataSet(variable ,outputFile+'?append=T')
 			
 			mkdir(waveAnalysisFiles_directory)           
@@ -772,6 +795,15 @@ for tr in trs:
 			else:
 				writeVarsToCDF(variableList, outputFile)
 			
+			if version[0] != '0':
+				try:
+					f = open(trCompletedFile, 'a')
+					f.write('\n%s'%tr_titles[index])
+					f.close()
+					print '    Wrote file to CompletedFiles List'
+				except:
+					pass
+			
 		
 		# ###
 		# ### PLOT STUFF
@@ -779,6 +811,7 @@ for tr in trs:
 			
 		monitor.setProgressMessage('Plotting')
 		if plotStuff:
+			print '    Generating plot'
 			if filterOutIncoherent:
 				incoherent = where(lt(medianFilter(Coherency,10),0.9))
 				Smag[incoherent] = 0
@@ -794,15 +827,21 @@ for tr in trs:
 				Angle_Normal[incoherent] = -1
 			
 			#setLayoutOverplot(3)
-			waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/WaveAnalysis_Files/'
-			load(waveAnalysis_directory+'PSP_waveAnalysis_stack.vap')
+			waveAnalysis_directory = googleDrive_path+'Research/PSP/WaveAnalysis/'
+			if hostName in serverList:
+				load(waveAnalysis_directory+'PSP_waveAnalysis_stack_v%s_localServer.vap'%(version))
+			else:
+				load(waveAnalysis_directory+'PSP_waveAnalysis_stack_v%s.vap'%(version))
+			#load(waveAnalysis_directory+'PSP_waveAnalysis_stack.vap')
 			waitUntilIdle()
 			
-			min_timeSeries = min(Bq_pol[::100])
+			#min_timeSeries = min(Bq_pol[::100])
 			max_timeSeries = max(Bn_pol[::100])
+			min_timeSeries = -1*max_timeSeries #Changed this value to make the plot symmetric about 0 so we can see changes in Br better (current saheets)
 			
 			plot(0, mag_time, Bn_pol, ytitle='B (nT)', color='black', title='PSP WaveAnalysis   %s   v%s'%(tr_titles[index],version), xrange=tr)
 			plot(1, mag_time, Bp_pol, ytitle='B (nT)', color='red', xrange=tr)
+			#plot(9, Ep, ytitle='E', color='red')
 			plot(2, mag_time, Bq_pol, ytitle='B (nT)', color='blue', yrange=[1.1*min_timeSeries.value(), 1.1*max_timeSeries.value()])
 			#plot(3, Smag, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[1.0E-6,0.05], ztitle='Poynting Flux!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
 			#plot(3, Power_compressional, ytitle='Frequency (%{UNITS})', zlog=True, zrange=[2.0E-3,1.E2], ztitle='PSD B!Bk||!N!C!C(%{UNITS})', colorTable='apl_rainbow_black0')  
@@ -813,8 +852,9 @@ for tr in trs:
 				plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CAgainst  Along!CB          B', zlog=False, zrange=[0,180]) 
 			elif sunOrientedPoyntingFlux:
 				plot(4, Poynting_theta, colorTable='blue_white_red', ztitle='S!B&theta;!n!C!CTo        From!CSun          Sun', zlog=False, zrange=[0,180]) 
-			
+			plot(5, mod(toDegrees(atan2(Bp_fft_pol[:,:,1], Bp_fft_pol[:,:,0])) - toDegrees(atan2(Eq_fft_pol[:,:,1], Eq_fft_pol[:,:,0])), 180) )
 			#plot(4, Poynting_phi, colorTable='apl_rainbow_black0')   
+			#plot(4, efield_data[:,0])
 			#plot(4, Ellipticity_E, colorTable='blue_white_red', ztitle='Ellipticity_E!C!CRH            LH')
 			plot(5, Ellipticity, colorTable='blue_white_red', ztitle='Ellipticity!C!CRH            LH')
 			plot(6, Coherency, colorTable='grayscale', ztitle='Coherency', zrange=[0,1], zlog=False)
@@ -831,8 +871,10 @@ for tr in trs:
 			#dom.plots[0].xaxis.setRange = datumRange(fft_time)
 			
 			waitUntilIdle()
-			mkdir(waveAnalysis_directory+'Plots/v%s/'%(version))
-			writeToPng(waveAnalysis_directory+'Plots/v%s/'%(version)+'PSP_WaveAnalysis_%s_v%s.png'%(tr_titles[index],version))
+			mkdir(waveAnalysis_directory+'WaveAnalysis_Files/Plots/v%s/'%(version))
+			print '   ','pngOut:',waveAnalysis_directory+'WaveAnalysis_Files/Plots/v%s/'%(version)+'PSP_WaveAnalysis_%s_v%s.png'%(tr_titles[index],version)
+			writeToPng(waveAnalysis_directory+'WaveAnalysis_Files/Plots/v%s/'%(version)+'PSP_WaveAnalysis_%s_v%s.png'%(tr_titles[index],version))
+			print '   ','Finished writing png'
 			
 		index = index+1
 	  
